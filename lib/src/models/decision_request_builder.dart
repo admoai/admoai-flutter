@@ -10,17 +10,11 @@ class DecisionRequestBuilder {
   bool _collectAppData = true;
   bool _collectDeviceData = true;
 
-  final AppConfig _appConfig;
-  final DeviceConfig _deviceConfig;
-  final UserConfig _userConfig;
-
   DecisionRequestBuilder({
     required AppConfig appConfig,
     required DeviceConfig deviceConfig,
     required UserConfig userConfig,
-  })  : _appConfig = appConfig,
-        _deviceConfig = deviceConfig,
-        _userConfig = userConfig {
+  }) {
     _app = App(
       name: appConfig.name,
       version: appConfig.version,
