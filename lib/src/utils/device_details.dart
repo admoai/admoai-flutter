@@ -1,7 +1,7 @@
-import 'package:flutter/widgets.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'dart:io';
+import 'dart:ui';
 
 class DeviceDetails {
   final String? id;
@@ -25,7 +25,7 @@ class DeviceDetails {
 
 Future<DeviceDetails> getDeviceDetails() async {
   final deviceInfo = DeviceInfoPlugin();
-  final locale = WidgetsBinding.instance.window.locale;
+  final locale = PlatformDispatcher.instance.locale;
   final timezone = await FlutterTimezone.getLocalTimezone();
 
   if (Platform.isIOS) {
@@ -37,7 +37,7 @@ Future<DeviceDetails> getDeviceDetails() async {
       os: 'iOS',
       osVersion: iosInfo.systemVersion,
       timezone: timezone,
-      language: locale.languageCode,
+      language: locale.toLanguageTag(),
     );
   } else if (Platform.isAndroid) {
     final androidInfo = await deviceInfo.androidInfo;
@@ -48,7 +48,7 @@ Future<DeviceDetails> getDeviceDetails() async {
       os: 'Android',
       osVersion: androidInfo.version.release,
       timezone: timezone,
-      language: locale.languageCode,
+      language: locale.toLanguageTag(),
     );
   }
 
