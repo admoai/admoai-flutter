@@ -20,14 +20,17 @@ class AppDetails {
 Future<AppDetails> getAppDetails() async {
   try {
     final packageInfo = await PackageInfo.fromPlatform();
-    final locale = WidgetsBinding.instance.window.locale;
+    final preferredLocales = WidgetsBinding.instance.platformDispatcher.locales;
+    final appLanguage = preferredLocales.isNotEmpty
+        ? preferredLocales.first.toLanguageTag()
+        : null;
 
     return AppDetails(
       name: packageInfo.appName,
       version: packageInfo.version,
       buildNumber: packageInfo.buildNumber,
       identifier: packageInfo.packageName,
-      language: locale.languageCode,
+      language: appLanguage,
     );
   } catch (e) {
     return AppDetails();
