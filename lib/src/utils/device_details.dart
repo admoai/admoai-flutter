@@ -2,8 +2,6 @@ import 'package:flutter/widgets.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'dart:io';
 
-bool isTesting = false;
-
 class DeviceDetails {
   final String? id;
   final String? model;

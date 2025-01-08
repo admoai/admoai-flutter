@@ -17,8 +17,6 @@ class AppDetails {
   });
 }
 
-bool isTesting = false;
-
 Future<AppDetails> getAppDetails() async {
   try {
     final packageInfo = await PackageInfo.fromPlatform();
