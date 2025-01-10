@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:logging/logging.dart';
 import 'package:admoai/admoai.dart';
+import 'package:flutter/services.dart';
 
 const baseUrl = 'https://mock.api.admoai.com';
 
@@ -9,8 +10,19 @@ void main() {
   late AdMoai sdk;
 
   setUp(() async {
-    final config = SDKConfig(baseUrl: baseUrl);
+    const MethodChannel channel = MethodChannel('flutter_timezone');
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+      channel,
+      (MethodCall methodCall) async {
+        if (methodCall.method == 'getLocalTimezone') {
+          return 'UTC';
+        }
+        return null;
+      },
+    );
 
+    final config = SDKConfig(baseUrl: baseUrl);
     sdk = await AdMoai.initialize(
       config: config,
     );
