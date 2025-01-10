@@ -29,16 +29,27 @@ class AdMoaiClient {
       final jsonBody = jsonDecode(rawBody) as Map<String, dynamic>;
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
-        return APIResponse(
-          response: response,
-          body: APIResponseBody(
-            success: true,
-            data: jsonBody['data'],
+        if (T == List<Decision>) {
+          final List<dynamic> dataList = jsonBody['data'];
+          final decisions = dataList
+              .map((item) => Decision.fromJson(item as Map<String, dynamic>))
+              .toList();
+
+          final responseBody = APIResponseBody<T>(
+            success: jsonBody['success'] as bool,
+            data: decisions as T,
             errors: [],
             warnings: [],
-          ),
-          rawBody: rawBody,
-        );
+          );
+
+          return APIResponse<T>(
+            response: response,
+            body: responseBody,
+            rawBody: rawBody,
+          );
+        }
+
+        throw UnimplementedError('Unsupported type: $T');
       }
 
       switch (response.statusCode) {
@@ -66,17 +77,14 @@ class AdMoaiClient {
         default:
           throw NetworkError('Unexpected status code: ${response.statusCode}');
       }
-    } on FormatException catch (e) {
-      throw DecodingError(e);
     } catch (e) {
-      if (e is APIError) rethrow;
-      throw NetworkError(e);
+      throw NetworkError(e.toString());
     }
   }
 
   HTTPRequest getDecisionRequest(DecisionRequest request) {
     return HTTPRequest(
-      path: '/v1/decisions',
+      path: '/v1/decision',
       method: HTTPMethod.post,
       headers: {
         'Content-Type': 'application/json',
