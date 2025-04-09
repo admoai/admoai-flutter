@@ -25,7 +25,7 @@ class AdMoaiClient {
         body: request.body,
       );
 
-      final rawBody = response.body;
+      final rawBody = utf8.decode(response.bodyBytes);
       final jsonBody = jsonDecode(rawBody) as Map<String, dynamic>;
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
