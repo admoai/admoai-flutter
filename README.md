@@ -1,5 +1,10 @@
 # AdMoai Flutter SDK
 
+[![pub package](https://img.shields.io/pub/v/admoai.svg)](https://pub.dev/packages/admoai)
+[![Flutter](https://img.shields.io/badge/Flutter-3.0%2B-blue.svg)](https://flutter.dev)
+[![Dart](https://img.shields.io/badge/Dart-3.0%2B-blue.svg)](https://dart.dev)
+[![Conventional Commits](https://img.shields.io/badge/Conventional%20Commits-1.0.0-yellow.svg)](https://conventionalcommits.org)
+
 AdMoai Flutter SDK is a cross-platform advertising solution that enables seamless integration of ads into Flutter applications. The SDK provides a robust API for requesting and displaying various ad formats with advanced targeting capabilities.
 
 ## Features
@@ -186,6 +191,25 @@ void handleCustomEvent(Tracking tracking, String key) {
 
 For a complete example implementation, check out the [example app](example/README.md).
 
+## Contributing
+
+We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details on:
+
+- How to submit Pull Requests
+- Commit message conventions (Conventional Commits)
+- Code style and testing requirements
+- Development workflow
+
 ## Documentation
 
 For detailed documentation, please visit our [documentation site](https://docs.admoai.com).
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Support
+
+- **Issues**: [GitHub Issues](https://github.com/admoai/admoai-flutter/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/admoai/admoai-flutter/discussions)
+- **Email**: support@admoai.com
