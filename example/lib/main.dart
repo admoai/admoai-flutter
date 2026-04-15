@@ -8,6 +8,7 @@ import 'views/request/geo_targeting_picker.dart';
 import 'views/request/location_targeting_picker.dart';
 import 'views/request/custom_targeting_picker.dart';
 import 'views/response/preview_result_view.dart';
+import 'video_test_screen.dart';
 
 void main() {
   runApp(const DemoApp());
@@ -160,6 +161,20 @@ class _DecisionRequestFormState extends State<DecisionRequestForm> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Decision Request'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.videocam),
+            tooltip: 'Video Ads Test',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const VideoTestScreen(),
+                ),
+              );
+            },
+          ),
+        ],
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),

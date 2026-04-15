@@ -7,11 +7,13 @@ import 'models/decision_response.dart';
 
 class AdMoaiClient {
   final String baseUrl;
+  final String? apiVersion;
   final Logger logger;
   final http.Client _client;
 
   AdMoaiClient({
     required this.baseUrl,
+    this.apiVersion,
     required this.logger,
   }) : _client = http.Client();
 
@@ -83,13 +85,19 @@ class AdMoaiClient {
   }
 
   HTTPRequest getDecisionRequest(DecisionRequest request) {
+    final headers = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    };
+    
+    if (apiVersion != null) {
+      headers['X-Decision-Version'] = apiVersion!;
+    }
+    
     return HTTPRequest(
       path: '/v1/decision',
       method: HTTPMethod.post,
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
+      headers: headers,
       body: jsonEncode(request.toJson()),
     );
   }

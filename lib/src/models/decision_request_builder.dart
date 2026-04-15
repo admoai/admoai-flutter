@@ -44,8 +44,8 @@ class DecisionRequestBuilder {
   // Placement methods
   DecisionRequestBuilder addPlacement({
     required String key,
-    int count = 1,
-    Format format = Format.native,
+    int? count,
+    Format? format,
     String? advertiserId,
     String? templateId,
   }) {

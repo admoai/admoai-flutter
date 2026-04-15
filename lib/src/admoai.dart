@@ -21,6 +21,7 @@ class AdMoai {
     required this.userConfig,
   })  : _client = AdMoaiClient(
           baseUrl: config.baseUrl,
+          apiVersion: config.apiVersion,
           logger: config.logger,
         ),
         _httpClient = http.Client();
@@ -149,6 +150,11 @@ class AdMoai {
 
   void fireCustom(Tracking tracking, String key) {
     final url = tracking.getCustomUrl(key: key);
+    if (url != null) fireTracking(url);
+  }
+
+  void fireVideoEvent(Tracking tracking, String key) {
+    final url = tracking.getVideoEventUrl(key: key);
     if (url != null) fireTracking(url);
   }
 

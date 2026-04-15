@@ -25,6 +25,8 @@ class Creative {
   final Advertiser advertiser;
   final Template template;
   final Tracking tracking;
+  final String? delivery;
+  final VastData? vast;
 
   Creative({
     required this.contents,
@@ -32,6 +34,8 @@ class Creative {
     required this.advertiser,
     required this.template,
     required this.tracking,
+    this.delivery,
+    this.vast,
   });
 
   factory Creative.fromJson(Map<String, dynamic> json) {
@@ -46,6 +50,10 @@ class Creative {
           Advertiser.fromJson(json['advertiser'] as Map<String, dynamic>),
       template: Template.fromJson(json['template'] as Map<String, dynamic>),
       tracking: Tracking.fromJson(json['tracking'] as Map<String, dynamic>),
+      delivery: json['delivery'] as String?,
+      vast: json['vast'] == null
+          ? null
+          : VastData.fromJson(json['vast'] as Map<String, dynamic>),
     );
   }
 }
@@ -152,11 +160,13 @@ class Tracking {
   final List<TrackingItem> impressions;
   final List<TrackingItem>? clicks;
   final List<TrackingItem>? custom;
+  final List<TrackingItem>? videoEvents;
 
   Tracking({
     required this.impressions,
     this.clicks,
     this.custom,
+    this.videoEvents,
   });
 
   factory Tracking.fromJson(Map<String, dynamic> json) {
@@ -170,6 +180,9 @@ class Tracking {
       custom: (json['custom'] as List?)
           ?.map((e) => TrackingItem.fromJson(e as Map<String, dynamic>))
           .toList(),
+      videoEvents: (json['videoEvents'] as List?)
+          ?.map((e) => TrackingItem.fromJson(e as Map<String, dynamic>))
+          .toList(),
     );
   }
 
@@ -181,6 +194,8 @@ class Tracking {
         return clicks?.any((item) => item.key == key) ?? false;
       case TrackingType.custom:
         return custom?.any((item) => item.key == key) ?? false;
+      case TrackingType.videoEvent:
+        return videoEvents?.any((item) => item.key == key) ?? false;
     }
   }
 
@@ -192,6 +207,8 @@ class Tracking {
         return getClickUrl(key: key);
       case TrackingType.custom:
         return getCustomUrl(key: key);
+      case TrackingType.videoEvent:
+        return getVideoEventUrl(key: key);
     }
   }
 
@@ -205,6 +222,10 @@ class Tracking {
 
   String? getCustomUrl({required String key}) {
     return custom?.firstWhere((item) => item.key == key).url;
+  }
+
+  String? getVideoEventUrl({required String key}) {
+    return videoEvents?.firstWhere((item) => item.key == key).url;
   }
 }
 
@@ -228,8 +249,26 @@ class TrackingItem {
 enum TrackingType {
   impression('impression'),
   click('click'),
-  custom('custom');
+  custom('custom'),
+  videoEvent('videoEvent');
 
   final String value;
   const TrackingType(this.value);
+}
+
+class VastData {
+  final String? tagUrl;
+  final String? xmlBase64;
+
+  VastData({
+    this.tagUrl,
+    this.xmlBase64,
+  });
+
+  factory VastData.fromJson(Map<String, dynamic> json) {
+    return VastData(
+      tagUrl: json['tagUrl'] as String?,
+      xmlBase64: json['xmlBase64'] as String?,
+    );
+  }
 }

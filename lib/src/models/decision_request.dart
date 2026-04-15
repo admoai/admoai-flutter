@@ -26,15 +26,15 @@ class DecisionRequest {
 
 class Placement {
   final String key;
-  final int count;
-  final Format format;
+  final int? count;
+  final Format? format;
   final String? advertiserId;
   final String? templateId;
 
   Placement({
     required this.key,
-    this.count = 1,
-    this.format = Format.native,
+    this.count,
+    this.format,
     this.advertiserId,
     this.templateId,
   });
@@ -42,8 +42,8 @@ class Placement {
   Map<String, dynamic> toJson() {
     return {
       'key': key,
-      'count': count,
-      'format': format.value,
+      if (count != null) 'count': count,
+      if (format != null) 'format': format!.value,
       if (advertiserId != null) 'advertiserId': advertiserId,
       if (templateId != null) 'templateId': templateId,
     };
