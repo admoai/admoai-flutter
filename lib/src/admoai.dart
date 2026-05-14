@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import 'configs.dart';
@@ -19,12 +20,13 @@ class AdMoai {
     required this.appConfig,
     required this.deviceConfig,
     required this.userConfig,
+    http.Client? httpClient,
   })  : _client = AdMoaiClient(
           baseUrl: config.baseUrl,
           apiVersion: config.apiVersion,
           logger: config.logger,
         ),
-        _httpClient = http.Client();
+        _httpClient = httpClient ?? http.Client();
 
   static Future<AdMoai> initialize({
     required SDKConfig config,
@@ -35,6 +37,23 @@ class AdMoai {
       appConfig: await AppConfig.systemDefault(),
       deviceConfig: await DeviceConfig.systemDefault(),
       userConfig: userConfig ?? UserConfig.clear(),
+    );
+  }
+
+  @visibleForTesting
+  static AdMoai forTesting({
+    required SDKConfig config,
+    AppConfig? appConfig,
+    DeviceConfig? deviceConfig,
+    UserConfig? userConfig,
+    http.Client? httpClient,
+  }) {
+    return AdMoai._(
+      config: config,
+      appConfig: appConfig ?? AppConfig.clear(),
+      deviceConfig: deviceConfig ?? DeviceConfig.clear(),
+      userConfig: userConfig ?? UserConfig.clear(),
+      httpClient: httpClient,
     );
   }
 
@@ -135,7 +154,10 @@ class AdMoai {
       config.logger.warning('Invalid tracking URL: $url');
       return;
     }
-    _httpClient.get(Uri.parse(url));
+    final headers = config.apiVersion != null
+        ? {'X-Decision-Version': config.apiVersion!}
+        : <String, String>{};
+    _httpClient.get(Uri.parse(url), headers: headers.isEmpty ? null : headers);
   }
 
   void fireImpression(Tracking tracking, {String key = 'default'}) {
