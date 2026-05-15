@@ -1,3 +1,7 @@
+## 0.2.1
+
+- Fix: Tracking requests (`fireImpression`, `fireClick`, `fireCustom`, `fireVideoEvent`) now send the `X-Decision-Version` header when `apiVersion` is configured, matching the decision request
+
 ## 0.2.0
 
 - Feat: Video ads support across JSON, VAST Tag, and VAST XML delivery methods
