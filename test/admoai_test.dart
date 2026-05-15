@@ -2,6 +2,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:logging/logging.dart';
 import 'package:admoai/admoai.dart';
 import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 
 const baseUrl = 'https://mock.api.admoai.com';
 
@@ -121,5 +123,45 @@ void main() {
     expect(sdk.userConfig.ip, isNull);
     expect(sdk.userConfig.timezone, isNull);
     expect(sdk.userConfig.consent.gdpr, isFalse);
+  });
+
+  group('fireTracking version header', () {
+    test('sends X-Decision-Version header when apiVersion is set', () async {
+      http.Request? captured;
+      final mockClient = MockClient((request) async {
+        captured = request;
+        return http.Response('', 200);
+      });
+
+      final sdk = AdMoai.forTesting(
+        config: SDKConfig(baseUrl: baseUrl, apiVersion: '2025-11-01'),
+        httpClient: mockClient,
+      );
+
+      sdk.fireTracking('https://tracking.example.com/event');
+      await Future.delayed(Duration.zero);
+
+      expect(captured, isNotNull);
+      expect(captured!.headers['X-Decision-Version'], equals('2025-11-01'));
+    });
+
+    test('omits X-Decision-Version header when apiVersion is not set', () async {
+      http.Request? captured;
+      final mockClient = MockClient((request) async {
+        captured = request;
+        return http.Response('', 200);
+      });
+
+      final sdk = AdMoai.forTesting(
+        config: SDKConfig(baseUrl: baseUrl),
+        httpClient: mockClient,
+      );
+
+      sdk.fireTracking('https://tracking.example.com/event');
+      await Future.delayed(Duration.zero);
+
+      expect(captured, isNotNull);
+      expect(captured!.headers.containsKey('X-Decision-Version'), isFalse);
+    });
   });
 }
