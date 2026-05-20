@@ -9,6 +9,7 @@ class AdMoaiClient {
   final String baseUrl;
   final String? apiVersion;
   final String? defaultLanguage;
+  final Duration requestTimeout;
   final Logger logger;
   final http.Client _client;
 
@@ -16,18 +17,22 @@ class AdMoaiClient {
     required this.baseUrl,
     this.apiVersion,
     this.defaultLanguage,
+    this.requestTimeout = const Duration(seconds: 10),
     required this.logger,
-  }) : _client = http.Client();
+    http.Client? httpClient,
+  }) : _client = httpClient ?? http.Client();
 
   Future<APIResponse<T>> send<T>(HTTPRequest request) async {
     final uri = Uri.parse('$baseUrl${request.path}');
 
     try {
-      final response = await _client.post(
-        uri,
-        headers: request.headers,
-        body: request.body,
-      );
+      final response = await _client
+          .post(
+            uri,
+            headers: request.headers,
+            body: request.body,
+          )
+          .timeout(requestTimeout);
 
       final rawBody = utf8.decode(response.bodyBytes);
       final jsonBody = jsonDecode(rawBody) as Map<String, dynamic>;
