@@ -35,9 +35,9 @@ class AdMoaiClient {
           .timeout(requestTimeout);
 
       final rawBody = utf8.decode(response.bodyBytes);
-      final jsonBody = jsonDecode(rawBody) as Map<String, dynamic>;
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
+        final jsonBody = jsonDecode(rawBody) as Map<String, dynamic>;
         if (T == List<Decision>) {
           final List<dynamic> dataList = jsonBody['data'];
           final decisions = dataList
@@ -61,6 +61,10 @@ class AdMoaiClient {
         throw UnimplementedError('Unsupported type: $T');
       }
 
+      if (response.statusCode >= 500 && response.statusCode <= 599) {
+        throw ServerError(response.statusCode);
+      }
+
       switch (response.statusCode) {
         case 400:
           throw ClientError(HTTPStatus.badRequest);
@@ -71,7 +75,13 @@ class AdMoaiClient {
         case 410:
           throw ClientError(HTTPStatus.gone);
         case 422:
-          final errors = (jsonBody['errors'] as List?)
+          Map<String, dynamic>? jsonBody;
+          try {
+            jsonBody = jsonDecode(rawBody) as Map<String, dynamic>;
+          } catch (_) {
+            jsonBody = null;
+          }
+          final errors = (jsonBody?['errors'] as List?)
                   ?.map((e) => AdMoaiError.fromJson(e as Map<String, dynamic>))
                   .toList() ??
               [];
@@ -81,13 +91,13 @@ class AdMoaiClient {
           throw ClientError(HTTPStatus.unprocessableEntity);
         case 429:
           throw ClientError(HTTPStatus.tooManyRequests);
-        case 500:
-          throw ServerError(response.statusCode);
         default:
-          throw NetworkError('Unexpected status code: ${response.statusCode}');
+          throw UnexpectedStatusError(response.statusCode);
       }
+    } on APIError {
+      rethrow;
     } catch (e) {
-      throw NetworkError(e.toString());
+      throw NetworkError(e);
     }
   }
 
@@ -217,6 +227,12 @@ class ClientError extends APIError {
   final HTTPStatus status;
   ClientError(this.status)
       : super('Client error: ${status.code} - ${status.description}');
+}
+
+class UnexpectedStatusError extends APIError {
+  final int statusCode;
+  UnexpectedStatusError(this.statusCode)
+      : super('Unexpected HTTP status code: $statusCode');
 }
 
 class HTTPRequest {
