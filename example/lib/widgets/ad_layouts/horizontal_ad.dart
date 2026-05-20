@@ -132,7 +132,7 @@ class HorizontalAdView extends StatelessWidget {
         ClipRRect(
           borderRadius: BorderRadius.circular(4),
           child: Image.network(
-            creative.advertiser.logoUrl,
+            creative.advertiser.logoUrl ?? '',
             width: 16,
             height: 16,
             errorBuilder: (context, error, stackTrace) =>
@@ -141,7 +141,7 @@ class HorizontalAdView extends StatelessWidget {
         ),
         const SizedBox(width: 8),
         Text(
-          creative.advertiser.name,
+          creative.advertiser.name ?? '—',
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
                 color: isOverlay ? Colors.white : null,
               ),

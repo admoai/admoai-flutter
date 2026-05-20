@@ -72,14 +72,14 @@ class InfoTabView extends StatelessWidget {
         leading: ClipRRect(
           borderRadius: BorderRadius.circular(8),
           child: Image.network(
-            creative.advertiser.logoUrl,
+            creative.advertiser.logoUrl ?? '',
             width: 40,
             height: 40,
           ),
         ),
-        title: Text(creative.advertiser.name),
+        title: Text(creative.advertiser.name ?? '—'),
         subtitle: Text(
-          creative.advertiser.legalName,
+          creative.advertiser.legalName ?? '—',
           style: Theme.of(context).textTheme.bodySmall,
         ),
       ),
@@ -92,7 +92,7 @@ class InfoTabView extends StatelessWidget {
         children: [
           _buildInfoItem(context, 'Key', creative.template.key),
           const Divider(height: 1),
-          _buildInfoItem(context, 'Style', creative.template.style),
+          _buildInfoItem(context, 'Style', creative.template.style ?? '—'),
         ],
       ),
     );
@@ -107,7 +107,7 @@ class InfoTabView extends StatelessWidget {
           const Divider(height: 1),
           _buildInfoItem(context, 'Creative ID', metadata.creativeId),
           const Divider(height: 1),
-          _buildInfoItem(context, 'Advertiser ID', metadata.advertiserId),
+          _buildInfoItem(context, 'Advertiser ID', metadata.advertiserId ?? '—'),
           const Divider(height: 1),
           _buildInfoItem(context, 'Template ID', metadata.templateId),
           const Divider(height: 1),
@@ -115,7 +115,7 @@ class InfoTabView extends StatelessWidget {
           const Divider(height: 1),
           _buildInfoItem(context, 'Priority', metadata.priority),
           const Divider(height: 1),
-          _buildInfoItem(context, 'Language', metadata.language),
+          _buildInfoItem(context, 'Language', metadata.language ?? '—'),
         ],
       ),
     );

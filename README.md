@@ -11,11 +11,14 @@ AdMoai Flutter SDK is a cross-platform advertising solution that enables seamles
 ## Features
 
 - **Native Ads** - Multiple template types (wide, image+text, text-only, carousel)
-- **Video Ads** - JSON, VAST Tag, and VAST XML delivery methods
-- **Rich Targeting** - Geo, location, and custom key-value targeting
+- **Video Ads** - JSON, VAST Tag, and VAST XML delivery methods, with `Format.video` placement filter
+- **Rich Targeting** - Geo, current-location, destination, and custom key-value targeting
 - **GDPR Compliance** - Built-in user consent management
 - **Event Tracking** - Impressions, clicks, video quartiles, and custom events
+- **Open Measurement** - Pass-through support for third-party verification scripts (IAS, DoubleVerify, …)
 - **Flexible Templates** - Customizable ad layouts and formats
+- **Locale-aware** - `defaultLanguage` config propagates `Accept-Language` on every request
+- **Configurable transport** - Per-knob timeouts (request / connect / receive) and pluggable `http.Client`
 - **Per-Request Control** - Override user/device data collection per request
 
 ## Requirements
@@ -30,7 +33,7 @@ Add this to your package's pubspec.yaml file:
 
 ```yaml
 dependencies:
-  admoai: ^0.2.1
+  admoai: ^0.3.0
 ```
 
 Then run:

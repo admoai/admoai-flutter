@@ -169,7 +169,7 @@ class HorizontalWithCompanionAd extends StatelessWidget {
         _buildAdvertiserLogo(),
         const SizedBox(width: 8),
         Text(
-          creative.advertiser.name,
+          creative.advertiser.name ?? '—',
           style: TextStyle(
             fontSize: 12,
             color: isOverlay ? Colors.white : Colors.grey,
@@ -201,7 +201,7 @@ class HorizontalWithCompanionAd extends StatelessWidget {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(4),
         child: Image.network(
-          creative.advertiser.logoUrl,
+          creative.advertiser.logoUrl ?? '',
           fit: BoxFit.cover,
           errorBuilder: (context, error, stackTrace) {
             return const Icon(
@@ -305,13 +305,13 @@ class CompanionDialog extends StatelessWidget {
                     Row(
                       children: [
                         Image.network(
-                          creative.advertiser.logoUrl,
+                          creative.advertiser.logoUrl ?? '',
                           width: 16,
                           height: 16,
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          creative.advertiser.name,
+                          creative.advertiser.name ?? '—',
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
                         const Spacer(),

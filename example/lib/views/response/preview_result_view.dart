@@ -147,7 +147,7 @@ class _PreviewResultViewState extends State<PreviewResultView> {
         _ => PlaceholderAdView(
             placement: widget.placement,
             template: _creative.template.key,
-            style: _creative.template.style,
+            style: _creative.template.style ?? '',
           ),
       },
     );

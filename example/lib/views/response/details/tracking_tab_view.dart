@@ -16,17 +16,17 @@ class TrackingTabView extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        if (creative.tracking.impressions.isNotEmpty) ...[
+        if (creative.tracking.impressions?.isNotEmpty == true) ...[
           Text(
             'Impressions',
             style: Theme.of(context).textTheme.titleSmall,
           ),
           const SizedBox(height: 8),
-          ...creative.tracking.impressions.map((t) => TrackingItemView(
+          ...creative.tracking.impressions?.map((t) => TrackingItemView(
                 trackingKey: t.key,
                 url: t.url,
                 sdk: sdk,
-              )),
+              )).toList() ?? [],
         ],
         if (creative.tracking.clicks?.isNotEmpty == true) ...[
           const SizedBox(height: 16),
