@@ -227,4 +227,143 @@ void main() {
       expect(request.app, isNull);
     });
   });
+
+  group('Destination Targeting Tests', () {
+    test('single destination is added and serialized correctly', () {
+      final request = sdk
+          .createRequestBuilder()
+          .addDestinationTargeting(
+              latitude: 40.7128, longitude: -74.0060, minConfidence: 0.8)
+          .build();
+
+      expect(request.targeting?.destination?.length, equals(1));
+      final first = request.targeting!.destination!.first;
+      expect(first.latitude, equals(40.7128));
+      expect(first.longitude, equals(-74.0060));
+      expect(first.minConfidence, equals(0.8));
+
+      final json = request.toJson();
+      final targetingJson = json['targeting'] as Map<String, dynamic>;
+      final destList = targetingJson['destination'] as List;
+      expect(destList.length, equals(1));
+      expect((destList.first as Map)['latitude'], equals(40.7128));
+      expect((destList.first as Map)['longitude'], equals(-74.0060));
+      expect((destList.first as Map)['minConfidence'], equals(0.8));
+    });
+
+    test('duplicate destinations are deduplicated', () {
+      final request = sdk
+          .createRequestBuilder()
+          .addDestinationTargeting(
+              latitude: 40.7128, longitude: -74.0060, minConfidence: 0.8)
+          .addDestinationTargeting(
+              latitude: 40.7128, longitude: -74.0060, minConfidence: 0.8)
+          .addDestinationTargeting(
+              latitude: 51.5074, longitude: -0.1278, minConfidence: 0.9)
+          .build();
+
+      expect(request.targeting?.destination?.length, equals(2));
+    });
+
+    test('destinations with same coords but different minConfidence are kept',
+        () {
+      final request = sdk
+          .createRequestBuilder()
+          .addDestinationTargeting(
+              latitude: 40.7128, longitude: -74.0060, minConfidence: 0.5)
+          .addDestinationTargeting(
+              latitude: 40.7128, longitude: -74.0060, minConfidence: 0.9)
+          .build();
+
+      expect(request.targeting?.destination?.length, equals(2));
+    });
+
+    test('setDestinationTargeting replaces existing destinations', () {
+      final destA = Destination(
+          latitude: 1, longitude: 2, minConfidence: 0.5);
+      final destB = Destination(
+          latitude: 3, longitude: 4, minConfidence: 0.7);
+
+      final request = sdk
+          .createRequestBuilder()
+          .addDestinationTargeting(
+              latitude: 99, longitude: 99, minConfidence: 0.1)
+          .setDestinationTargeting([destA, destB])
+          .build();
+
+      expect(request.targeting?.destination?.length, equals(2));
+      expect(request.targeting?.destination?.first.latitude, equals(1));
+      expect(request.targeting?.destination?.last.latitude, equals(3));
+    });
+
+    test('clearDestinationTargeting removes all destinations', () {
+      final request = sdk
+          .createRequestBuilder()
+          .addDestinationTargeting(
+              latitude: 1, longitude: 2, minConfidence: 0.5)
+          .addGeoTargeting(5819)
+          .clearDestinationTargeting()
+          .build();
+
+      expect(request.targeting?.destination, isNull);
+      expect(request.targeting?.geo?.contains(5819), isTrue);
+    });
+
+    test('clearTargeting removes destinations', () {
+      final request = sdk
+          .createRequestBuilder()
+          .addDestinationTargeting(
+              latitude: 1, longitude: 2, minConfidence: 0.5)
+          .clearTargeting()
+          .build();
+
+      expect(request.targeting, isNull);
+    });
+
+    test('minConfidence above 1.0 throws ArgumentError', () {
+      final builder = sdk.createRequestBuilder();
+      expect(
+        () => builder.addDestinationTargeting(
+            latitude: 0, longitude: 0, minConfidence: 1.5),
+        throwsA(isA<ArgumentError>()),
+      );
+    });
+
+    test('minConfidence below 0.0 throws ArgumentError', () {
+      final builder = sdk.createRequestBuilder();
+      expect(
+        () => builder.addDestinationTargeting(
+            latitude: 0, longitude: 0, minConfidence: -0.1),
+        throwsA(isA<ArgumentError>()),
+      );
+    });
+
+    test('minConfidence at 0.0 and 1.0 boundaries is accepted', () {
+      final request = sdk
+          .createRequestBuilder()
+          .addDestinationTargeting(
+              latitude: 1, longitude: 2, minConfidence: 0.0)
+          .addDestinationTargeting(
+              latitude: 3, longitude: 4, minConfidence: 1.0)
+          .build();
+
+      expect(request.targeting?.destination?.length, equals(2));
+    });
+
+    test('destination coexists with other targeting fields', () {
+      final request = sdk
+          .createRequestBuilder()
+          .addGeoTargeting(5819)
+          .addLocationTargeting(latitude: 10, longitude: 20)
+          .addDestinationTargeting(
+              latitude: 30, longitude: 40, minConfidence: 0.5)
+          .addCustomTargeting(key: 'k', value: 'v')
+          .build();
+
+      expect(request.targeting?.geo?.length, equals(1));
+      expect(request.targeting?.location?.length, equals(1));
+      expect(request.targeting?.destination?.length, equals(1));
+      expect(request.targeting?.custom?.length, equals(1));
+    });
+  });
 }
