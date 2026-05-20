@@ -10,6 +10,7 @@ import 'api_client.dart';
 import 'models/decision_request.dart';
 import 'models/decision_response.dart';
 import 'models/decision_request_builder.dart';
+import 'version.dart';
 
 class AdMoai {
   final AdMoaiClient _client;
@@ -187,7 +188,9 @@ class AdMoai {
       config.logger.warning('Invalid tracking URL: $url');
       return;
     }
-    final headers = <String, String>{};
+    final headers = <String, String>{
+      'User-Agent': 'AdMoaiSDK/$sdkVersion',
+    };
     if (config.apiVersion != null) {
       headers['X-Decision-Version'] = config.apiVersion!;
     }
@@ -197,7 +200,7 @@ class AdMoai {
     unawaited(() async {
       try {
         await _httpClient
-            .get(Uri.parse(url), headers: headers.isEmpty ? null : headers)
+            .get(Uri.parse(url), headers: headers)
             .timeout(config.requestTimeout);
       } catch (error) {
         config.logger.warning('Tracking request failed: $error');
