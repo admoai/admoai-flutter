@@ -165,6 +165,43 @@ void main() {
     });
   });
 
+  group('User-Agent header', () {
+    test('decision request carries User-Agent: AdMoaiSDK/{sdkVersion}', () {
+      final sdk = AdMoai.forTesting(
+        config: SDKConfig(baseUrl: baseUrl),
+      );
+      final request =
+          (sdk.createRequestBuilder()..addPlacement(key: 'home')).build();
+      final httpRequest = sdk.getHttpRequest(request);
+
+      expect(httpRequest.headers!['User-Agent'], startsWith('AdMoaiSDK/'));
+      expect(httpRequest.headers!['User-Agent'], contains(sdkVersion));
+    });
+
+    test('tracking request carries User-Agent', () async {
+      http.Request? captured;
+      final mockClient = MockClient((request) async {
+        captured = request;
+        return http.Response('', 200);
+      });
+
+      final sdk = AdMoai.forTesting(
+        config: SDKConfig(baseUrl: baseUrl),
+        httpClient: mockClient,
+      );
+
+      sdk.fireTracking('https://tracking.example.com/event');
+      await Future.delayed(Duration.zero);
+
+      expect(captured, isNotNull);
+      expect(captured!.headers['user-agent'], startsWith('AdMoaiSDK/'));
+    });
+
+    test('sdkVersion constant matches expected v0.3.0', () {
+      expect(sdkVersion, equals('0.3.0'));
+    });
+  });
+
   group('network timeouts', () {
     test('SDKConfig exposes three timeout knobs with 10s defaults', () {
       final unset = SDKConfig(baseUrl: baseUrl);
