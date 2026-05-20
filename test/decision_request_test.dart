@@ -145,6 +145,59 @@ void main() {
     });
   });
 
+  group('Format Tests', () {
+    test('Format enum exposes both native and video', () {
+      expect(Format.native.value, equals('native'));
+      expect(Format.video.value, equals('video'));
+    });
+
+    test('placement with Format.video serializes "format": "video"', () {
+      final request = sdk
+          .createRequestBuilder()
+          .addPlacement(key: 'home', format: Format.video)
+          .build();
+
+      expect(request.placements.first.format, equals(Format.video));
+      final json = request.toJson();
+      final placementsJson = json['placements'] as List;
+      expect((placementsJson.first as Map)['format'], equals('video'));
+    });
+
+    test('placement with Format.native serializes "format": "native"', () {
+      final request = sdk
+          .createRequestBuilder()
+          .addPlacement(key: 'home', format: Format.native)
+          .build();
+
+      final json = request.toJson();
+      final placementsJson = json['placements'] as List;
+      expect((placementsJson.first as Map)['format'], equals('native'));
+    });
+
+    test('placement without explicit format omits the field', () {
+      final request = sdk
+          .createRequestBuilder()
+          .addPlacement(key: 'home')
+          .build();
+
+      final json = request.toJson();
+      final placementsJson = json['placements'] as List;
+      expect((placementsJson.first as Map).containsKey('format'), isFalse);
+    });
+
+    test('mixed Format placements coexist in one request', () {
+      final request = sdk
+          .createRequestBuilder()
+          .addPlacement(key: 'native_slot', format: Format.native)
+          .addPlacement(key: 'video_slot', format: Format.video)
+          .build();
+
+      expect(request.placements.length, equals(2));
+      expect(request.placements[0].format, equals(Format.native));
+      expect(request.placements[1].format, equals(Format.video));
+    });
+  });
+
   group('Clearing Operations Tests', () {
     test('testClearingOperations', () {
       final builder = sdk
