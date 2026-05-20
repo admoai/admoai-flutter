@@ -27,6 +27,7 @@ class Creative {
   final Tracking tracking;
   final String? delivery;
   final VastData? vast;
+  final List<VerificationScriptResource>? verificationScriptResources;
 
   Creative({
     required this.contents,
@@ -36,6 +37,7 @@ class Creative {
     required this.tracking,
     this.delivery,
     this.vast,
+    this.verificationScriptResources,
   });
 
   factory Creative.fromJson(Map<String, dynamic> json) {
@@ -54,6 +56,31 @@ class Creative {
       vast: json['vast'] == null
           ? null
           : VastData.fromJson(json['vast'] as Map<String, dynamic>),
+      verificationScriptResources:
+          (json['verificationScriptResources'] as List?)
+              ?.map((e) =>
+                  VerificationScriptResource.fromJson(e as Map<String, dynamic>))
+              .toList(),
+    );
+  }
+}
+
+class VerificationScriptResource {
+  final String vendorKey;
+  final String scriptUrl;
+  final String? verificationParameters;
+
+  VerificationScriptResource({
+    required this.vendorKey,
+    required this.scriptUrl,
+    this.verificationParameters,
+  });
+
+  factory VerificationScriptResource.fromJson(Map<String, dynamic> json) {
+    return VerificationScriptResource(
+      vendorKey: json['vendorKey'] as String,
+      scriptUrl: json['scriptUrl'] as String,
+      verificationParameters: json['verificationParameters'] as String?,
     );
   }
 }
