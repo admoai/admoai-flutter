@@ -4,6 +4,7 @@ import 'package:logging/logging.dart';
 
 import 'models/decision_request.dart';
 import 'models/decision_response.dart';
+import 'version.dart';
 
 class AdMoaiClient {
   final String baseUrl;
@@ -105,6 +106,7 @@ class AdMoaiClient {
     final headers = {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
+      'User-Agent': 'AdMoaiSDK/$sdkVersion',
     };
 
     if (apiVersion != null) {
