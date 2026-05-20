@@ -51,7 +51,8 @@ class Placement {
 }
 
 enum Format {
-  native('native');
+  native('native'),
+  video('video');
 
   final String value;
   const Format(this.value);
