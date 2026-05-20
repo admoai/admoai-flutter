@@ -90,41 +90,58 @@ extension ContentListExtension on List<Content> {
 class Metadata {
   final String adId;
   final String creativeId;
-  final String advertiserId;
+  final String? advertiserId;
   final String templateId;
   final String placementId;
   final String priority;
-  final String language;
+  final String? language;
+  final int? duration;
+  final String? aspectRatio;
+  final bool? isSkippable;
+  final String? format;
+  final String? style;
 
   Metadata({
     required this.adId,
     required this.creativeId,
-    required this.advertiserId,
+    this.advertiserId,
     required this.templateId,
     required this.placementId,
     required this.priority,
-    required this.language,
+    this.language,
+    this.duration,
+    this.aspectRatio,
+    this.isSkippable,
+    this.format,
+    this.style,
   });
 
   factory Metadata.fromJson(Map<String, dynamic> json) {
     return Metadata(
       adId: json['adId'] as String,
       creativeId: json['creativeId'] as String,
-      advertiserId: json['advertiserId'] as String,
+      advertiserId: json['advertiserId'] as String?,
       templateId: json['templateId'] as String,
       placementId: json['placementId'] as String,
       priority: json['priority'] as String,
-      language: json['language'] as String,
+      language: json['language'] as String?,
+      duration: json['duration'] as int?,
+      aspectRatio: json['aspectRatio'] as String?,
+      isSkippable: json['isSkippable'] as bool?,
+      format: json['format'] as String?,
+      style: json['style'] as String?,
     );
   }
 }
 
 class Advertiser {
+  final String? id;
   final String name;
   final String legalName;
   final String logoUrl;
 
   Advertiser({
+    this.id,
     required this.name,
     required this.legalName,
     required this.logoUrl,
@@ -132,6 +149,7 @@ class Advertiser {
 
   factory Advertiser.fromJson(Map<String, dynamic> json) {
     return Advertiser(
+      id: json['id'] as String?,
       name: json['name'] as String,
       legalName: json['legalName'] as String,
       logoUrl: json['logoUrl'] as String,
