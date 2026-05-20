@@ -75,6 +75,11 @@ class InfoTabView extends StatelessWidget {
             creative.advertiser.logoUrl ?? '',
             width: 40,
             height: 40,
+            errorBuilder: (context, error, stackTrace) => const Icon(
+              Icons.business,
+              size: 24,
+              color: Colors.grey,
+            ),
           ),
         ),
         title: Text(creative.advertiser.name ?? '—'),

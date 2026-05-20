@@ -308,6 +308,9 @@ class CompanionDialog extends StatelessWidget {
                           creative.advertiser.logoUrl ?? '',
                           width: 16,
                           height: 16,
+                          errorBuilder: (context, error, stackTrace) =>
+                              const Icon(Icons.business,
+                                  size: 16, color: Colors.grey),
                         ),
                         const SizedBox(width: 8),
                         Text(
