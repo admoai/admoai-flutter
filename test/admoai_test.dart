@@ -164,4 +164,85 @@ void main() {
       expect(captured!.headers.containsKey('X-Decision-Version'), isFalse);
     });
   });
+
+  group('defaultLanguage and Accept-Language header', () {
+    test('SDKConfig exposes defaultLanguage and defaults to null', () {
+      final unset = SDKConfig(baseUrl: baseUrl);
+      expect(unset.defaultLanguage, isNull);
+
+      final set = SDKConfig(baseUrl: baseUrl, defaultLanguage: 'en-US');
+      expect(set.defaultLanguage, equals('en-US'));
+    });
+
+    test('decision request carries Accept-Language when defaultLanguage is set',
+        () {
+      final sdk = AdMoai.forTesting(
+        config: SDKConfig(baseUrl: baseUrl, defaultLanguage: 'en-US'),
+      );
+
+      final builder = sdk.createRequestBuilder()..addPlacement(key: 'home');
+      final httpRequest = sdk.getHttpRequest(builder.build());
+
+      expect(httpRequest.headers!['Accept-Language'], equals('en-US'));
+      expect(httpRequest.headers!['Content-Type'], equals('application/json'));
+      expect(httpRequest.headers!['Accept'], equals('application/json'));
+    });
+
+    test('decision request omits Accept-Language when defaultLanguage is null',
+        () {
+      final sdk = AdMoai.forTesting(
+        config: SDKConfig(baseUrl: baseUrl),
+      );
+
+      final builder = sdk.createRequestBuilder()..addPlacement(key: 'home');
+      final httpRequest = sdk.getHttpRequest(builder.build());
+
+      expect(httpRequest.headers!.containsKey('Accept-Language'), isFalse);
+    });
+
+    test('tracking request carries Accept-Language and X-Decision-Version',
+        () async {
+      http.Request? captured;
+      final mockClient = MockClient((request) async {
+        captured = request;
+        return http.Response('', 200);
+      });
+
+      final sdk = AdMoai.forTesting(
+        config: SDKConfig(
+          baseUrl: baseUrl,
+          apiVersion: '2025-11-01',
+          defaultLanguage: 'es-ES',
+        ),
+        httpClient: mockClient,
+      );
+
+      sdk.fireTracking('https://tracking.example.com/event');
+      await Future.delayed(Duration.zero);
+
+      expect(captured, isNotNull);
+      expect(captured!.headers['Accept-Language'], equals('es-ES'));
+      expect(captured!.headers['X-Decision-Version'], equals('2025-11-01'));
+    });
+
+    test('tracking request omits Accept-Language when defaultLanguage is null',
+        () async {
+      http.Request? captured;
+      final mockClient = MockClient((request) async {
+        captured = request;
+        return http.Response('', 200);
+      });
+
+      final sdk = AdMoai.forTesting(
+        config: SDKConfig(baseUrl: baseUrl),
+        httpClient: mockClient,
+      );
+
+      sdk.fireTracking('https://tracking.example.com/event');
+      await Future.delayed(Duration.zero);
+
+      expect(captured, isNotNull);
+      expect(captured!.headers.containsKey('Accept-Language'), isFalse);
+    });
+  });
 }
