@@ -10,11 +10,13 @@ abstract class Clearable {
 class SDKConfig {
   final String baseUrl;
   final String? apiVersion;
+  final String? defaultLanguage;
   final Logger logger;
 
   SDKConfig({
     required this.baseUrl,
     this.apiVersion,
+    this.defaultLanguage,
     Logger? logger,
   }) : logger = logger ?? Logger('AdMoai');
 }

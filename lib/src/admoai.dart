@@ -24,6 +24,7 @@ class AdMoai {
   })  : _client = AdMoaiClient(
           baseUrl: config.baseUrl,
           apiVersion: config.apiVersion,
+          defaultLanguage: config.defaultLanguage,
           logger: config.logger,
         ),
         _httpClient = httpClient ?? http.Client();
@@ -154,9 +155,13 @@ class AdMoai {
       config.logger.warning('Invalid tracking URL: $url');
       return;
     }
-    final headers = config.apiVersion != null
-        ? {'X-Decision-Version': config.apiVersion!}
-        : <String, String>{};
+    final headers = <String, String>{};
+    if (config.apiVersion != null) {
+      headers['X-Decision-Version'] = config.apiVersion!;
+    }
+    if (config.defaultLanguage != null) {
+      headers['Accept-Language'] = config.defaultLanguage!;
+    }
     _httpClient.get(Uri.parse(url), headers: headers.isEmpty ? null : headers);
   }
 

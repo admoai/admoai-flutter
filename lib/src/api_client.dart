@@ -8,12 +8,14 @@ import 'models/decision_response.dart';
 class AdMoaiClient {
   final String baseUrl;
   final String? apiVersion;
+  final String? defaultLanguage;
   final Logger logger;
   final http.Client _client;
 
   AdMoaiClient({
     required this.baseUrl,
     this.apiVersion,
+    this.defaultLanguage,
     required this.logger,
   }) : _client = http.Client();
 
@@ -89,11 +91,15 @@ class AdMoaiClient {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
     };
-    
+
     if (apiVersion != null) {
       headers['X-Decision-Version'] = apiVersion!;
     }
-    
+
+    if (defaultLanguage != null) {
+      headers['Accept-Language'] = defaultLanguage!;
+    }
+
     return HTTPRequest(
       path: '/v1/decision',
       method: HTTPMethod.post,
