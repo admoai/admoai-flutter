@@ -106,7 +106,8 @@ class Content {
 }
 
 extension ContentListExtension on List<Content> {
-  Content? getContent(String key) => firstWhere((c) => c.key == key);
+  Content? getContent(String key) =>
+      where((c) => c.key == key).firstOrNull;
 
   bool hasContents() => isNotEmpty;
 
@@ -163,52 +164,52 @@ class Metadata {
 
 class Advertiser {
   final String? id;
-  final String name;
-  final String legalName;
-  final String logoUrl;
+  final String? name;
+  final String? legalName;
+  final String? logoUrl;
 
   Advertiser({
     this.id,
-    required this.name,
-    required this.legalName,
-    required this.logoUrl,
+    this.name,
+    this.legalName,
+    this.logoUrl,
   });
 
   factory Advertiser.fromJson(Map<String, dynamic> json) {
     return Advertiser(
       id: json['id'] as String?,
-      name: json['name'] as String,
-      legalName: json['legalName'] as String,
-      logoUrl: json['logoUrl'] as String,
+      name: json['name'] as String?,
+      legalName: json['legalName'] as String?,
+      logoUrl: json['logoUrl'] as String?,
     );
   }
 }
 
 class Template {
   final String key;
-  final String style;
+  final String? style;
 
   Template({
     required this.key,
-    required this.style,
+    this.style,
   });
 
   factory Template.fromJson(Map<String, dynamic> json) {
     return Template(
       key: json['key'] as String,
-      style: json['style'] as String,
+      style: json['style'] as String?,
     );
   }
 }
 
 class Tracking {
-  final List<TrackingItem> impressions;
+  final List<TrackingItem>? impressions;
   final List<TrackingItem>? clicks;
   final List<TrackingItem>? custom;
   final List<TrackingItem>? videoEvents;
 
   Tracking({
-    required this.impressions,
+    this.impressions,
     this.clicks,
     this.custom,
     this.videoEvents,
@@ -216,8 +217,8 @@ class Tracking {
 
   factory Tracking.fromJson(Map<String, dynamic> json) {
     return Tracking(
-      impressions: (json['impressions'] as List)
-          .map((e) => TrackingItem.fromJson(e as Map<String, dynamic>))
+      impressions: (json['impressions'] as List?)
+          ?.map((e) => TrackingItem.fromJson(e as Map<String, dynamic>))
           .toList(),
       clicks: (json['clicks'] as List?)
           ?.map((e) => TrackingItem.fromJson(e as Map<String, dynamic>))
@@ -234,7 +235,7 @@ class Tracking {
   bool hasTrackingFor(TrackingType type, String key) {
     switch (type) {
       case TrackingType.impression:
-        return impressions.any((item) => item.key == key);
+        return impressions?.any((item) => item.key == key) ?? false;
       case TrackingType.click:
         return clicks?.any((item) => item.key == key) ?? false;
       case TrackingType.custom:
@@ -258,19 +259,19 @@ class Tracking {
   }
 
   String? getImpressionUrl({String key = 'default'}) {
-    return impressions.firstWhere((item) => item.key == key).url;
+    return impressions?.where((item) => item.key == key).firstOrNull?.url;
   }
 
   String? getClickUrl({String key = 'default'}) {
-    return clicks?.firstWhere((item) => item.key == key).url;
+    return clicks?.where((item) => item.key == key).firstOrNull?.url;
   }
 
   String? getCustomUrl({required String key}) {
-    return custom?.firstWhere((item) => item.key == key).url;
+    return custom?.where((item) => item.key == key).firstOrNull?.url;
   }
 
   String? getVideoEventUrl({required String key}) {
-    return videoEvents?.firstWhere((item) => item.key == key).url;
+    return videoEvents?.where((item) => item.key == key).firstOrNull?.url;
   }
 }
 
