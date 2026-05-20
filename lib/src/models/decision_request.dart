@@ -61,11 +61,13 @@ enum Format {
 class Targeting {
   final List<int>? geo;
   final List<Location>? location;
+  final List<Destination>? destination;
   final List<CustomKeyValue>? custom;
 
   Targeting({
     this.geo,
     this.location,
+    this.destination,
     this.custom,
   });
 
@@ -75,6 +77,14 @@ class Targeting {
       if (location != null)
         'location': location!
             .map((l) => {'latitude': l.latitude, 'longitude': l.longitude})
+            .toList(),
+      if (destination != null)
+        'destination': destination!
+            .map((d) => {
+                  'latitude': d.latitude,
+                  'longitude': d.longitude,
+                  'minConfidence': d.minConfidence,
+                })
             .toList(),
       if (custom != null)
         'custom': custom!.map((c) => {'key': c.key, 'value': c.value}).toList(),
@@ -87,6 +97,18 @@ class Location {
   final double longitude;
 
   Location({required this.latitude, required this.longitude});
+}
+
+class Destination {
+  final double latitude;
+  final double longitude;
+  final double minConfidence;
+
+  Destination({
+    required this.latitude,
+    required this.longitude,
+    required this.minConfidence,
+  });
 }
 
 class CustomKeyValue {
