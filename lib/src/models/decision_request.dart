@@ -83,7 +83,7 @@ class Targeting {
             .map((d) => {
                   'latitude': d.latitude,
                   'longitude': d.longitude,
-                  'minConfidence': d.minConfidence,
+                  'min_confidence': d.minConfidence,
                 })
             .toList(),
       if (custom != null)
