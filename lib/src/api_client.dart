@@ -4,11 +4,13 @@ import 'package:logging/logging.dart';
 
 import 'models/decision_request.dart';
 import 'models/decision_response.dart';
+import 'version.dart';
 
 class AdMoaiClient {
   final String baseUrl;
   final String? apiVersion;
   final String? defaultLanguage;
+  final Duration requestTimeout;
   final Logger logger;
   final http.Client _client;
 
@@ -16,23 +18,27 @@ class AdMoaiClient {
     required this.baseUrl,
     this.apiVersion,
     this.defaultLanguage,
+    this.requestTimeout = const Duration(seconds: 10),
     required this.logger,
-  }) : _client = http.Client();
+    http.Client? httpClient,
+  }) : _client = httpClient ?? http.Client();
 
   Future<APIResponse<T>> send<T>(HTTPRequest request) async {
     final uri = Uri.parse('$baseUrl${request.path}');
 
     try {
-      final response = await _client.post(
-        uri,
-        headers: request.headers,
-        body: request.body,
-      );
+      final response = await _client
+          .post(
+            uri,
+            headers: request.headers,
+            body: request.body,
+          )
+          .timeout(requestTimeout);
 
       final rawBody = utf8.decode(response.bodyBytes);
-      final jsonBody = jsonDecode(rawBody) as Map<String, dynamic>;
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
+        final jsonBody = jsonDecode(rawBody) as Map<String, dynamic>;
         if (T == List<Decision>) {
           final List<dynamic> dataList = jsonBody['data'];
           final decisions = dataList
@@ -56,6 +62,10 @@ class AdMoaiClient {
         throw UnimplementedError('Unsupported type: $T');
       }
 
+      if (response.statusCode >= 500 && response.statusCode <= 599) {
+        throw ServerError(response.statusCode);
+      }
+
       switch (response.statusCode) {
         case 400:
           throw ClientError(HTTPStatus.badRequest);
@@ -66,7 +76,13 @@ class AdMoaiClient {
         case 410:
           throw ClientError(HTTPStatus.gone);
         case 422:
-          final errors = (jsonBody['errors'] as List?)
+          Map<String, dynamic>? jsonBody;
+          try {
+            jsonBody = jsonDecode(rawBody) as Map<String, dynamic>;
+          } catch (_) {
+            jsonBody = null;
+          }
+          final errors = (jsonBody?['errors'] as List?)
                   ?.map((e) => AdMoaiError.fromJson(e as Map<String, dynamic>))
                   .toList() ??
               [];
@@ -76,13 +92,13 @@ class AdMoaiClient {
           throw ClientError(HTTPStatus.unprocessableEntity);
         case 429:
           throw ClientError(HTTPStatus.tooManyRequests);
-        case 500:
-          throw ServerError(response.statusCode);
         default:
-          throw NetworkError('Unexpected status code: ${response.statusCode}');
+          throw UnexpectedStatusError(response.statusCode);
       }
+    } on APIError {
+      rethrow;
     } catch (e) {
-      throw NetworkError(e.toString());
+      throw NetworkError(e);
     }
   }
 
@@ -90,6 +106,7 @@ class AdMoaiClient {
     final headers = {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
+      'User-Agent': 'AdMoaiSDK/$sdkVersion',
     };
 
     if (apiVersion != null) {
@@ -212,6 +229,12 @@ class ClientError extends APIError {
   final HTTPStatus status;
   ClientError(this.status)
       : super('Client error: ${status.code} - ${status.description}');
+}
+
+class UnexpectedStatusError extends APIError {
+  final int statusCode;
+  UnexpectedStatusError(this.statusCode)
+      : super('Unexpected HTTP status code: $statusCode');
 }
 
 class HTTPRequest {

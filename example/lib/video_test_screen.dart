@@ -176,8 +176,8 @@ class _VideoTestScreenState extends State<VideoTestScreen> {
             final tracking = creative.tracking;
             int totalFired = 0;
             
-            if (tracking.impressions.isNotEmpty) {
-              for (var imp in tracking.impressions) {
+            if (tracking.impressions?.isNotEmpty == true) {
+              for (var imp in tracking.impressions ?? []) {
                 sdk.fireImpression(tracking, key: imp.key);
                 totalFired++;
               }

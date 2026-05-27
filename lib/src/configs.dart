@@ -11,12 +11,18 @@ class SDKConfig {
   final String baseUrl;
   final String? apiVersion;
   final String? defaultLanguage;
+  final Duration requestTimeout;
+  final Duration connectTimeout;
+  final Duration receiveTimeout;
   final Logger logger;
 
   SDKConfig({
     required this.baseUrl,
     this.apiVersion,
     this.defaultLanguage,
+    this.requestTimeout = const Duration(seconds: 10),
+    this.connectTimeout = const Duration(seconds: 10),
+    this.receiveTimeout = const Duration(seconds: 10),
     Logger? logger,
   }) : logger = logger ?? Logger('AdMoai');
 }

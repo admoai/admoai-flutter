@@ -27,6 +27,7 @@ class Creative {
   final Tracking tracking;
   final String? delivery;
   final VastData? vast;
+  final List<VerificationScriptResource>? verificationScriptResources;
 
   Creative({
     required this.contents,
@@ -36,6 +37,7 @@ class Creative {
     required this.tracking,
     this.delivery,
     this.vast,
+    this.verificationScriptResources,
   });
 
   factory Creative.fromJson(Map<String, dynamic> json) {
@@ -54,6 +56,31 @@ class Creative {
       vast: json['vast'] == null
           ? null
           : VastData.fromJson(json['vast'] as Map<String, dynamic>),
+      verificationScriptResources:
+          (json['verificationScriptResources'] as List?)
+              ?.map((e) =>
+                  VerificationScriptResource.fromJson(e as Map<String, dynamic>))
+              .toList(),
+    );
+  }
+}
+
+class VerificationScriptResource {
+  final String vendorKey;
+  final String scriptUrl;
+  final String? verificationParameters;
+
+  VerificationScriptResource({
+    required this.vendorKey,
+    required this.scriptUrl,
+    this.verificationParameters,
+  });
+
+  factory VerificationScriptResource.fromJson(Map<String, dynamic> json) {
+    return VerificationScriptResource(
+      vendorKey: json['vendorKey'] as String,
+      scriptUrl: json['scriptUrl'] as String,
+      verificationParameters: json['verificationParameters'] as String?,
     );
   }
 }
@@ -79,7 +106,8 @@ class Content {
 }
 
 extension ContentListExtension on List<Content> {
-  Content? getContent(String key) => firstWhere((c) => c.key == key);
+  Content? getContent(String key) =>
+      where((c) => c.key == key).firstOrNull;
 
   bool hasContents() => isNotEmpty;
 
@@ -90,80 +118,98 @@ extension ContentListExtension on List<Content> {
 class Metadata {
   final String adId;
   final String creativeId;
-  final String advertiserId;
+  final String? advertiserId;
   final String templateId;
   final String placementId;
   final String priority;
-  final String language;
+  final String? language;
+  final int? duration;
+  final String? aspectRatio;
+  final bool? isSkippable;
+  final String? format;
+  final String? style;
 
   Metadata({
     required this.adId,
     required this.creativeId,
-    required this.advertiserId,
+    this.advertiserId,
     required this.templateId,
     required this.placementId,
     required this.priority,
-    required this.language,
+    this.language,
+    this.duration,
+    this.aspectRatio,
+    this.isSkippable,
+    this.format,
+    this.style,
   });
 
   factory Metadata.fromJson(Map<String, dynamic> json) {
     return Metadata(
       adId: json['adId'] as String,
       creativeId: json['creativeId'] as String,
-      advertiserId: json['advertiserId'] as String,
+      advertiserId: json['advertiserId'] as String?,
       templateId: json['templateId'] as String,
       placementId: json['placementId'] as String,
       priority: json['priority'] as String,
-      language: json['language'] as String,
+      language: json['language'] as String?,
+      duration: json['duration'] as int?,
+      aspectRatio: json['aspectRatio'] as String?,
+      isSkippable: json['isSkippable'] as bool?,
+      format: json['format'] as String?,
+      style: json['style'] as String?,
     );
   }
 }
 
 class Advertiser {
-  final String name;
-  final String legalName;
-  final String logoUrl;
+  final String? id;
+  final String? name;
+  final String? legalName;
+  final String? logoUrl;
 
   Advertiser({
-    required this.name,
-    required this.legalName,
-    required this.logoUrl,
+    this.id,
+    this.name,
+    this.legalName,
+    this.logoUrl,
   });
 
   factory Advertiser.fromJson(Map<String, dynamic> json) {
     return Advertiser(
-      name: json['name'] as String,
-      legalName: json['legalName'] as String,
-      logoUrl: json['logoUrl'] as String,
+      id: json['id'] as String?,
+      name: json['name'] as String?,
+      legalName: json['legalName'] as String?,
+      logoUrl: json['logoUrl'] as String?,
     );
   }
 }
 
 class Template {
   final String key;
-  final String style;
+  final String? style;
 
   Template({
     required this.key,
-    required this.style,
+    this.style,
   });
 
   factory Template.fromJson(Map<String, dynamic> json) {
     return Template(
       key: json['key'] as String,
-      style: json['style'] as String,
+      style: json['style'] as String?,
     );
   }
 }
 
 class Tracking {
-  final List<TrackingItem> impressions;
+  final List<TrackingItem>? impressions;
   final List<TrackingItem>? clicks;
   final List<TrackingItem>? custom;
   final List<TrackingItem>? videoEvents;
 
   Tracking({
-    required this.impressions,
+    this.impressions,
     this.clicks,
     this.custom,
     this.videoEvents,
@@ -171,8 +217,8 @@ class Tracking {
 
   factory Tracking.fromJson(Map<String, dynamic> json) {
     return Tracking(
-      impressions: (json['impressions'] as List)
-          .map((e) => TrackingItem.fromJson(e as Map<String, dynamic>))
+      impressions: (json['impressions'] as List?)
+          ?.map((e) => TrackingItem.fromJson(e as Map<String, dynamic>))
           .toList(),
       clicks: (json['clicks'] as List?)
           ?.map((e) => TrackingItem.fromJson(e as Map<String, dynamic>))
@@ -189,7 +235,7 @@ class Tracking {
   bool hasTrackingFor(TrackingType type, String key) {
     switch (type) {
       case TrackingType.impression:
-        return impressions.any((item) => item.key == key);
+        return impressions?.any((item) => item.key == key) ?? false;
       case TrackingType.click:
         return clicks?.any((item) => item.key == key) ?? false;
       case TrackingType.custom:
@@ -213,19 +259,19 @@ class Tracking {
   }
 
   String? getImpressionUrl({String key = 'default'}) {
-    return impressions.firstWhere((item) => item.key == key).url;
+    return impressions?.where((item) => item.key == key).firstOrNull?.url;
   }
 
   String? getClickUrl({String key = 'default'}) {
-    return clicks?.firstWhere((item) => item.key == key).url;
+    return clicks?.where((item) => item.key == key).firstOrNull?.url;
   }
 
   String? getCustomUrl({required String key}) {
-    return custom?.firstWhere((item) => item.key == key).url;
+    return custom?.where((item) => item.key == key).firstOrNull?.url;
   }
 
   String? getVideoEventUrl({required String key}) {
-    return videoEvents?.firstWhere((item) => item.key == key).url;
+    return videoEvents?.where((item) => item.key == key).firstOrNull?.url;
   }
 }
 

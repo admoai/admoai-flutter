@@ -34,7 +34,7 @@ class TextOnlyAdView extends StatelessWidget {
             ClipRRect(
               borderRadius: BorderRadius.circular(4),
               child: Image.network(
-                creative.advertiser.logoUrl,
+                creative.advertiser.logoUrl ?? '',
                 width: 16,
                 height: 16,
                 errorBuilder: (context, error, stackTrace) =>
@@ -43,7 +43,7 @@ class TextOnlyAdView extends StatelessWidget {
             ),
             const SizedBox(width: 6),
             Text(
-              creative.advertiser.name,
+              creative.advertiser.name ?? '—',
               style: Theme.of(context).textTheme.bodySmall,
             ),
             const Spacer(),

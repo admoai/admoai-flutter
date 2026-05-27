@@ -11,11 +11,14 @@ AdMoai Flutter SDK is a cross-platform advertising solution that enables seamles
 ## Features
 
 - **Native Ads** - Multiple template types (wide, image+text, text-only, carousel)
-- **Video Ads** - JSON, VAST Tag, and VAST XML delivery methods
-- **Rich Targeting** - Geo, location, and custom key-value targeting
+- **Video Ads** - JSON, VAST Tag, and VAST XML delivery methods, with `Format.video` placement filter
+- **Rich Targeting** - Geo, current-location, destination, and custom key-value targeting
 - **GDPR Compliance** - Built-in user consent management
 - **Event Tracking** - Impressions, clicks, video quartiles, and custom events
+- **Open Measurement** - Pass-through support for third-party verification scripts (IAS, DoubleVerify, …)
 - **Flexible Templates** - Customizable ad layouts and formats
+- **Locale-aware** - `defaultLanguage` config propagates `Accept-Language` on every request
+- **Configurable transport** - Per-knob timeouts (request / connect / receive) and pluggable `http.Client`
 - **Per-Request Control** - Override user/device data collection per request
 
 ## Requirements
@@ -30,7 +33,7 @@ Add this to your package's pubspec.yaml file:
 
 ```yaml
 dependencies:
-  admoai: ^0.2.1
+  admoai: ^0.3.0
 ```
 
 Then run:
@@ -254,6 +257,46 @@ APIResponse<DecisionResponse>
 │   └── warnings: List<AdMoaiWarning>?
 └── rawBody: String?
 ```
+
+---
+
+## Open Measurement (OM)
+
+The Admoai Flutter SDK surfaces third-party verification resources (e.g. IAS, DoubleVerify, Moat) returned by the decision engine, so publishers can plug them into their own OM integration.
+
+**Important:** Admoai is not OM-certified and does **not** bundle the IAB OM SDK. The SDK only exposes the verification metadata — the publisher is responsible for loading the scripts into a verified, namespaced OM SDK in their app.
+
+### Accessing verification resources
+
+```dart
+import 'package:admoai/admoai.dart';
+
+response.body.data?.forEach((decision) {
+  decision.creatives?.forEach((creative) {
+    if (creative.hasOMVerification()) {
+      final resources = creative.getVerificationResources()!;
+      for (final r in resources) {
+        // Pass r.vendorKey, r.scriptUrl, r.verificationParameters
+        // to your OM SDK integration.
+      }
+    }
+  });
+});
+```
+
+### Integration paths
+
+1. **Native OM SDK (IAB)** — Full control. Bundle the IAB-namespaced Open Measurement SDK into your app and pass each `VerificationScriptResource` to its `VerificationScriptResource` API. Publisher owns the namespace and the integration.
+2. **Google IMA SDK** — IMA handles `<AdVerifications>` automatically when fed a VAST tag/XML. The verification resources are processed inside IMA; no extra wiring needed.
+3. **Third-party players (e.g. JW Player)** — Commercial players ship with OM support; consult their docs for how to feed the verification metadata.
+
+### VerificationScriptResource shape
+
+| Field | Type | Description |
+|---|---|---|
+| `vendorKey` | `String` | Vendor identifier (e.g. `"ias"`, `"doubleverify"`). |
+| `scriptUrl` | `String` | JavaScript URL the verification provider hosts. |
+| `verificationParameters` | `String?` | Optional opaque parameters the SDK passes through unchanged. |
 
 ---
 

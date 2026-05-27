@@ -165,6 +165,169 @@ void main() {
     });
   });
 
+  group('User-Agent header', () {
+    test('decision request carries User-Agent: AdMoaiSDK/{sdkVersion}', () {
+      final sdk = AdMoai.forTesting(
+        config: SDKConfig(baseUrl: baseUrl),
+      );
+      final request =
+          (sdk.createRequestBuilder()..addPlacement(key: 'home')).build();
+      final httpRequest = sdk.getHttpRequest(request);
+
+      expect(httpRequest.headers!['User-Agent'], startsWith('AdMoaiSDK/'));
+      expect(httpRequest.headers!['User-Agent'], contains(sdkVersion));
+    });
+
+    test('tracking request carries User-Agent', () async {
+      http.Request? captured;
+      final mockClient = MockClient((request) async {
+        captured = request;
+        return http.Response('', 200);
+      });
+
+      final sdk = AdMoai.forTesting(
+        config: SDKConfig(baseUrl: baseUrl),
+        httpClient: mockClient,
+      );
+
+      sdk.fireTracking('https://tracking.example.com/event');
+      await Future.delayed(Duration.zero);
+
+      expect(captured, isNotNull);
+      expect(captured!.headers['user-agent'], startsWith('AdMoaiSDK/'));
+    });
+
+    test('sdkVersion constant matches expected v0.3.0', () {
+      expect(sdkVersion, equals('0.3.0'));
+    });
+  });
+
+  group('network timeouts', () {
+    test('SDKConfig exposes three timeout knobs with 10s defaults', () {
+      final unset = SDKConfig(baseUrl: baseUrl);
+      expect(unset.requestTimeout, equals(const Duration(seconds: 10)));
+      expect(unset.connectTimeout, equals(const Duration(seconds: 10)));
+      expect(unset.receiveTimeout, equals(const Duration(seconds: 10)));
+    });
+
+    test('SDKConfig accepts custom timeouts', () {
+      final cfg = SDKConfig(
+        baseUrl: baseUrl,
+        requestTimeout: const Duration(seconds: 15),
+        connectTimeout: const Duration(seconds: 5),
+        receiveTimeout: const Duration(seconds: 20),
+      );
+      expect(cfg.requestTimeout, equals(const Duration(seconds: 15)));
+      expect(cfg.connectTimeout, equals(const Duration(seconds: 5)));
+      expect(cfg.receiveTimeout, equals(const Duration(seconds: 20)));
+    });
+
+    test('custom http.Client is used for decision requests', () async {
+      http.Request? captured;
+      final mockClient = MockClient((request) async {
+        captured = request;
+        return http.Response(
+          '{"success": true, "data": []}',
+          200,
+        );
+      });
+
+      final sdk = AdMoai.forTesting(
+        config: SDKConfig(baseUrl: baseUrl),
+        httpClient: mockClient,
+      );
+
+      final request = (sdk.createRequestBuilder()..addPlacement(key: 'home'))
+          .build();
+      await sdk.requestAds(request);
+
+      expect(captured, isNotNull);
+      expect(captured!.url.path, equals('/v1/decision'));
+    });
+
+    test('custom http.Client is used for tracking requests', () async {
+      http.Request? captured;
+      final mockClient = MockClient((request) async {
+        captured = request;
+        return http.Response('', 200);
+      });
+
+      final sdk = AdMoai.forTesting(
+        config: SDKConfig(baseUrl: baseUrl),
+        httpClient: mockClient,
+      );
+
+      sdk.fireTracking('https://tracking.example.com/event');
+      await Future.delayed(Duration.zero);
+
+      expect(captured, isNotNull);
+    });
+
+    test(
+        'decision request throws NetworkError on requestTimeout (TimeoutException)',
+        () async {
+      final stallingClient = MockClient((request) async {
+        await Future.delayed(const Duration(seconds: 5));
+        return http.Response('{}', 200);
+      });
+
+      final sdk = AdMoai.forTesting(
+        config: SDKConfig(
+          baseUrl: baseUrl,
+          requestTimeout: const Duration(milliseconds: 200),
+        ),
+        httpClient: stallingClient,
+      );
+
+      final request = (sdk.createRequestBuilder()..addPlacement(key: 'home'))
+          .build();
+
+      expect(
+        () => sdk.requestAds(request),
+        throwsA(isA<NetworkError>()),
+      );
+    });
+
+    test('tracking request is fire-and-forget on timeout (no throw)',
+        () async {
+      var completed = false;
+      final stallingClient = MockClient((request) async {
+        await Future.delayed(const Duration(seconds: 5));
+        return http.Response('', 200);
+      });
+
+      final sdk = AdMoai.forTesting(
+        config: SDKConfig(
+          baseUrl: baseUrl,
+          requestTimeout: const Duration(milliseconds: 100),
+        ),
+        httpClient: stallingClient,
+      );
+
+      sdk.fireTracking('https://tracking.example.com/event');
+      // give the timeout time to fire
+      await Future.delayed(const Duration(milliseconds: 250));
+      completed = true;
+
+      expect(completed, isTrue);
+    });
+
+    test('getHttpRequest preview is unaffected by timeout config', () {
+      final sdk = AdMoai.forTesting(
+        config: SDKConfig(
+          baseUrl: baseUrl,
+          requestTimeout: const Duration(seconds: 1),
+        ),
+      );
+
+      final request = (sdk.createRequestBuilder()..addPlacement(key: 'home'))
+          .build();
+      final httpRequest = sdk.getHttpRequest(request);
+      expect(httpRequest.path, equals('/v1/decision'));
+      expect(httpRequest.method, equals(HTTPMethod.post));
+    });
+  });
+
   group('defaultLanguage and Accept-Language header', () {
     test('SDKConfig exposes defaultLanguage and defaults to null', () {
       final unset = SDKConfig(baseUrl: baseUrl);

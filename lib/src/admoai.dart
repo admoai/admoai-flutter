@@ -1,11 +1,16 @@
+import 'dart:async';
+import 'dart:io' as io;
+
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:http/io_client.dart' as http_io;
 
 import 'configs.dart';
 import 'api_client.dart';
 import 'models/decision_request.dart';
 import 'models/decision_response.dart';
 import 'models/decision_request_builder.dart';
+import 'version.dart';
 
 class AdMoai {
   final AdMoaiClient _client;
@@ -15,29 +20,57 @@ class AdMoai {
   late UserConfig userConfig;
   final http.Client _httpClient;
 
-  AdMoai._({
+  factory AdMoai._({
+    required SDKConfig config,
+    required AppConfig appConfig,
+    required DeviceConfig deviceConfig,
+    required UserConfig userConfig,
+    http.Client? httpClient,
+  }) {
+    final resolvedClient = httpClient ?? _defaultHttpClient(config);
+    return AdMoai._init(
+      config: config,
+      appConfig: appConfig,
+      deviceConfig: deviceConfig,
+      userConfig: userConfig,
+      httpClient: resolvedClient,
+    );
+  }
+
+  AdMoai._init({
     required this.config,
     required this.appConfig,
     required this.deviceConfig,
     required this.userConfig,
-    http.Client? httpClient,
-  })  : _client = AdMoaiClient(
+    required http.Client httpClient,
+  })  : _httpClient = httpClient,
+        _client = AdMoaiClient(
           baseUrl: config.baseUrl,
           apiVersion: config.apiVersion,
           defaultLanguage: config.defaultLanguage,
+          requestTimeout: config.requestTimeout,
           logger: config.logger,
-        ),
-        _httpClient = httpClient ?? http.Client();
+          httpClient: httpClient,
+        );
+
+  static http.Client _defaultHttpClient(SDKConfig config) {
+    final ioHttpClient = io.HttpClient()
+      ..connectionTimeout = config.connectTimeout
+      ..idleTimeout = config.receiveTimeout;
+    return http_io.IOClient(ioHttpClient);
+  }
 
   static Future<AdMoai> initialize({
     required SDKConfig config,
     UserConfig? userConfig,
+    http.Client? httpClient,
   }) async {
     return AdMoai._(
       config: config,
       appConfig: await AppConfig.systemDefault(),
       deviceConfig: await DeviceConfig.systemDefault(),
       userConfig: userConfig ?? UserConfig.clear(),
+      httpClient: httpClient,
     );
   }
 
@@ -155,14 +188,24 @@ class AdMoai {
       config.logger.warning('Invalid tracking URL: $url');
       return;
     }
-    final headers = <String, String>{};
+    final headers = <String, String>{
+      'User-Agent': 'AdMoaiSDK/$sdkVersion',
+    };
     if (config.apiVersion != null) {
       headers['X-Decision-Version'] = config.apiVersion!;
     }
     if (config.defaultLanguage != null) {
       headers['Accept-Language'] = config.defaultLanguage!;
     }
-    _httpClient.get(Uri.parse(url), headers: headers.isEmpty ? null : headers);
+    unawaited(() async {
+      try {
+        await _httpClient
+            .get(Uri.parse(url), headers: headers)
+            .timeout(config.requestTimeout);
+      } catch (error) {
+        config.logger.warning('Tracking request failed: $error');
+      }
+    }());
   }
 
   void fireImpression(Tracking tracking, {String key = 'default'}) {

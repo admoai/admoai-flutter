@@ -61,15 +61,12 @@ class DecisionRequestBuilder {
 
   // Targeting methods
   DecisionRequestBuilder setGeoTargeting(List<int>? geoNameIds) {
-    if (_targeting == null) {
-      _targeting = Targeting(geo: geoNameIds);
-    } else {
-      _targeting = Targeting(
-        geo: geoNameIds,
-        location: _targeting?.location,
-        custom: _targeting?.custom,
-      );
-    }
+    _targeting = Targeting(
+      geo: geoNameIds,
+      location: _targeting?.location,
+      destination: _targeting?.destination,
+      custom: _targeting?.custom,
+    );
     return this;
   }
 
@@ -84,6 +81,7 @@ class DecisionRequestBuilder {
       _targeting = Targeting(
         geo: null,
         location: _targeting?.location,
+        destination: _targeting?.destination,
         custom: _targeting?.custom,
       );
     }
@@ -104,15 +102,12 @@ class DecisionRequestBuilder {
       },
     );
 
-    if (_targeting == null) {
-      _targeting = Targeting(location: uniqueLocations);
-    } else {
-      _targeting = Targeting(
-        geo: _targeting?.geo,
-        location: uniqueLocations,
-        custom: _targeting?.custom,
-      );
-    }
+    _targeting = Targeting(
+      geo: _targeting?.geo,
+      location: uniqueLocations,
+      destination: _targeting?.destination,
+      custom: _targeting?.custom,
+    );
     return this;
   }
 
@@ -130,6 +125,65 @@ class DecisionRequestBuilder {
       _targeting = Targeting(
         geo: _targeting?.geo,
         location: null,
+        destination: _targeting?.destination,
+        custom: _targeting?.custom,
+      );
+    }
+    return this;
+  }
+
+  DecisionRequestBuilder setDestinationTargeting(
+      List<Destination>? destinations) {
+    final unique = destinations?.fold<List<Destination>>(
+      [],
+      (result, dest) {
+        final exists = result.any((existing) =>
+            existing.latitude == dest.latitude &&
+            existing.longitude == dest.longitude &&
+            existing.minConfidence == dest.minConfidence);
+        if (!exists) {
+          result.add(dest);
+        }
+        return result;
+      },
+    );
+
+    _targeting = Targeting(
+      geo: _targeting?.geo,
+      location: _targeting?.location,
+      destination: unique,
+      custom: _targeting?.custom,
+    );
+    return this;
+  }
+
+  DecisionRequestBuilder addDestinationTargeting({
+    required double latitude,
+    required double longitude,
+    required double minConfidence,
+  }) {
+    if (minConfidence < 0.0 || minConfidence > 1.0) {
+      throw ArgumentError.value(
+        minConfidence,
+        'minConfidence',
+        'must be between 0.0 and 1.0 inclusive',
+      );
+    }
+    final current = List<Destination>.from(_targeting?.destination ?? []);
+    current.add(Destination(
+      latitude: latitude,
+      longitude: longitude,
+      minConfidence: minConfidence,
+    ));
+    return setDestinationTargeting(current);
+  }
+
+  DecisionRequestBuilder clearDestinationTargeting() {
+    if (_targeting != null) {
+      _targeting = Targeting(
+        geo: _targeting?.geo,
+        location: _targeting?.location,
+        destination: null,
         custom: _targeting?.custom,
       );
     }
@@ -146,15 +200,12 @@ class DecisionRequestBuilder {
       },
     );
 
-    if (_targeting == null) {
-      _targeting = Targeting(custom: uniqueCustom);
-    } else {
-      _targeting = Targeting(
-        geo: _targeting?.geo,
-        location: _targeting?.location,
-        custom: uniqueCustom,
-      );
-    }
+    _targeting = Targeting(
+      geo: _targeting?.geo,
+      location: _targeting?.location,
+      destination: _targeting?.destination,
+      custom: uniqueCustom,
+    );
     return this;
   }
 
@@ -172,6 +223,7 @@ class DecisionRequestBuilder {
       _targeting = Targeting(
         geo: _targeting?.geo,
         location: _targeting?.location,
+        destination: _targeting?.destination,
         custom: null,
       );
     }
