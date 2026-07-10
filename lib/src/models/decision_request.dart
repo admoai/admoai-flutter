@@ -1,3 +1,47 @@
+import 'dart:convert';
+
+/// Explicit runtime opt control for Journey Takeover Ads.
+///
+/// The decision-engine accepts only the wire literals `"in"` / `"out"`;
+/// any other value is rejected with HTTP 400. `in`/`out` are Dart keywords,
+/// so the enum members are named [optIn] / [optOut] and expose the wire
+/// string via [value].
+enum JourneyOpt {
+  optIn('in'),
+  optOut('out');
+
+  final String value;
+  const JourneyOpt(this.value);
+
+  /// Tolerant Reader lookup for the value the engine echoes back on
+  /// `creative.journey.optStatus`. Unknown or absent values return `null`
+  /// (never throws) so response parsing survives future engine values.
+  static JourneyOpt? fromWire(String? value) {
+    switch (value) {
+      case 'in':
+        return JourneyOpt.optIn;
+      case 'out':
+        return JourneyOpt.optOut;
+      default:
+        return null;
+    }
+  }
+}
+
+/// Returns a PII-safe rejection reason token when [sessionId] would be
+/// silently treated as absent by the decision-engine (disabling Journey),
+/// or `null` when it is acceptable.
+///
+/// The engine trims the value and rejects it when blank-after-trim or longer
+/// than 256 UTF-8 bytes (`journey_gate.go`). This never returns the raw value,
+/// which is a publisher PII identifier and must not be logged.
+String? journeySessionIdRejectionReason(String sessionId) {
+  final trimmed = sessionId.trim();
+  if (trimmed.isEmpty) return 'blank_after_trim';
+  if (utf8.encode(trimmed).length > 256) return 'exceeds_256_bytes';
+  return null;
+}
+
 class DecisionRequest {
   final List<Placement> placements;
   final Targeting? targeting;
@@ -5,22 +49,41 @@ class DecisionRequest {
   final Device? device;
   final App? app;
 
+  /// Stable publisher-provided identifier for the trip/session. Required for
+  /// Journey sequencing. Serialized top-level; trimmed, and omitted when blank.
+  final String? sessionId;
+
+  /// Explicit Journey opt control for this request. Serialized top-level as
+  /// its wire literal (`in`/`out`) only when set.
+  final JourneyOpt? journeyOpt;
+
   DecisionRequest({
     required this.placements,
     this.targeting,
     this.user,
     this.device,
     this.app,
+    this.sessionId,
+    this.journeyOpt,
   });
 
   Map<String, dynamic> toJson() {
-    return {
+    final json = <String, dynamic>{
       'placements': placements.map((p) => p.toJson()).toList(),
       if (targeting != null) 'targeting': targeting!.toJson(),
       if (user != null) 'user': user!.toJson(),
       if (device != null) 'device': device!.toJson(),
       if (app != null) 'app': app!.toJson(),
     };
+    // sessionId: trim; omit when blank; send over-length values as-is (the
+    // engine is authoritative and records the rejection reason server-side).
+    if (sessionId != null) {
+      final trimmed = sessionId!.trim();
+      if (trimmed.isNotEmpty) json['sessionId'] = trimmed;
+    }
+    // journeyOpt: only the two engine literals ever reach the wire.
+    if (journeyOpt != null) json['journeyOpt'] = journeyOpt!.value;
+    return json;
   }
 }
 

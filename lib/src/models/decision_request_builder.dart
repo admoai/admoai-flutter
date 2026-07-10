@@ -1,3 +1,5 @@
+import 'package:logging/logging.dart';
+
 import 'decision_request.dart';
 import '../configs.dart';
 
@@ -9,12 +11,18 @@ class DecisionRequestBuilder {
   App? _app;
   bool _collectAppData = true;
   bool _collectDeviceData = true;
+  String? _sessionId;
+  JourneyOpt? _journeyOpt;
+  final Logger _logger;
 
   DecisionRequestBuilder({
     required AppConfig appConfig,
     required DeviceConfig deviceConfig,
     required UserConfig userConfig,
-  }) {
+    String? sessionId,
+    Logger? logger,
+  }) : _sessionId = sessionId,
+        _logger = logger ?? Logger('AdMoai') {
     _app = App(
       name: appConfig.name,
       version: appConfig.version,
@@ -287,6 +295,39 @@ class DecisionRequestBuilder {
     return this;
   }
 
+  // Journey methods
+  /// Sets the per-request Journey session identifier, overriding any sticky
+  /// SDK-level default seeded into this builder. Emits a PII-safe warning
+  /// (reason token only, never the value) when the engine would treat the
+  /// value as absent (blank-after-trim or > 256 UTF-8 bytes).
+  DecisionRequestBuilder setSessionId(String sessionId) {
+    final reason = journeySessionIdRejectionReason(sessionId);
+    if (reason != null) {
+      _logger.warning(
+        'sessionId will disable Journey for this request (reason: $reason)',
+      );
+    }
+    _sessionId = sessionId;
+    return this;
+  }
+
+  DecisionRequestBuilder clearSessionId() {
+    _sessionId = null;
+    return this;
+  }
+
+  /// Forwards the publisher-provided Journey opt control without interpreting
+  /// progression locally.
+  DecisionRequestBuilder setJourneyOpt(JourneyOpt opt) {
+    _journeyOpt = opt;
+    return this;
+  }
+
+  DecisionRequestBuilder clearJourneyOpt() {
+    _journeyOpt = null;
+    return this;
+  }
+
   // Collection control methods
   DecisionRequestBuilder disableAppCollection() {
     _collectAppData = false;
@@ -333,6 +374,8 @@ class DecisionRequestBuilder {
       user: _user,
       device: _collectDeviceData ? _device : null,
       app: _collectAppData ? _app : null,
+      sessionId: _sessionId,
+      journeyOpt: _journeyOpt,
     );
   }
 }

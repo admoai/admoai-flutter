@@ -20,6 +20,14 @@ class AdMoai {
   late UserConfig userConfig;
   final http.Client _httpClient;
 
+  /// Sticky, publisher-owned Journey session identifier inherited by every
+  /// request builder created via [createRequestBuilder]. Never auto-generated
+  /// or auto-rotated by the SDK; the publisher rotates it explicitly via
+  /// [setSessionId] (e.g. a new trip). A per-request [DecisionRequestBuilder.setSessionId]
+  /// overrides it. Safe for one active Journey per instance; apps running
+  /// overlapping journeys should set `sessionId` per request instead.
+  String? _sessionId;
+
   factory AdMoai._({
     required SDKConfig config,
     required AppConfig appConfig,
@@ -64,14 +72,17 @@ class AdMoai {
     required SDKConfig config,
     UserConfig? userConfig,
     http.Client? httpClient,
+    String? sessionId,
   }) async {
-    return AdMoai._(
+    final sdk = AdMoai._(
       config: config,
       appConfig: await AppConfig.systemDefault(),
       deviceConfig: await DeviceConfig.systemDefault(),
       userConfig: userConfig ?? UserConfig.clear(),
       httpClient: httpClient,
     );
+    if (sessionId != null) sdk.setSessionId(sessionId);
+    return sdk;
   }
 
   @visibleForTesting
@@ -164,12 +175,33 @@ class AdMoai {
     userConfig = UserConfig.clear();
   }
 
+  // Journey session
+  /// Sets the sticky, publisher-owned Journey [sessionId] inherited by future
+  /// request builders. Rotate it when the publisher's own rules decide a new
+  /// journey begins (e.g. device locked 2h+). Emits a PII-safe warning (reason
+  /// token only, never the value) when the engine would treat it as absent.
+  void setSessionId(String sessionId) {
+    final reason = journeySessionIdRejectionReason(sessionId);
+    if (reason != null) {
+      config.logger.warning(
+        'sessionId will disable Journey (reason: $reason)',
+      );
+    }
+    _sessionId = sessionId;
+  }
+
+  void clearSessionId() {
+    _sessionId = null;
+  }
+
   // SDK Operations
   DecisionRequestBuilder createRequestBuilder() {
     return DecisionRequestBuilder(
       appConfig: appConfig,
       deviceConfig: deviceConfig,
       userConfig: userConfig,
+      sessionId: _sessionId,
+      logger: config.logger,
     );
   }
 
