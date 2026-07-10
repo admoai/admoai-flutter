@@ -1,4 +1,12 @@
+import 'decision_request.dart' show JourneyOpt;
+
 typedef DecisionResponse = List<Decision>;
+
+/// Tolerant Reader helpers: extract a value only when it has the expected
+/// type, returning `null` otherwise. These never throw on missing, extra, or
+/// retyped fields (docs.admoai.com Tolerant Reader policy).
+String? _asString(dynamic v) => v is String ? v : null;
+bool? _asBool(dynamic v) => v is bool ? v : null;
 
 class Decision {
   final String placement;
@@ -29,6 +37,11 @@ class Creative {
   final VastData? vast;
   final List<VerificationScriptResource>? verificationScriptResources;
 
+  /// Read-only Journey metadata, present only for Journey-served creatives
+  /// (`null` for normal Ads). The SDK preserves it verbatim and must not use
+  /// it to infer stage progression, completion, or billing.
+  final CreativeJourney? journey;
+
   Creative({
     required this.contents,
     this.metadata,
@@ -38,6 +51,7 @@ class Creative {
     this.delivery,
     this.vast,
     this.verificationScriptResources,
+    this.journey,
   });
 
   factory Creative.fromJson(Map<String, dynamic> json) {
@@ -61,6 +75,72 @@ class Creative {
               ?.map((e) =>
                   VerificationScriptResource.fromJson(e as Map<String, dynamic>))
               .toList(),
+      // Tolerant: only parse when the block is a map; absent/retyped -> null.
+      journey: json['journey'] is Map<String, dynamic>
+          ? CreativeJourney.fromJson(json['journey'] as Map<String, dynamic>)
+          : null,
+    );
+  }
+}
+
+/// Read-only Journey Takeover Ads metadata attached to a Journey-served
+/// [Creative] under the response key `journey`. Field names match the
+/// decision-engine v20251101 `CreativeJourney` contract exactly.
+///
+/// Every field is nullable and parsed defensively (Tolerant Reader policy):
+/// unknown/missing/retyped fields degrade to `null` and never throw, so older
+/// and newer SDK builds survive additive engine evolution without a version
+/// bump. All values are server-owned and read-only.
+class CreativeJourney {
+  final String? dealId;
+  final String? instanceId;
+  final String? definitionKey;
+  final String? stageId;
+  final String? stageKey;
+  final String? stageNodeId;
+  final String? sessionId;
+
+  /// Effective opt status echoed by the engine. Parsed as an open set:
+  /// unknown/absent values are `null` (malformed/unknown — not a business
+  /// state; valid engine values are `in`/`out`).
+  final JourneyOpt? optStatus;
+
+  /// True only on the serve that completes a `final_stage` Journey. For
+  /// `custom_event` deals this is `false` and completion is signalled via
+  /// `tracking.completions` instead.
+  final bool? isCompletion;
+
+  /// Open-set strings (kept raw to tolerate future engine values).
+  final String? pricingModel;
+  final String? fallbackBillingMode;
+
+  CreativeJourney({
+    this.dealId,
+    this.instanceId,
+    this.definitionKey,
+    this.stageId,
+    this.stageKey,
+    this.stageNodeId,
+    this.sessionId,
+    this.optStatus,
+    this.isCompletion,
+    this.pricingModel,
+    this.fallbackBillingMode,
+  });
+
+  factory CreativeJourney.fromJson(Map<String, dynamic> json) {
+    return CreativeJourney(
+      dealId: _asString(json['dealId']),
+      instanceId: _asString(json['instanceId']),
+      definitionKey: _asString(json['definitionKey']),
+      stageId: _asString(json['stageId']),
+      stageKey: _asString(json['stageKey']),
+      stageNodeId: _asString(json['stageNodeId']),
+      sessionId: _asString(json['sessionId']),
+      optStatus: JourneyOpt.fromWire(_asString(json['optStatus'])),
+      isCompletion: _asBool(json['isCompletion']),
+      pricingModel: _asString(json['pricingModel']),
+      fallbackBillingMode: _asString(json['fallbackBillingMode']),
     );
   }
 }
