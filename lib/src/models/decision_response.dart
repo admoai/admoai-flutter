@@ -27,6 +27,21 @@ class Decision {
   }
 }
 
+extension DecisionNoAd on Decision {
+  /// Whether this decision carries a renderable creative. `false` covers both
+  /// no-ad shapes the engine emits — `creatives: []` (e.g. single-brand
+  /// takeover protection) and `creatives: null` (ordinary no-fill).
+  ///
+  /// The SDK treats both uniformly as "no ad": render nothing, fire no
+  /// tracking, and never substitute a local, cached, or competing ad. The two
+  /// shapes are not a stable "protected takeover" signal (the reason is
+  /// server-side only), so do not branch on which empty shape was returned.
+  bool get hasCreative => creatives != null && creatives!.isNotEmpty;
+
+  /// Inverse of [hasCreative] — a clean no-ad state.
+  bool get isNoAd => !hasCreative;
+}
+
 class Creative {
   final List<Content> contents;
   final Metadata? metadata;
