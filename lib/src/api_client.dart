@@ -35,6 +35,8 @@ class AdMoaiClient {
           )
           .timeout(requestTimeout);
 
+      _warnIfDeprecated(response);
+
       final rawBody = utf8.decode(response.bodyBytes);
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
@@ -99,6 +101,24 @@ class AdMoaiClient {
       rethrow;
     } catch (e) {
       throw NetworkError(e);
+    }
+  }
+
+  /// Surfaces API-version deprecation to the developer per the Admoai
+  /// versioning lifecycle (docs.admoai.com). Deprecated responses carry
+  /// `X-API-Deprecated: true` (and may include a sunset date); we log a single
+  /// warning and otherwise process the response normally. Header lookup is
+  /// case-insensitive (the http package lowercases response header keys).
+  void _warnIfDeprecated(http.Response response) {
+    final deprecated = response.headers['x-api-deprecated'];
+    if (deprecated?.toLowerCase() == 'true') {
+      final sunset =
+          response.headers['sunset'] ?? response.headers['x-api-sunset'];
+      logger.warning(
+        'AdMoai API version is deprecated'
+        '${sunset != null ? ' (sunset: $sunset)' : ''}. '
+        'Upgrade the SDK or apiVersion before sunset.',
+      );
     }
   }
 
