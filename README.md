@@ -12,6 +12,7 @@ AdMoai Flutter SDK is a cross-platform advertising solution that enables seamles
 
 - **Native Ads** - Multiple template types (wide, image+text, text-only, carousel)
 - **Video Ads** - JSON, VAST Tag, and VAST XML delivery methods, with `Format.video` placement filter
+- **Journey Takeover Ads** - Multi-stage, single-brand trip journeys via `sessionId` / `journeyOpt` and read-only `creative.journey` metadata (requires `apiVersion: "2025-11-01"`)
 - **Rich Targeting** - Geo, current-location, destination, and custom key-value targeting
 - **GDPR Compliance** - Built-in user consent management
 - **Event Tracking** - Impressions, clicks, video quartiles, and custom events
@@ -205,6 +206,80 @@ sdk.fireCustom(tracking: trackingInfo, key: "companionOpened");
 ### Tracking Keys
 
 Each tracking type supports multiple keys. Use `"default"` for standard events or specify custom keys defined in your campaign configuration.
+
+---
+
+## Journey Takeover Ads
+
+Journey Takeover Ads let a single brand tell an ordered, multi-stage story across a trip (e.g. pre-ride → in-ride → post-ride). The **decision-engine owns all Journey logic** — eligibility, stage progression, single-brand takeover protection, completion, and billing. The SDK only forwards your Journey context, parses the read-only Journey metadata, and fires the exact server-provided tracking URLs.
+
+> **Requires `apiVersion: "2025-11-01"` or later.** Journey behavior is gated on the API version; without it (or with an older version) the engine ignores the Journey fields and serves normal ads. Journey fields are fully additive, so existing integrations keep working unchanged.
+
+### 1. Provide a stable session id
+
+Journey sequencing needs a **stable, publisher-owned `sessionId`** that is the same across every placement request belonging to one trip. You own its lifetime — the SDK never generates or changes it. Rotate it (start a new journey) only when your own rules say the trip changed (e.g. the app was backgrounded for 2h+).
+
+```dart
+final sdk = await AdMoai.initialize(
+  config: SDKConfig(baseUrl: '...', apiVersion: '2025-11-01'),
+  sessionId: 'trip_abc123', // sticky default, inherited by every builder
+);
+
+// Rotate when a new journey begins:
+sdk.setSessionId('trip_def456');
+
+// Or override per request:
+final request = sdk
+    .createRequestBuilder()
+    .addPlacement(key: 'in_ride_map_banner')
+    .setSessionId('trip_abc123')
+    .setJourneyOpt(JourneyOpt.optIn) // or JourneyOpt.optOut
+    .build();
+```
+
+`sessionId` must be ≤ 256 **UTF-8 bytes** (ASCII opaque ids recommended). Blank values are omitted; over-length values are sent as-is and the SDK logs a PII-safe warning (reason only, never the value) — the engine will treat such a value as absent and disable Journey for that request.
+
+Use `journeyOpt` to gate a session in/out at serve time (including mid-journey). Opt-out ends the active journey; a later opt-in may start a **new** `journeyInstanceId`.
+
+### 2. Read Journey metadata (read-only)
+
+```dart
+final creative = response.body.data?.first.creatives?.first;
+if (creative != null && creative.isJourneyAd()) {
+  creative.journeyDealId;      // commercial Journey Ad id
+  creative.journeyInstanceId;  // this journey attempt
+  creative.journeyStageId;     // current stage
+  creative.journeyStageNodeId; // current node (surface)
+  creative.journeyOptStatus;   // JourneyOpt.optIn / optOut / null
+}
+```
+
+These values are server-owned. Never use them to infer progression, completion, or billing — the engine is authoritative. `optStatus` is an open set: an unrecognized value parses to `null` (malformed/unknown), not a business state.
+
+### 3. Tracking & completion
+
+Fire the returned tracking URLs verbatim (see [Event Tracking](#event-tracking)). For `vast_tag` / `vast_xml` video, beacons live inside the VAST — do **not** also fire `creative.tracking` for those. Completion has two server-owned modes:
+
+- **`custom_event`** — `creative.tracking.completions` is populated. Fire it **once** when the mapped completion action occurs, and do **not** also fire a matching `custom` URL for the same action:
+
+  ```dart
+  if (creative.hasCompletionUrl) {
+    sdk.fireCompletion(creative.tracking, key: 'purchase');
+  }
+  ```
+
+- **`final_stage`** — `creative.isJourneyCompletion == true` and there is **no** completion URL. Completion is recorded server-side when the final stage serves; just fire the normal impression. Never synthesize or infer completion locally.
+
+### 4. No-ad and takeover protection
+
+While a Journey is active on its surfaces, the engine returns **no ad** rather than a competing brand. Treat both `creatives: []` and `creatives: null` uniformly as no-ad and never substitute a local, cached, or house ad:
+
+```dart
+final decision = response.body.data?.first;
+if (decision == null || decision.isNoAd) {
+  // Render nothing. Do not fall back to another ad on a Journey surface.
+}
+```
 
 ---
 

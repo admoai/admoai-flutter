@@ -251,7 +251,7 @@ void main() {
 
   // ── §2  Header assertions (mock network, no live calls) ───────────────────
   group('§2  Header assertions', () {
-    test('User-Agent is AdMoaiSDK/0.3.0', () async {
+    test('User-Agent is AdMoaiSDK/0.4.0', () async {
       String? capturedUA;
       final sdk = AdMoai.forTesting(
         config: SDKConfig(baseUrl: _baseUrl),
@@ -269,7 +269,7 @@ void main() {
 
       print('\n[§2-UA] $capturedUA');
       expect(capturedUA, contains('AdMoaiSDK/'));
-      expect(capturedUA, contains('0.3.0'));
+      expect(capturedUA, contains('0.4.0'));
     });
 
     test('Accept-Language is sent when defaultLanguage is set', () async {
