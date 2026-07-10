@@ -288,11 +288,18 @@ class Tracking {
   final List<TrackingItem>? custom;
   final List<TrackingItem>? videoEvents;
 
+  /// Journey completion tracking URLs. Populated only for Journey deals using
+  /// `completion_strategy = 'custom_event'`; the SDK fires the matching entry
+  /// once when the publisher-mapped completion action occurs. Empty/absent for
+  /// `final_stage` deals (completion is recorded server-side) and normal Ads.
+  final List<TrackingItem>? completions;
+
   Tracking({
     this.impressions,
     this.clicks,
     this.custom,
     this.videoEvents,
+    this.completions,
   });
 
   factory Tracking.fromJson(Map<String, dynamic> json) {
@@ -309,6 +316,9 @@ class Tracking {
       videoEvents: (json['videoEvents'] as List?)
           ?.map((e) => TrackingItem.fromJson(e as Map<String, dynamic>))
           .toList(),
+      completions: (json['completions'] as List?)
+          ?.map((e) => TrackingItem.fromJson(e as Map<String, dynamic>))
+          .toList(),
     );
   }
 
@@ -322,6 +332,8 @@ class Tracking {
         return custom?.any((item) => item.key == key) ?? false;
       case TrackingType.videoEvent:
         return videoEvents?.any((item) => item.key == key) ?? false;
+      case TrackingType.completion:
+        return completions?.any((item) => item.key == key) ?? false;
     }
   }
 
@@ -335,6 +347,8 @@ class Tracking {
         return getCustomUrl(key: key);
       case TrackingType.videoEvent:
         return getVideoEventUrl(key: key);
+      case TrackingType.completion:
+        return getCompletionUrl(key: key);
     }
   }
 
@@ -352,6 +366,10 @@ class Tracking {
 
   String? getVideoEventUrl({required String key}) {
     return videoEvents?.where((item) => item.key == key).firstOrNull?.url;
+  }
+
+  String? getCompletionUrl({required String key}) {
+    return completions?.where((item) => item.key == key).firstOrNull?.url;
   }
 }
 
@@ -376,7 +394,8 @@ enum TrackingType {
   impression('impression'),
   click('click'),
   custom('custom'),
-  videoEvent('videoEvent');
+  videoEvent('videoEvent'),
+  completion('completion');
 
   final String value;
   const TrackingType(this.value);

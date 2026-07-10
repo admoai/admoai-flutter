@@ -223,8 +223,13 @@ class AdMoai {
     final headers = <String, String>{
       'User-Agent': 'AdMoaiSDK/$sdkVersion',
     };
+    // The tracking endpoint (/v1/tracking) version-routes on X-Tracking-Version
+    // and ignores X-Decision-Version. Journey enrichment + custom-event
+    // completion only run on the versioned tracking handler, so the SDK must
+    // send X-Tracking-Version (using the configured apiVersion). When unset,
+    // no version header is sent and the engine defaults gracefully.
     if (config.apiVersion != null) {
-      headers['X-Decision-Version'] = config.apiVersion!;
+      headers['X-Tracking-Version'] = config.apiVersion!;
     }
     if (config.defaultLanguage != null) {
       headers['Accept-Language'] = config.defaultLanguage!;
@@ -257,6 +262,17 @@ class AdMoai {
 
   void fireVideoEvent(Tracking tracking, String key) {
     final url = tracking.getVideoEventUrl(key: key);
+    if (url != null) fireTracking(url);
+  }
+
+  /// Fires the server-provided Journey completion URL for [key]. Only relevant
+  /// for `custom_event` completion deals, where `tracking.completions` is
+  /// populated; fire it once when the publisher-mapped completion action
+  /// occurs. `final_stage` deals carry no completion URL (completion is
+  /// recorded server-side) — do not synthesize one. The SDK never infers or
+  /// emits completion locally.
+  void fireCompletion(Tracking tracking, {required String key}) {
+    final url = tracking.getCompletionUrl(key: key);
     if (url != null) fireTracking(url);
   }
 

@@ -26,4 +26,10 @@ extension JourneyHelper on Creative {
   /// informational — completion is recorded server-side; the SDK fires no
   /// extra URL for this mode.
   bool get isJourneyCompletion => journey?.isCompletion ?? false;
+
+  /// Whether the response carries a Journey completion URL to fire
+  /// (`custom_event` deals). When `false`, either this is not a completion
+  /// surface or it is a `final_stage` deal whose completion is server-side —
+  /// in both cases the SDK fires no completion URL.
+  bool get hasCompletionUrl => tracking.completions?.isNotEmpty ?? false;
 }
