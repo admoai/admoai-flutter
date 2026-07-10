@@ -1,0 +1,12 @@
+# Test configuration.
+#
+# The `live` tag marks diagnostic tests that make real network calls
+# (test/integration_live_test.dart). They are NOT a reliable CI gate — they
+# soft-log some API errors instead of failing. Declaring the tag here keeps
+# `flutter test` behavior unchanged while enabling a deterministic gate via:
+#
+#   flutter test --exclude-tags live
+tags:
+  live:
+    # No default skip: `flutter test` still runs live tests locally. CI should
+    # pass --exclude-tags live to rely only on the deterministic unit/mock suites.

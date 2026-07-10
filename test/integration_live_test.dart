@@ -1,11 +1,21 @@
 // ignore_for_file: avoid_print
+@Tags(['live'])
+library;
+
 //
-// Live integration test for AdMoai Flutter SDK v0.3.0
+// Live integration test for AdMoai Flutter SDK.
 //
-// Hits api.mock.admoai.com with all placement / apiVersion combinations and
-// exercises every new v0.3.0 SDK feature. No API key required.
+// DIAGNOSTIC, NOT A CI GATE. This suite makes real network calls to
+// api.mock.admoai.com and intentionally soft-logs some client/API errors
+// instead of hard-failing, so a green run here is not a reliable release
+// signal for live behavior. Deterministic SDK acceptance lives in the
+// unit/mock-HTTP suites (admoai_test, journey_*_test, decision_*_test,
+// api_client_test, tolerant_reader_test).
 //
-// Run with:
+// It is tagged `live` (see dart_test.yaml). Exclude it from a deterministic
+// gate with:
+//   flutter test --exclude-tags live
+// Or run it alone with:
 //   flutter test test/integration_live_test.dart --reporter expanded
 //
 // The live-request tests (§3, §4) never hard-fail on response content —
