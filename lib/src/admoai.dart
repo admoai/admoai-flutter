@@ -187,7 +187,11 @@ class AdMoai {
         'sessionId will disable Journey (reason: $reason)',
       );
     }
-    _sessionId = sessionId;
+    // Normalize so the stored value matches what is serialized: trim, and
+    // treat blank-after-trim as "no session" (null). Over-length values are
+    // kept as-is (the engine is authoritative and rejects them server-side).
+    final trimmed = sessionId.trim();
+    _sessionId = trimmed.isEmpty ? null : trimmed;
   }
 
   void clearSessionId() {
@@ -216,7 +220,8 @@ class AdMoai {
 
   // Tracking
   void fireTracking(String url) {
-    if (!Uri.tryParse(url)!.hasScheme) {
+    final uri = Uri.tryParse(url);
+    if (uri == null || !uri.hasScheme) {
       config.logger.warning('Invalid tracking URL: $url');
       return;
     }
@@ -237,7 +242,7 @@ class AdMoai {
     unawaited(() async {
       try {
         await _httpClient
-            .get(Uri.parse(url), headers: headers)
+            .get(uri, headers: headers)
             .timeout(config.requestTimeout);
       } catch (error) {
         config.logger.warning('Tracking request failed: $error');
@@ -273,7 +278,16 @@ class AdMoai {
   /// emits completion locally.
   void fireCompletion(Tracking tracking, {required String key}) {
     final url = tracking.getCompletionUrl(key: key);
-    if (url != null) fireTracking(url);
+    if (url != null) {
+      fireTracking(url);
+    } else if (tracking.completions?.isNotEmpty ?? false) {
+      // Completion URLs exist but none matches `key` — a likely publisher
+      // mistake. Completion is billing-critical, so surface it rather than
+      // silently firing nothing (unlike final_stage, which has no completions).
+      config.logger.warning(
+        'fireCompletion: no completion URL for key "$key" — nothing fired',
+      );
+    }
   }
 
   void dispose() {

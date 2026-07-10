@@ -34,7 +34,7 @@ Add this to your package's pubspec.yaml file:
 
 ```yaml
 dependencies:
-  admoai: ^0.3.0
+  admoai: ^0.4.0
 ```
 
 Then run:
@@ -89,29 +89,29 @@ response.body.data?.forEach((decision) {
 ### 4. Extract Content
 
 ```dart
-final headline = creative.contents.getContent(key: "headline")?.value;
-final imageUrl = creative.contents.getContent(key: "coverImage")?.value;
-final videoAsset = creative.contents.getContent(key: "video_asset")?.value;
+final headline = creative.contents.getContent("headline")?.value;
+final imageUrl = creative.contents.getContent("coverImage")?.value;
+final videoAsset = creative.contents.getContent("video_asset")?.value;
 ```
 
 ### 5. Track Events
 
 ```dart
 // Impressions
-sdk.fireImpression(tracking: creative.tracking);
+sdk.fireImpression(creative.tracking);
 
 // Clicks
-sdk.fireClick(tracking: creative.tracking);
+sdk.fireClick(creative.tracking);
 
 // Video quartiles
-sdk.fireVideoEvent(tracking: creative.tracking, key: "start");
-sdk.fireVideoEvent(tracking: creative.tracking, key: "first_quartile");
-sdk.fireVideoEvent(tracking: creative.tracking, key: "midpoint");
-sdk.fireVideoEvent(tracking: creative.tracking, key: "third_quartile");
-sdk.fireVideoEvent(tracking: creative.tracking, key: "complete");
+sdk.fireVideoEvent(creative.tracking, "start");
+sdk.fireVideoEvent(creative.tracking, "first_quartile");
+sdk.fireVideoEvent(creative.tracking, "midpoint");
+sdk.fireVideoEvent(creative.tracking, "third_quartile");
+sdk.fireVideoEvent(creative.tracking, "complete");
 
 // Custom events
-sdk.fireCustom(tracking: creative.tracking, key: "companionOpened");
+sdk.fireCustom(creative.tracking, "companionOpened");
 ```
 
 ### 6. Clean Up on Logout
@@ -153,7 +153,7 @@ creative.isJsonDelivery()
 creative.isVastTagDelivery()
 creative.isVastXmlDelivery()
 
-final videoUrl = creative.contents.getContent(key: "video_asset")?.value;
+final videoUrl = creative.contents.getContent("video_asset")?.value;
 final vastTagUrl = creative.getVastTagUrl();
 final vastXmlBase64 = creative.getVastXmlBase64();
 ```
@@ -173,12 +173,12 @@ final vastXmlBase64 = creative.getVastXmlBase64();
 | Skip | User skips | `skip` |
 
 ```dart
-sdk.fireImpression(tracking: creative.tracking);
-sdk.fireVideoEvent(tracking: creative.tracking, key: "start");
-sdk.fireVideoEvent(tracking: creative.tracking, key: "first_quartile");
-sdk.fireVideoEvent(tracking: creative.tracking, key: "midpoint");
-sdk.fireVideoEvent(tracking: creative.tracking, key: "third_quartile");
-sdk.fireVideoEvent(tracking: creative.tracking, key: "complete");
+sdk.fireImpression(creative.tracking);
+sdk.fireVideoEvent(creative.tracking, "start");
+sdk.fireVideoEvent(creative.tracking, "first_quartile");
+sdk.fireVideoEvent(creative.tracking, "midpoint");
+sdk.fireVideoEvent(creative.tracking, "third_quartile");
+sdk.fireVideoEvent(creative.tracking, "complete");
 ```
 
 ### Video Helper Methods
@@ -197,10 +197,10 @@ The SDK fires tracking beacons via HTTP requests automatically.
 ### Available Methods
 
 ```dart
-sdk.fireImpression(tracking: trackingInfo, key: "default");
-sdk.fireClick(tracking: trackingInfo, key: "default");
-sdk.fireVideoEvent(tracking: trackingInfo, key: "start");
-sdk.fireCustom(tracking: trackingInfo, key: "companionOpened");
+sdk.fireImpression(trackingInfo); // optional: key: "default"
+sdk.fireClick(trackingInfo); // optional: key: "default"
+sdk.fireVideoEvent(trackingInfo, "start");
+sdk.fireCustom(trackingInfo, "companionOpened");
 ```
 
 ### Tracking Keys

@@ -307,7 +307,10 @@ class DecisionRequestBuilder {
         'sessionId will disable Journey for this request (reason: $reason)',
       );
     }
-    _sessionId = sessionId;
+    // Normalize so the built request's `sessionId` matches the wire: trim, and
+    // treat blank-after-trim as null. Over-length kept as-is (engine rejects).
+    final trimmed = sessionId.trim();
+    _sessionId = trimmed.isEmpty ? null : trimmed;
     return this;
   }
 
@@ -357,12 +360,22 @@ class DecisionRequestBuilder {
     return this;
   }
 
+  /// Resets the builder for reuse. Clears placements, targeting, user, and
+  /// disables app/device collection. Also clears the per-request Journey
+  /// override [_journeyOpt] — it is a per-decision control and must not leak
+  /// (e.g. a stale `optOut`) into an unrelated reused request.
+  ///
+  /// The sticky Journey [_sessionId] is intentionally **preserved**: it is a
+  /// session-scoped default (seeded from [AdMoai] / set explicitly) and is
+  /// meant to persist across requests in the same journey. Call
+  /// [clearSessionId] to drop it explicitly.
   DecisionRequestBuilder clearAll() {
     clearPlacements();
     clearTargeting();
     clearUser();
     disableDeviceCollection();
     disableAppCollection();
+    clearJourneyOpt();
     return this;
   }
 

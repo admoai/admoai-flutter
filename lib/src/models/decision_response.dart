@@ -80,7 +80,13 @@ class Creative {
       advertiser:
           Advertiser.fromJson(json['advertiser'] as Map<String, dynamic>),
       template: Template.fromJson(json['template'] as Map<String, dynamic>),
-      tracking: Tracking.fromJson(json['tracking'] as Map<String, dynamic>),
+      // Tolerant: the tracking block carries the new Journey `completions`
+      // path, so a missing/retyped `tracking` must not drop the whole creative.
+      // (The remaining shell casts — contents/advertiser/template — are the
+      // pre-existing v0.3.0 strict-cast debt tracked in #41.)
+      tracking: json['tracking'] is Map<String, dynamic>
+          ? Tracking.fromJson(json['tracking'] as Map<String, dynamic>)
+          : Tracking(),
       delivery: json['delivery'] as String?,
       vast: json['vast'] == null
           ? null
@@ -319,22 +325,25 @@ class Tracking {
 
   factory Tracking.fromJson(Map<String, dynamic> json) {
     return Tracking(
-      impressions: (json['impressions'] as List?)
-          ?.map((e) => TrackingItem.fromJson(e as Map<String, dynamic>))
-          .toList(),
-      clicks: (json['clicks'] as List?)
-          ?.map((e) => TrackingItem.fromJson(e as Map<String, dynamic>))
-          .toList(),
-      custom: (json['custom'] as List?)
-          ?.map((e) => TrackingItem.fromJson(e as Map<String, dynamic>))
-          .toList(),
-      videoEvents: (json['videoEvents'] as List?)
-          ?.map((e) => TrackingItem.fromJson(e as Map<String, dynamic>))
-          .toList(),
-      completions: (json['completions'] as List?)
-          ?.map((e) => TrackingItem.fromJson(e as Map<String, dynamic>))
-          .toList(),
+      impressions: _trackingList(json['impressions']),
+      clicks: _trackingList(json['clicks']),
+      custom: _trackingList(json['custom']),
+      videoEvents: _trackingList(json['videoEvents']),
+      completions: _trackingList(json['completions']),
     );
+  }
+
+  /// Tolerant Reader list parse: returns `null` when the value is not a list,
+  /// and silently drops individual entries that are missing/retyped `key`/`url`
+  /// rather than throwing. Keeps a malformed entry from breaking the whole
+  /// response — important for `completions` (new Journey code) and consistent
+  /// across all tracking categories.
+  static List<TrackingItem>? _trackingList(dynamic value) {
+    if (value is! List) return null;
+    return value
+        .map(TrackingItem.tryFromJson)
+        .whereType<TrackingItem>()
+        .toList();
   }
 
   bool hasTrackingFor(TrackingType type, String key) {
@@ -402,6 +411,18 @@ class TrackingItem {
       key: json['key'] as String,
       url: json['url'] as String,
     );
+  }
+
+  /// Tolerant Reader variant: returns `null` (instead of throwing) when the
+  /// entry is not a map or is missing/retyped `key`/`url`. Used by
+  /// [Tracking._trackingList] so one malformed entry cannot break the whole
+  /// response parse.
+  static TrackingItem? tryFromJson(dynamic json) {
+    if (json is! Map) return null;
+    final key = json['key'];
+    final url = json['url'];
+    if (key is! String || url is! String) return null;
+    return TrackingItem(key: key, url: url);
   }
 }
 

@@ -197,6 +197,68 @@ void main() {
     });
   });
 
+  group('setSessionId normalization (field matches wire)', () {
+    test('blank sessionId → field is null and key omitted', () async {
+      final sdk = await newSdk();
+      final request = sdk
+          .createRequestBuilder()
+          .addPlacement(key: 'p')
+          .setSessionId('   ')
+          .build();
+
+      expect(request.sessionId, isNull,
+          reason: 'field must reflect the wire (no session)');
+      expect(request.toJson().containsKey('sessionId'), isFalse);
+    });
+
+    test('valid sessionId → field trimmed and equals wire value', () async {
+      final sdk = await newSdk();
+      final request = sdk
+          .createRequestBuilder()
+          .addPlacement(key: 'p')
+          .setSessionId('  sess_x  ')
+          .build();
+
+      expect(request.sessionId, equals('sess_x'));
+      expect(request.toJson()['sessionId'], equals('sess_x'));
+    });
+
+    test('sticky setSessionId(blank) disables session consistently', () async {
+      final sdk = await newSdk(sessionId: 'sess_1');
+      sdk.setSessionId('   ');
+      final request =
+          sdk.createRequestBuilder().addPlacement(key: 'p').build();
+      expect(request.sessionId, isNull);
+      expect(request.toJson().containsKey('sessionId'), isFalse);
+    });
+  });
+
+  group('clearAll Journey semantics', () {
+    test('clearAll clears per-request journeyOpt but preserves sticky sessionId',
+        () async {
+      final sdk = await newSdk(sessionId: 'sess_sticky');
+      final builder = sdk.createRequestBuilder()
+        ..addPlacement(key: 'p')
+        ..setJourneyOpt(JourneyOpt.optOut);
+
+      builder.clearAll();
+      builder.addPlacement(key: 'p2'); // reuse after reset
+
+      final json = builder.build().toJson();
+      // journeyOpt must NOT leak across the reset.
+      expect(json.containsKey('journeyOpt'), isFalse);
+      // sticky sessionId is intentionally preserved.
+      expect(json['sessionId'], equals('sess_sticky'));
+    });
+
+    test('clearSessionId drops the sticky session', () async {
+      final sdk = await newSdk(sessionId: 'sess_sticky');
+      final builder = sdk.createRequestBuilder()..addPlacement(key: 'p');
+      builder.clearSessionId();
+      expect(builder.build().toJson().containsKey('sessionId'), isFalse);
+    });
+  });
+
   group('Journey request — full body shape', () {
     test('serialized body carries top-level keys with a placement', () async {
       final sdk = await newSdk();
