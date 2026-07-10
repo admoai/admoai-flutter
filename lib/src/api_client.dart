@@ -42,13 +42,18 @@ class AdMoaiClient {
       if (response.statusCode >= 200 && response.statusCode < 300) {
         final jsonBody = jsonDecode(rawBody) as Map<String, dynamic>;
         if (T == List<Decision>) {
-          final List<dynamic> dataList = jsonBody['data'];
-          final decisions = dataList
-              .map((item) => Decision.fromJson(item as Map<String, dynamic>))
-              .toList();
+          // Tolerant Reader envelope parse: `data` may be absent/non-list, and
+          // individual entries may not be objects — never throw, just skip.
+          final rawData = jsonBody['data'];
+          final decisions = rawData is List
+              ? rawData
+                  .whereType<Map<String, dynamic>>()
+                  .map(Decision.fromJson)
+                  .toList()
+              : <Decision>[];
 
           final responseBody = APIResponseBody<T>(
-            success: jsonBody['success'] as bool,
+            success: jsonBody['success'] == true,
             data: decisions as T,
             errors: [],
             warnings: [],

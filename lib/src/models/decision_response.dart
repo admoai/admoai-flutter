@@ -7,6 +7,9 @@ typedef DecisionResponse = List<Decision>;
 /// retyped fields (docs.admoai.com Tolerant Reader policy).
 String? _asString(dynamic v) => v is String ? v : null;
 bool? _asBool(dynamic v) => v is bool ? v : null;
+int? _asInt(dynamic v) => v is int ? v : (v is num ? v.toInt() : null);
+Map<String, dynamic>? _asMap(dynamic v) =>
+    v is Map<String, dynamic> ? v : null;
 
 class Decision {
   final String placement;
@@ -18,11 +21,21 @@ class Decision {
   });
 
   factory Decision.fromJson(Map<String, dynamic> json) {
+    final rawCreatives = json['creatives'];
     return Decision(
-      placement: json['placement'] as String,
-      creatives: (json['creatives'] as List?)
-          ?.map((e) => Creative.fromJson(e as Map<String, dynamic>))
-          .toList(),
+      // Tolerant: default to '' rather than throw when placement is
+      // missing/retyped (a decision with no placement key is still a valid
+      // no-ad shape to a caller).
+      placement: _asString(json['placement']) ?? '',
+      // Tolerant: only iterate a real list, and skip entries that are not
+      // objects. Creative.fromJson is itself total (never throws).
+      creatives: rawCreatives is List
+          ? rawCreatives
+              .map(_asMap)
+              .whereType<Map<String, dynamic>>()
+              .map(Creative.fromJson)
+              .toList()
+          : null,
     );
   }
 }
@@ -69,37 +82,45 @@ class Creative {
     this.journey,
   });
 
+  /// Tolerant Reader parse: never throws. Missing/retyped required blocks fall
+  /// back to safe defaults (empty contents, empty Advertiser/Template, empty
+  /// Tracking) and malformed list entries are dropped, so one bad field cannot
+  /// drop the whole response. Values the SDK does not recognize are ignored.
   factory Creative.fromJson(Map<String, dynamic> json) {
+    final rawContents = json['contents'];
+    final rawVerifications = json['verificationScriptResources'];
     return Creative(
-      contents: (json['contents'] as List)
-          .map((e) => Content.fromJson(e as Map<String, dynamic>))
-          .toList(),
-      metadata: json['metadata'] == null
+      contents: rawContents is List
+          ? rawContents
+              .map(Content.tryFromJson)
+              .whereType<Content>()
+              .toList()
+          : <Content>[],
+      metadata: _asMap(json['metadata']) == null
           ? null
-          : Metadata.fromJson(json['metadata'] as Map<String, dynamic>),
-      advertiser:
-          Advertiser.fromJson(json['advertiser'] as Map<String, dynamic>),
-      template: Template.fromJson(json['template'] as Map<String, dynamic>),
-      // Tolerant: the tracking block carries the new Journey `completions`
-      // path, so a missing/retyped `tracking` must not drop the whole creative.
-      // (The remaining shell casts — contents/advertiser/template — are the
-      // pre-existing v0.3.0 strict-cast debt tracked in #41.)
-      tracking: json['tracking'] is Map<String, dynamic>
-          ? Tracking.fromJson(json['tracking'] as Map<String, dynamic>)
-          : Tracking(),
-      delivery: json['delivery'] as String?,
-      vast: json['vast'] == null
+          : Metadata.fromJson(_asMap(json['metadata'])!),
+      advertiser: _asMap(json['advertiser']) == null
+          ? Advertiser()
+          : Advertiser.fromJson(_asMap(json['advertiser'])!),
+      template: _asMap(json['template']) == null
+          ? Template(key: '')
+          : Template.fromJson(_asMap(json['template'])!),
+      tracking: _asMap(json['tracking']) == null
+          ? Tracking()
+          : Tracking.fromJson(_asMap(json['tracking'])!),
+      delivery: _asString(json['delivery']),
+      vast: _asMap(json['vast']) == null
           ? null
-          : VastData.fromJson(json['vast'] as Map<String, dynamic>),
-      verificationScriptResources:
-          (json['verificationScriptResources'] as List?)
-              ?.map((e) =>
-                  VerificationScriptResource.fromJson(e as Map<String, dynamic>))
-              .toList(),
-      // Tolerant: only parse when the block is a map; absent/retyped -> null.
-      journey: json['journey'] is Map<String, dynamic>
-          ? CreativeJourney.fromJson(json['journey'] as Map<String, dynamic>)
+          : VastData.fromJson(_asMap(json['vast'])!),
+      verificationScriptResources: rawVerifications is List
+          ? rawVerifications
+              .map(VerificationScriptResource.tryFromJson)
+              .whereType<VerificationScriptResource>()
+              .toList()
           : null,
+      journey: _asMap(json['journey']) == null
+          ? null
+          : CreativeJourney.fromJson(_asMap(json['journey'])!),
     );
   }
 }
@@ -179,9 +200,26 @@ class VerificationScriptResource {
 
   factory VerificationScriptResource.fromJson(Map<String, dynamic> json) {
     return VerificationScriptResource(
-      vendorKey: json['vendorKey'] as String,
-      scriptUrl: json['scriptUrl'] as String,
-      verificationParameters: json['verificationParameters'] as String?,
+      vendorKey: _asString(json['vendorKey']) ?? '',
+      scriptUrl: _asString(json['scriptUrl']) ?? '',
+      verificationParameters: _asString(json['verificationParameters']),
+    );
+  }
+
+  /// Tolerant Reader variant: returns `null` (instead of throwing or yielding a
+  /// useless entry) when the item is not an object or lacks a usable
+  /// `vendorKey`/`scriptUrl`. Used by [Creative.fromJson] to drop malformed
+  /// verification entries without failing the whole parse.
+  static VerificationScriptResource? tryFromJson(dynamic json) {
+    final map = _asMap(json);
+    if (map == null) return null;
+    final vendorKey = _asString(map['vendorKey']);
+    final scriptUrl = _asString(map['scriptUrl']);
+    if (vendorKey == null || scriptUrl == null) return null;
+    return VerificationScriptResource(
+      vendorKey: vendorKey,
+      scriptUrl: scriptUrl,
+      verificationParameters: _asString(map['verificationParameters']),
     );
   }
 }
@@ -199,10 +237,22 @@ class Content {
 
   factory Content.fromJson(Map<String, dynamic> json) {
     return Content(
-      key: json['key'] as String,
+      key: _asString(json['key']) ?? '',
       value: json['value'],
-      type: json['type'] as String,
+      type: _asString(json['type']) ?? '',
     );
+  }
+
+  /// Tolerant Reader variant: returns `null` when the entry is not an object or
+  /// has no usable `key`/`type`. Used by [Creative.fromJson] to drop malformed
+  /// content entries rather than throw. (`value` is passed through as-is.)
+  static Content? tryFromJson(dynamic json) {
+    final map = _asMap(json);
+    if (map == null) return null;
+    final key = _asString(map['key']);
+    final type = _asString(map['type']);
+    if (key == null || type == null) return null;
+    return Content(key: key, value: map['value'], type: type);
   }
 }
 
@@ -245,20 +295,24 @@ class Metadata {
     this.style,
   });
 
+  /// Tolerant Reader parse: never throws. Currently-required id fields default
+  /// to `''` when missing/retyped (preserving the non-null public API rather
+  /// than a source-breaking widening to nullable); optional fields degrade to
+  /// `null`.
   factory Metadata.fromJson(Map<String, dynamic> json) {
     return Metadata(
-      adId: json['adId'] as String,
-      creativeId: json['creativeId'] as String,
-      advertiserId: json['advertiserId'] as String?,
-      templateId: json['templateId'] as String,
-      placementId: json['placementId'] as String,
-      priority: json['priority'] as String,
-      language: json['language'] as String?,
-      duration: json['duration'] as int?,
-      aspectRatio: json['aspectRatio'] as String?,
-      isSkippable: json['isSkippable'] as bool?,
-      format: json['format'] as String?,
-      style: json['style'] as String?,
+      adId: _asString(json['adId']) ?? '',
+      creativeId: _asString(json['creativeId']) ?? '',
+      advertiserId: _asString(json['advertiserId']),
+      templateId: _asString(json['templateId']) ?? '',
+      placementId: _asString(json['placementId']) ?? '',
+      priority: _asString(json['priority']) ?? '',
+      language: _asString(json['language']),
+      duration: _asInt(json['duration']),
+      aspectRatio: _asString(json['aspectRatio']),
+      isSkippable: _asBool(json['isSkippable']),
+      format: _asString(json['format']),
+      style: _asString(json['style']),
     );
   }
 }
@@ -278,10 +332,10 @@ class Advertiser {
 
   factory Advertiser.fromJson(Map<String, dynamic> json) {
     return Advertiser(
-      id: json['id'] as String?,
-      name: json['name'] as String?,
-      legalName: json['legalName'] as String?,
-      logoUrl: json['logoUrl'] as String?,
+      id: _asString(json['id']),
+      name: _asString(json['name']),
+      legalName: _asString(json['legalName']),
+      logoUrl: _asString(json['logoUrl']),
     );
   }
 }
@@ -297,8 +351,8 @@ class Template {
 
   factory Template.fromJson(Map<String, dynamic> json) {
     return Template(
-      key: json['key'] as String,
-      style: json['style'] as String?,
+      key: _asString(json['key']) ?? '',
+      style: _asString(json['style']),
     );
   }
 }
@@ -448,8 +502,8 @@ class VastData {
 
   factory VastData.fromJson(Map<String, dynamic> json) {
     return VastData(
-      tagUrl: json['tagUrl'] as String?,
-      xmlBase64: json['xmlBase64'] as String?,
+      tagUrl: _asString(json['tagUrl']),
+      xmlBase64: _asString(json['xmlBase64']),
     );
   }
 }

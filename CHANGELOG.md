@@ -17,7 +17,7 @@ Adds **Journey Takeover Ads** support — additive and backward-compatible. Requ
 ### Compatibility
 
 - All changes are additive; existing non-Journey integrations continue to work unchanged.
-- Journey response parsing follows the Tolerant Reader policy: unknown/missing/retyped fields degrade to `null` and never throw, so the SDK survives additive engine evolution without a version bump.
+- The **entire decision response is now parsed as a Tolerant Reader** (docs.admoai.com): unknown fields are ignored, retyped/missing fields degrade to safe defaults (`null`, or `''`/empty for currently non-null fields — a non-breaking choice over widening the public API), and malformed list entries (contents, tracking, verifications, creatives) are dropped instead of throwing. One bad field can no longer drop the whole response, so the SDK survives additive engine evolution without a version bump. Applies to the response envelope, `Creative` shell, `Metadata`, `Content`, `Advertiser`, `Template`, `VastData`, tracking, and Journey blocks.
 
 ## 0.3.0
 
