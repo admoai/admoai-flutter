@@ -192,7 +192,7 @@ class AdMoai {
       'User-Agent': 'AdMoaiSDK/$sdkVersion',
     };
     if (config.apiVersion != null) {
-      headers['X-Decision-Version'] = config.apiVersion!;
+      headers['X-Tracking-Version'] = config.apiVersion!;
     }
     if (config.defaultLanguage != null) {
       headers['Accept-Language'] = config.defaultLanguage!;

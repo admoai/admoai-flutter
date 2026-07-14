@@ -1,3 +1,9 @@
+## Unreleased
+
+### Fixes
+
+- Fix: Tracking requests (`fireImpression`, `fireClick`, `fireCustom`, `fireVideoEvent`, `fireTracking`) now send the `X-Tracking-Version` header when `apiVersion` is configured, instead of `X-Decision-Version`. Decision requests keep sending `X-Decision-Version`.
+
 ## 0.3.0
 
 Brings the Flutter SDK to feature parity with iOS v1.4.0 and Android v1.2.0+ and fixes a set of production crash bugs around partial server responses.

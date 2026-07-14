@@ -126,7 +126,7 @@ void main() {
   });
 
   group('fireTracking version header', () {
-    test('sends X-Decision-Version header when apiVersion is set', () async {
+    test('sends X-Tracking-Version header when apiVersion is set', () async {
       http.Request? captured;
       final mockClient = MockClient((request) async {
         captured = request;
@@ -142,10 +142,29 @@ void main() {
       await Future.delayed(Duration.zero);
 
       expect(captured, isNotNull);
-      expect(captured!.headers['X-Decision-Version'], equals('2025-11-01'));
+      expect(captured!.headers['X-Tracking-Version'], equals('2025-11-01'));
     });
 
-    test('omits X-Decision-Version header when apiVersion is not set', () async {
+    test('does not send the decision X-Decision-Version header', () async {
+      http.Request? captured;
+      final mockClient = MockClient((request) async {
+        captured = request;
+        return http.Response('', 200);
+      });
+
+      final sdk = AdMoai.forTesting(
+        config: SDKConfig(baseUrl: baseUrl, apiVersion: '2025-11-01'),
+        httpClient: mockClient,
+      );
+
+      sdk.fireTracking('https://tracking.example.com/event');
+      await Future.delayed(Duration.zero);
+
+      expect(captured, isNotNull);
+      expect(captured!.headers.containsKey('X-Decision-Version'), isFalse);
+    });
+
+    test('omits X-Tracking-Version header when apiVersion is not set', () async {
       http.Request? captured;
       final mockClient = MockClient((request) async {
         captured = request;
@@ -161,7 +180,7 @@ void main() {
       await Future.delayed(Duration.zero);
 
       expect(captured, isNotNull);
-      expect(captured!.headers.containsKey('X-Decision-Version'), isFalse);
+      expect(captured!.headers.containsKey('X-Tracking-Version'), isFalse);
     });
   });
 
@@ -363,7 +382,7 @@ void main() {
       expect(httpRequest.headers!.containsKey('Accept-Language'), isFalse);
     });
 
-    test('tracking request carries Accept-Language and X-Decision-Version',
+    test('tracking request carries Accept-Language and X-Tracking-Version',
         () async {
       http.Request? captured;
       final mockClient = MockClient((request) async {
@@ -385,7 +404,7 @@ void main() {
 
       expect(captured, isNotNull);
       expect(captured!.headers['Accept-Language'], equals('es-ES'));
-      expect(captured!.headers['X-Decision-Version'], equals('2025-11-01'));
+      expect(captured!.headers['X-Tracking-Version'], equals('2025-11-01'));
     });
 
     test('tracking request omits Accept-Language when defaultLanguage is null',
