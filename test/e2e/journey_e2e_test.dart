@@ -813,6 +813,19 @@ void progressionGroup() {
       check((first.journeyPricingModel ?? '').isNotEmpty,
           'pricingModel is surfaced');
 
+      // The render-level attribution key, which the engine mints per served
+      // creative and emits on EVERY journey serve. This SDK dropped it silently
+      // for the whole feature's life: the Tolerant Reader discards unknown fields
+      // by design, and nothing here had ever asserted anything about `metadata`,
+      // so every journey-block assertion above stayed green while a field iOS and
+      // Android both expose went missing. Asserted live, because the engine is the
+      // only thing that can prove it is actually sent.
+      check(first.metadata != null,
+          'the serve carries a metadata block');
+      check((first.metadata!.impId ?? '').isNotEmpty,
+          'metadata.impId is surfaced on a journey serve '
+          '(got ${first.metadata!.impId ?? "null"})');
+
       final second = await decide(
         driver,
         placements: [demoStage2Placement],
@@ -825,7 +838,8 @@ void progressionGroup() {
           'dealId is constant across the journey stages');
       check(next.journeySessionId == session,
           'the session id is echoed on every serve');
-      notes.add('deal ${first.journeyDealId} stable; sessionId echoed');
+      notes.add('deal ${first.journeyDealId} stable; sessionId echoed; '
+          'impId ${first.metadata?.impId}');
     });
   });
 }
@@ -1710,8 +1724,19 @@ void videoGroup() {
       await Future.delayed(const Duration(milliseconds: 300));
       check(driver.client.sent.isEmpty,
           'merely reading the video data fires nothing');
+      // Video metadata parity with iOS/Android. Recorded rather than required:
+      // whether a given creative is skippable or carries an end card is campaign
+      // configuration, but if the engine sends the fields the SDK must surface
+      // them rather than drop them.
+      final metadata = creative.metadata;
+      check(metadata != null, 'the video serve carries a metadata block');
       notes.add('json delivery, ${events.length} video events: '
           '${events.map((e) => e.key).join(", ")}');
+      notes.add('metadata: impId=${metadata!.impId} '
+          'duration=${metadata.duration} aspect=${metadata.aspectRatio} '
+          'skippable=${metadata.isSkippable} '
+          'skipOffsetSeconds=${metadata.skipOffsetSeconds} '
+          'endCardMode=${metadata.endCardMode}');
     });
   });
 

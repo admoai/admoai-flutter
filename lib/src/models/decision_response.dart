@@ -272,11 +272,29 @@ class Metadata {
   final String? advertiserId;
   final String templateId;
   final String placementId;
+
+  /// Render-level attribution key the engine mints per served creative
+  /// (`impId`). Present on Journey serves, `null` for normal ads.
+  ///
+  /// Read-only passthrough of the engine contract, for reconciling a specific
+  /// render against reporting. The encrypted tracking token remains the
+  /// authoritative source server-side — this is not a substitute for it, and the
+  /// SDK never derives anything from it.
+  final String? impId;
+
   final String priority;
   final String? language;
   final int? duration;
   final String? aspectRatio;
   final bool? isSkippable;
+
+  /// Seconds before a skippable video may be skipped (`skipOffsetSeconds`).
+  final int? skipOffsetSeconds;
+
+  /// End-card presentation mode for video creatives (`endCardMode`). Kept as a
+  /// raw open-set string to tolerate future engine values.
+  final String? endCardMode;
+
   final String? format;
   final String? style;
 
@@ -286,11 +304,14 @@ class Metadata {
     this.advertiserId,
     required this.templateId,
     required this.placementId,
+    this.impId,
     required this.priority,
     this.language,
     this.duration,
     this.aspectRatio,
     this.isSkippable,
+    this.skipOffsetSeconds,
+    this.endCardMode,
     this.format,
     this.style,
   });
@@ -306,11 +327,14 @@ class Metadata {
       advertiserId: _asString(json['advertiserId']),
       templateId: _asString(json['templateId']) ?? '',
       placementId: _asString(json['placementId']) ?? '',
+      impId: _asString(json['impId']),
       priority: _asString(json['priority']) ?? '',
       language: _asString(json['language']),
       duration: _asInt(json['duration']),
       aspectRatio: _asString(json['aspectRatio']),
       isSkippable: _asBool(json['isSkippable']),
+      skipOffsetSeconds: _asInt(json['skipOffsetSeconds']),
+      endCardMode: _asString(json['endCardMode']),
       format: _asString(json['format']),
       style: _asString(json['style']),
     );

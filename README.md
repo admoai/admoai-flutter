@@ -361,6 +361,11 @@ On a normal ad every one of these is `null` (or `false`) — never a crash and n
 a default object. `isJourneyAd()` is `true` only when the engine issued a real deal
 or instance id.
 
+`creative.metadata.impId` carries the engine's **render-level attribution key**, minted
+per served creative and present on every Journey serve (`null` on normal ads). Use it to
+reconcile a specific render against reporting; it is not a substitute for the tracking
+token, and the SDK derives nothing from it.
+
 > **Do not branch your UI on stage keys or node ids.** They are server-owned
 > identifiers that change when a campaign is reconfigured; a UI keyed to
 > `"pre_ride"` breaks the day someone renames a stage. Render whatever the creative

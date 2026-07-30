@@ -471,6 +471,120 @@ void main() {
   });
 
   // ───────────────────────────────────────────────────────────────────────────
+  // D6 — metadata parity with iOS and Android.
+  //
+  // The engine's 2025-11-01 contract carries `impId`, `skipOffsetSeconds` and
+  // `endCardMode` (decision.go:291,298,299). iOS and Android both model all three;
+  // this SDK modelled none, so the Tolerant Reader silently discarded them — a
+  // publisher on Flutter could not read a field their iOS and Android counterparts
+  // could. `impId` is the render-level attribution key and the engine emits it on
+  // EVERY journey serve, so it was dropped on every journey serve.
+  //
+  // Nothing detected this: dropping unknown fields is the Tolerant Reader working
+  // as designed, and no test ever asserted anything about `metadata`.
+  // ───────────────────────────────────────────────────────────────────────────
+  group('D6: metadata exposes impId, skipOffsetSeconds and endCardMode', () {
+    // Shape taken verbatim from a live journey serve.
+    Map<String, dynamic> liveJourneyMetadata() => {
+          'adId': 'jad_01KYT8WMT199HC3Q7BXR4CPNJA',
+          'creativeId': 'jsc_01KYT8WMV3RR9Q5G7FA1G0NKR7',
+          'advertiserId': '1',
+          'placementId': '2',
+          'templateId': '2',
+          'impId': 'imp_01KYTC0QFP42KQ6V0GTTCGHSMV',
+          'priority': 'standard',
+          'language': 'en',
+          'format': 'native',
+        };
+
+    test('impId is surfaced from a real journey serve payload', () {
+      final creative = creativeWith(journey: {'dealId': 'jad_1'});
+      expect(creative.metadata, isNull); // no metadata block in the helper
+
+      final withMetadata = Creative.fromJson({
+        'contents': const <dynamic>[],
+        'advertiser': const <String, dynamic>{},
+        'template': const <String, dynamic>{},
+        'tracking': const <String, dynamic>{},
+        'metadata': liveJourneyMetadata(),
+        'journey': const {'dealId': 'jad_1'},
+      });
+
+      expect(withMetadata.metadata, isNotNull);
+      expect(withMetadata.metadata!.impId,
+          equals('imp_01KYTC0QFP42KQ6V0GTTCGHSMV'));
+    });
+
+    test('video metadata exposes skipOffsetSeconds and endCardMode', () {
+      final metadata = Metadata.fromJson({
+        'adId': 'a',
+        'creativeId': 'c',
+        'templateId': 't',
+        'placementId': 'p',
+        'priority': 'standard',
+        'format': 'native_video',
+        'duration': 29,
+        'aspectRatio': '9:16',
+        'isSkippable': true,
+        'skipOffsetSeconds': 5,
+        'endCardMode': 'native',
+      });
+
+      expect(metadata.skipOffsetSeconds, equals(5));
+      expect(metadata.endCardMode, equals('native'));
+      expect(metadata.isSkippable, isTrue);
+      expect(metadata.duration, equals(29));
+    });
+
+    test('all three are null on a normal ad that omits them', () {
+      final metadata = Metadata.fromJson({
+        'adId': 'a',
+        'creativeId': 'c',
+        'templateId': 't',
+        'placementId': 'p',
+        'priority': 'standard',
+      });
+
+      expect(metadata.impId, isNull);
+      expect(metadata.skipOffsetSeconds, isNull);
+      expect(metadata.endCardMode, isNull);
+    });
+
+    test('retyped values degrade to null instead of throwing (tolerant)', () {
+      late Metadata metadata;
+      expect(() {
+        metadata = Metadata.fromJson({
+          'adId': 'a',
+          'creativeId': 'c',
+          'templateId': 't',
+          'placementId': 'p',
+          'priority': 'standard',
+          'impId': 42,
+          'skipOffsetSeconds': 'five',
+          'endCardMode': <String>['native'],
+        });
+      }, returnsNormally);
+
+      expect(metadata.impId, isNull);
+      expect(metadata.skipOffsetSeconds, isNull);
+      expect(metadata.endCardMode, isNull);
+    });
+
+    test('skipOffsetSeconds accepts a num and coerces to int', () {
+      final metadata = Metadata.fromJson({
+        'adId': 'a',
+        'creativeId': 'c',
+        'templateId': 't',
+        'placementId': 'p',
+        'priority': 'standard',
+        'skipOffsetSeconds': 5.0,
+      });
+
+      expect(metadata.skipOffsetSeconds, equals(5));
+    });
+  });
+
+  // ───────────────────────────────────────────────────────────────────────────
   // R1 — the version header is a hard gate: without it the engine silently
   // ignores journey fields. Asserted on the live request path, not just the
   // tracking path.

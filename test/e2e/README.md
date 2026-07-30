@@ -19,6 +19,17 @@ flutter test test/e2e/journey_e2e_test.dart --reporter expanded   # raw output
 |---|---|
 | `ADMOAI_JOURNEY_E2E_BASE_URL` | `http://127.0.0.1:8080` |
 | `ADMOAI_JOURNEY_E2E_VERSION` | `2025-11-01` |
+| `ADMOAI_JOURNEY_E2E_REQUIRE_WIZARD` | `0` — set to `1` for release sign-off, which turns a §K SKIP into a failure |
+
+**For release sign-off, run it with the wizard gate on:**
+
+```bash
+ADMOAI_JOURNEY_E2E_REQUIRE_WIZARD=1 tool/journey_e2e.sh
+```
+
+Without it a missing wizard fixture skips and the run exits `0` — correct for day-to-day
+development, dangerous at sign-off. This is not hypothetical: the fixture was destroyed by
+a `make db-reset` within an hour of this suite first passing with §K green.
 
 **Exit codes** (same contract as the Android runner):
 
@@ -125,9 +136,10 @@ recreated from code.
 
 - [ ] **Three consecutive runs with no reseed, identical results.** Otherwise it
       is not a gate.
-- [ ] **§K is PASS, not SKIP.** The fixture is hand-built, so a `db-reset` makes
-      §K skip while the summary still reads "0 failed" and looks green — the
-      platform→engine seam goes unverified with nothing signalling it.
+- [ ] **§K is PASS, not SKIP** — enforce it with
+      `ADMOAI_JOURNEY_E2E_REQUIRE_WIZARD=1`. The fixture is hand-built, so a
+      `db-reset` makes §K skip while the summary still reads "0 failed" and looks
+      green, leaving the platform→engine seam unverified with nothing signalling it.
 - [ ] Every other SKIP is deliberate and explained in the output.
 - [ ] The offline suite is still green and hermetic.
 

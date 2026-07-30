@@ -33,7 +33,13 @@ Because it is hand-built, **`make db-reset` destroys it**. The `K` scenarios the
 report **SKIP**, and the summary still reads `0 failed` and looks green — the
 platform→engine seam goes unverified with nothing signalling it.
 
-**Before signing off a release, confirm the `K` scenarios are `PASS`, not `SKIP`.**
+**Before signing off a release, confirm the `K` scenarios are `PASS`, not `SKIP`** —
+enforce it mechanically with `ADMOAI_JOURNEY_E2E_REQUIRE_WIZARD=1 tool/journey_e2e.sh`,
+which turns a §K SKIP into a failure.
+
+> This is not hypothetical. The fixture was destroyed by a `make db-reset` **within an
+> hour** of the suite first passing with §K green, and had to be rebuilt from this file.
+> Expect to rebuild it.
 
 ### Config as captured (2026-07-30, engine DB on `:8081`)
 

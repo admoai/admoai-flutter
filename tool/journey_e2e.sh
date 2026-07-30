@@ -50,6 +50,33 @@ report = json.load(open('$REPORT'))
 print(report.get('exitCode', 1))
 ")
 
+# Release gate. A missing fixture SKIPs rather than FAILs by design — an unseeded
+# fixture is an environment fact, not a defect — but the wizard-parity group is
+# hand-built in the Ad Manager and does not survive `make db-reset`. When it
+# vanishes, §K skips, the summary still reads "0 failed", and the run looks green
+# while the one seam that catches platform-writes/engine-reads mismatches (adhub
+# #2459, #2483 — both of which survived a fully green suite) goes unverified.
+#
+# Set ADMOAI_JOURNEY_E2E_REQUIRE_WIZARD=1 for release sign-off to turn that into a
+# failure. Left off by default so ordinary development runs keep the documented
+# SKIP semantics.
+if [[ "${ADMOAI_JOURNEY_E2E_REQUIRE_WIZARD:-0}" == "1" && "$exit_code" == "0" ]]; then
+  wizard_ok=$(python3 -c "
+import json
+report = json.load(open('$REPORT'))
+k = [s for s in report['scenarios'] if s['id'].startswith('K')]
+print('yes' if k and all(s['outcome'] == 'PASS' for s in k) else 'no')
+")
+  if [[ "$wizard_ok" != "yes" ]]; then
+    echo ""
+    echo "RELEASE GATE FAILED: the wizard-parity group (§K) is not PASS."
+    echo "  ADMOAI_JOURNEY_E2E_REQUIRE_WIZARD=1 is set, so a SKIP here is a failure."
+    echo "  The fixture is hand-built and does not survive \`make db-reset\`."
+    echo "  Rebuild it in the Ad Manager per test/e2e/fixtures/README.md, then re-run."
+    exit 1
+  fi
+fi
+
 # A crash inside a scenario body is caught and recorded as a FAIL, but a crash in
 # the harness itself is not — so a non-zero flutter exit with a clean report still
 # has to fail the run rather than be silently reported as green.

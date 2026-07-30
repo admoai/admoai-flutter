@@ -29,6 +29,12 @@ No version cut yet — the additions below warrant a minor bump when released.
   `TestWidgetsFlutterBinding` installs an `HttpOverrides` that answers every request
   with a mocked HTTP 400, and the suite soft-logged those as warnings — so it passed
   green while covering nothing. It now clears the override.
+- Fix: `Metadata` dropped three fields the engine's `2025-11-01` contract sends and
+  that both iOS and Android model: `impId`, `skipOffsetSeconds` and `endCardMode`.
+  Since the Tolerant Reader discards unknown fields by design, they were silently
+  lost — and the engine emits `impId`, the render-level attribution key, on **every**
+  journey serve. A Flutter publisher could not read a value their iOS and Android
+  counterparts could.
 
 ### Features
 
@@ -48,7 +54,9 @@ No version cut yet — the additions below warrant a minor bump when released.
   aborts with a diagnosis (exit 2) when the environment is unusable; a missing
   fixture SKIPs rather than FAILs; results are written to
   `build/journey-e2e/report.json`. Excluded from the offline gate
-  (`flutter test --exclude-tags "live || e2e"`).
+  (`flutter test --exclude-tags "live || e2e"`). For release sign-off,
+  `ADMOAI_JOURNEY_E2E_REQUIRE_WIZARD=1` turns a skipped wizard-parity group into a
+  failure, so a destroyed hand-built fixture cannot read as green.
 - Test: Parity regression guards (`test/journey_parity_test.dart`) for each fix
   above, and a compile-check (`test/doc_examples_compile_test.dart`) that fails the
   build if the README documents an API symbol that does not exist.
