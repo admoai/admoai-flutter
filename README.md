@@ -563,6 +563,11 @@ final request = sdk.createRequestBuilder()
     .build();
 ```
 
+`clearAll()` resets a builder for reuse: it drops placements, targeting and user, stops automatic
+app and device collection, and clears `journeyOpt`. It deliberately **keeps** the sticky
+`sessionId` — that is session-scoped state, not per-request state, so a journey survives a builder
+reset. Call `clearSessionId()` to drop it explicitly.
+
 ---
 
 ## Response Structure
