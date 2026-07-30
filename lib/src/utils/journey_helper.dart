@@ -7,9 +7,21 @@ import '../models/decision_response.dart';
 /// server-owned values only — the SDK never mutates Journey state or infers
 /// progression/completion/billing from them.
 extension JourneyHelper on Creative {
-  /// Whether this creative was served as part of a Journey (i.e. the response
-  /// carried a `journey` block).
-  bool isJourneyAd() => journey != null;
+  /// Whether this creative was served as part of a Journey.
+  ///
+  /// Checks for a real server-issued identifier rather than the mere presence of
+  /// the `journey` block: the Tolerant Reader decodes `"journey": {}` (or a block
+  /// whose fields are all missing/retyped) into a non-null [CreativeJourney] with
+  /// every field `null`. Testing `journey != null` would report `true` for such a
+  /// creative while every accessor below returns `null` — a normal ad
+  /// indistinguishable from a Journey serve. Mirrors the Android SDK's
+  /// `Creative.isJourneyAd()`.
+  bool isJourneyAd() {
+    final dealId = journey?.dealId;
+    final instanceId = journey?.instanceId;
+    return (dealId != null && dealId.trim().isNotEmpty) ||
+        (instanceId != null && instanceId.trim().isNotEmpty);
+  }
 
   String? get journeyDealId => journey?.dealId;
   String? get journeyInstanceId => journey?.instanceId;

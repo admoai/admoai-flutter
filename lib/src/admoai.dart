@@ -211,18 +211,45 @@ class AdMoai {
 
   Future<APIResponse<DecisionResponse>> requestAds(
       DecisionRequest request) async {
+    _warnIfJourneyWithoutApiVersion(request);
     return _client.requestDecision(request);
   }
 
   HTTPRequest getHttpRequest(DecisionRequest request) {
+    _warnIfJourneyWithoutApiVersion(request);
     return _client.getDecisionRequest(request);
+  }
+
+  /// The decision endpoint version-routes on `X-Decision-Version`; Journey fields
+  /// only reach the Journey-capable handler on `2025-11-01` or later. Without an
+  /// [SDKConfig.apiVersion] the engine **silently** ignores `sessionId` /
+  /// `journeyOpt` and serves normal ads — no error, no empty response, nothing to
+  /// notice. Warn so the misconfiguration is visible during integration rather
+  /// than read as "no Journey was eligible".
+  void _warnIfJourneyWithoutApiVersion(DecisionRequest request) {
+    if (config.apiVersion != null) return;
+    // Mirror the wire: a blank-after-trim sessionId is never sent, so it is not
+    // Journey context and must not trigger the warning.
+    final hasSession = (request.sessionId?.trim().isNotEmpty ?? false);
+    if (!hasSession && request.journeyOpt == null) return;
+    config.logger.warning(
+      'Journey context set but apiVersion is null; Journey will be ignored.',
+    );
   }
 
   // Tracking
   void fireTracking(String url) {
     final uri = Uri.tryParse(url);
-    if (uri == null || !uri.hasScheme) {
-      config.logger.warning('Invalid tracking URL: $url');
+    // Require an absolute http(s) URL with a host. `hasScheme` alone would admit
+    // `mailto:`, `file:`, `ftp://…` and scheme-only strings, which cannot be a
+    // beacon the engine minted. PII-safe: the URL carries an opaque `?e=` token,
+    // so log a redacted reason and never the value.
+    if (uri == null ||
+        (uri.scheme != 'http' && uri.scheme != 'https') ||
+        uri.host.isEmpty) {
+      config.logger.warning(
+        'Tracking URL rejected: not an absolute http(s) URL',
+      );
       return;
     }
     final headers = <String, String>{
@@ -260,10 +287,20 @@ class AdMoai {
     if (url != null) fireTracking(url);
   }
 
-  void fireCustom(Tracking tracking, String key) {
+  /// Fires the custom-event beacon for [key]. Named to match the Android SDK's
+  /// `fireCustomEvent`.
+  void fireCustomEvent(Tracking tracking, String key) {
     final url = tracking.getCustomUrl(key: key);
     if (url != null) fireTracking(url);
   }
+
+  /// Deprecated alias for [fireCustomEvent], kept so existing integrations keep
+  /// compiling. iOS still exposes `fireCustom`; all three SDKs are converging on
+  /// `fireCustomEvent`.
+  @Deprecated('Renamed to fireCustomEvent for cross-SDK parity. '
+      'Will be removed in 1.0.0.')
+  void fireCustom(Tracking tracking, String key) =>
+      fireCustomEvent(tracking, key);
 
   void fireVideoEvent(Tracking tracking, String key) {
     final url = tracking.getVideoEventUrl(key: key);
@@ -279,6 +316,15 @@ class AdMoai {
   void fireCompletion(Tracking tracking, {required String key}) {
     final url = tracking.getCompletionUrl(key: key);
     if (url != null) {
+      if (config.apiVersion == null) {
+        // Billing-critical: /v1/tracking version-routes on X-Tracking-Version,
+        // which is derived from apiVersion. With none, the callback lands on the
+        // legacy handler, which does not record the completion — so CPT revenue
+        // is silently lost while the fire itself looks successful.
+        config.logger.warning(
+          'Firing Journey completion without apiVersion; it may not record.',
+        );
+      }
       fireTracking(url);
     } else if (tracking.completions?.isNotEmpty ?? false) {
       // Completion URLs exist but none matches `key` — a likely publisher

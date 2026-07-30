@@ -30,6 +30,7 @@ library;
 //   • 422 on destination targeting → minConfidence key name is wrong (see §1)
 
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -169,6 +170,16 @@ const _apiVersions = <String?>[null, '2025-11-01'];
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  // Re-enable real networking. `TestWidgetsFlutterBinding` installs an
+  // `HttpOverrides` that answers every `HttpClient` request with a mocked
+  // HTTP 400 and an empty body, without touching the network.
+  //
+  // This suite shipped without clearing it, so every "live" call below returned
+  // 400 from Flutter's mock and the soft-logging (see the header) reported it as
+  // a warning — the suite stayed green while making no network call at all. An
+  // assertion that never ran is indistinguishable from a passing one.
+  HttpOverrides.global = null;
 
   // Mock the timezone channel (required by the SDK even in forTesting mode)
   setUpAll(() {

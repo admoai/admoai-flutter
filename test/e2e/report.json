@@ -1,0 +1,315 @@
+{
+  "baseUrl": "http://127.0.0.1:8080",
+  "apiVersion": "2025-11-01",
+  "preflight": {
+    "aborted": false
+  },
+  "summary": {
+    "passed": 37,
+    "failed": 0,
+    "skipped": 0,
+    "total": 37
+  },
+  "exitCode": 0,
+  "scenarios": [
+    {
+      "id": "S1",
+      "title": "the decide() helper forwards user id and targeting",
+      "outcome": "PASS",
+      "notes": [
+        "config forwarding proven on the wire"
+      ]
+    },
+    {
+      "id": "K1",
+      "title": "platform-authored journey serves stage 1 with the config the wizard wrote, and exposes a click URL",
+      "outcome": "PASS",
+      "notes": [
+        "stage=pre_ride node=jsn_01KYSS94S03ZTCD5NT11V8B1JB",
+        "clicks=1 impressions=1"
+      ]
+    },
+    {
+      "id": "K2",
+      "title": "progression across platform-authored stages holds one instance",
+      "outcome": "PASS",
+      "notes": [
+        "instance jinst_01KYSZY9XF06YVTPFD288D0D4F held across pre_ride → post_ride"
+      ]
+    },
+    {
+      "id": "K3",
+      "title": "the wizard's final_stage completes the journey and emits no beacon",
+      "outcome": "PASS",
+      "notes": [
+        "completed on stage summary_ride, no beacon exposed"
+      ]
+    },
+    {
+      "id": "K4",
+      "title": "an already-served wizard node does not serve twice",
+      "outcome": "PASS",
+      "notes": [
+        "positive control served a normal ad (advertiser AdMoai)",
+        "repeat request returned no-ad"
+      ]
+    },
+    {
+      "id": "A1",
+      "title": "no sessionId → a normal decision with no journey metadata",
+      "outcome": "PASS",
+      "notes": [
+        "normal ad from advertiser AdMoai"
+      ]
+    },
+    {
+      "id": "A3",
+      "title": "sessionId/journeyOpt reach the wire top-level and camelCase, with the version header",
+      "outcome": "PASS",
+      "notes": [
+        "wire shape verified without touching the engine"
+      ]
+    },
+    {
+      "id": "A4",
+      "title": "sessionId is sticky across builds and not regenerated",
+      "outcome": "PASS",
+      "notes": [
+        "sticky, overridable, and clearable per request"
+      ]
+    },
+    {
+      "id": "B1",
+      "title": "a new session serves the first stage and starts an instance",
+      "outcome": "PASS",
+      "notes": [
+        "instance jinst_01KYSZY9ZNH9274HG1TCAD7CD2 stage pre_ride"
+      ]
+    },
+    {
+      "id": "B2",
+      "title": "a second node in the same stage serves (multi-node)",
+      "outcome": "PASS",
+      "notes": [
+        "nodes jsn_01KYSR2YTW1Y9TFZ19XX00DA0J + jsn_01KYSR2YTYE7B787J3G2K3BTD7 in pre_ride"
+      ]
+    },
+    {
+      "id": "B3",
+      "title": "a repeated node returns no-ad; a positive control proves suppression rather than no-fill",
+      "outcome": "PASS",
+      "notes": [
+        "control advertiser AdMoai"
+      ]
+    },
+    {
+      "id": "B4",
+      "title": "the next stage serves with a stable instance",
+      "outcome": "PASS",
+      "notes": [
+        "instance jinst_01KYSZYA10MCF1CPAJ928BPG9N held across stages"
+      ]
+    },
+    {
+      "id": "B5",
+      "title": "the final stage serves",
+      "outcome": "PASS",
+      "notes": [
+        "isCompletion=false pricing=cpm"
+      ]
+    },
+    {
+      "id": "B6",
+      "title": "three nodes in one stage each serve exactly once",
+      "outcome": "PASS",
+      "notes": [
+        "stage only served nodes jsn_01KYSR2YW89GBJWP117F36G033, jsn_01KYSR2YW9T40NMCQ2PHF1ZMJ7, jsn_01KYSR2YWA35GF329403J8NW3G"
+      ]
+    },
+    {
+      "id": "B7",
+      "title": "journey metadata is coherent and echoes the request",
+      "outcome": "PASS",
+      "notes": [
+        "deal jad_01KYSR2YWN2ZSA821EZ2AJWQ9X stable; sessionId echoed"
+      ]
+    },
+    {
+      "id": "C1",
+      "title": "opt-out before any serve → no journey",
+      "outcome": "PASS",
+      "notes": [
+        "opt-out fell back to a normal ad (AdMoai)"
+      ]
+    },
+    {
+      "id": "C2/C3",
+      "title": "opt-out closes the instance; a later opt-in mints a NEW instance",
+      "outcome": "PASS",
+      "notes": [
+        "instance jinst_01KYSZYA2YZ7SWTV8D049FFP0Q closed; jinst_01KYSZYA3N628MTY2QCAX2FK4R minted"
+      ]
+    },
+    {
+      "id": "D1",
+      "title": "tracking URLs are absolute /v1/tracking with an opaque ?e= token",
+      "outcome": "PASS",
+      "notes": [
+        "https://127.0.0.1:8080/v1/tracking ?e=<512 chars>"
+      ]
+    },
+    {
+      "id": "D5",
+      "title": "a journey creative with a destination exposes a click URL",
+      "outcome": "PASS",
+      "notes": [
+        "clicks=1"
+      ]
+    },
+    {
+      "id": "D2",
+      "title": "the SDK fires the URL verbatim and a retry re-fires it identically",
+      "outcome": "PASS",
+      "notes": [
+        "fired verbatim twice; failures stayed inside the SDK"
+      ]
+    },
+    {
+      "id": "D4",
+      "title": "a no-ad response exposes no tracking and fires nothing",
+      "outcome": "PASS",
+      "notes": [
+        "no-ad exposed no creative and fired nothing"
+      ]
+    },
+    {
+      "id": "D6",
+      "title": "the engine accepts a tracking token it minted itself",
+      "outcome": "PASS",
+      "notes": [
+        "ingestion returned HTTP 202"
+      ]
+    },
+    {
+      "id": "E1",
+      "title": "new-entry capping gates deterministically at the configured amount",
+      "outcome": "PASS",
+      "notes": [
+        "cap 2 honoured for user e2e_user_e1_1785431272615965_47"
+      ]
+    },
+    {
+      "id": "E2",
+      "title": "the cap never blocks continuation of an active instance",
+      "outcome": "PASS",
+      "notes": [
+        "instance jinst_01KYSZYB69WQ6Z49NAHRN4SNDB continued past an exhausted cap"
+      ]
+    },
+    {
+      "id": "H1/H2",
+      "title": "a CPT deal surfaces the exact pricing model and fallback billing mode",
+      "outcome": "PASS",
+      "notes": [
+        "cpt / no_charge"
+      ]
+    },
+    {
+      "id": "H5",
+      "title": "a custom_event CPT deal exposes a fireable completion beacon while isCompletion stays false",
+      "outcome": "PASS",
+      "notes": [
+        "beacon \"journey_complete\" exposed and fired verbatim"
+      ]
+    },
+    {
+      "id": "H3",
+      "title": "a final_stage serve flips isCompletion and emits NO beacon",
+      "outcome": "PASS",
+      "notes": [
+        "completed inline; beacons=0; cpt/bill_per_stage"
+      ]
+    },
+    {
+      "id": "H4",
+      "title": "after completion, takeover protection ends",
+      "outcome": "PASS",
+      "notes": [
+        "takeover ended; normal ad from AdMoai"
+      ]
+    },
+    {
+      "id": "J1",
+      "title": "an unserved mandatory stage HOLDS the later surface",
+      "outcome": "PASS",
+      "notes": [
+        "mandatory hold confirmed against a serving control"
+      ]
+    },
+    {
+      "id": "J5",
+      "title": "an optional stage with no node on the requested placement is SKIPPED and cannot serve later",
+      "outcome": "PASS",
+      "notes": [
+        "stage later served; the earlier stage stayed skipped"
+      ]
+    },
+    {
+      "id": "J4",
+      "title": "geo targeting: a matching geoname serves, a real non-matching one does not",
+      "outcome": "PASS",
+      "notes": [
+        "geo 5128581 served; 2643743 excluded"
+      ]
+    },
+    {
+      "id": "J2",
+      "title": "location targeting: inside the radius serves, outside does not",
+      "outcome": "PASS",
+      "notes": [
+        "out-of-radius fell through to a competing normal ad, so the exclusion is attributable to targeting rather than no-fill",
+        "in-radius served stage only"
+      ]
+    },
+    {
+      "id": "J3",
+      "title": "destination targeting: confidence at or above the threshold serves, below does not",
+      "outcome": "PASS",
+      "notes": [
+        "confidence gate honoured at 0.7"
+      ]
+    },
+    {
+      "id": "F1",
+      "title": "runtime-state expiry restarts the journey",
+      "outcome": "PASS",
+      "notes": [
+        "instance restarted after 5s TTL expiry"
+      ]
+    },
+    {
+      "id": "F2",
+      "title": "serving a NEW node refreshes the TTL, so the instance outlives its original deadline",
+      "outcome": "PASS",
+      "notes": [
+        "instance jinst_01KYSZYJNST6DTFKCVVD1R69N3 survived 7.0s on a 5s TTL"
+      ]
+    },
+    {
+      "id": "G1",
+      "title": "a JSON video node exposes json delivery and its video tracking",
+      "outcome": "PASS",
+      "notes": [
+        "json delivery, 6 video events: start, first_quartile, midpoint, third_quartile, complete, skip"
+      ]
+    },
+    {
+      "id": "G2",
+      "title": "VAST tag/xml expose the payload and surface NO VAST-owned beacons",
+      "outcome": "PASS",
+      "notes": [
+        "vast_tag + vast_xml exposed with zero SDK-surfaced video beacons"
+      ]
+    }
+  ]
+}

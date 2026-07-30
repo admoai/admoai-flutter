@@ -10,3 +10,12 @@ tags:
   live:
     # No default skip: `flutter test` still runs live tests locally. CI should
     # pass --exclude-tags live to rely only on the deterministic unit/mock suites.
+
+  # The `e2e` tag marks the live Journey E2E runner
+  # (test/e2e/journey_e2e_test.dart). It requires a locally-running, seeded
+  # decision-engine and is driven through tool/journey_e2e.sh, which maps its
+  # report to Android-equivalent exit codes. Exclude it from the deterministic
+  # gate together with `live`:
+  #
+  #   flutter test --exclude-tags "live || e2e"
+  e2e:

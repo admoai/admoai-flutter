@@ -1,3 +1,75 @@
+## Unreleased
+
+Cross-SDK parity pass on Journey Takeover Ads: the divergences from the Android
+reference implementation found by a line-by-line contract review, plus the live
+end-to-end verification that proves the SDK and the decision-engine actually agree.
+No version cut yet — the additions below warrant a minor bump when released.
+
+### Fixes
+
+- Fix: `Creative.isJourneyAd()` now requires a real server-issued `dealId` or
+  `instanceId` instead of merely a non-null `journey` block. The Tolerant Reader
+  decodes `"journey": {}` (or a block whose fields are all missing/retyped) into a
+  non-null `CreativeJourney` with every field `null`, so a normal ad could report
+  `isJourneyAd() == true` while every accessor returned `null`. Matches the Android
+  SDK.
+- Fix: `fireCompletion` now warns when `SDKConfig.apiVersion` is `null`. The
+  tracking endpoint version-routes on `X-Tracking-Version` (derived from
+  `apiVersion`); without it the callback hits the legacy handler and the completion
+  is **not recorded**, so CPT revenue was silently lost while the fire looked
+  successful.
+- Fix: A warning is now logged when a request carries Journey context
+  (`sessionId` / `journeyOpt`) but `apiVersion` is `null` — the engine silently
+  ignores the Journey fields and serves normal ads, which is otherwise invisible.
+- Fix: `fireTracking` now requires an absolute `http`/`https` URL with a non-empty
+  host. The previous check accepted any value with a scheme, admitting `mailto:`,
+  `file:`, `ftp://` and hostless strings. The rejection warning remains PII-safe
+  (reason only, never the URL).
+- Fix: `test/integration_live_test.dart` made no network calls at all.
+  `TestWidgetsFlutterBinding` installs an `HttpOverrides` that answers every request
+  with a mocked HTTP 400, and the suite soft-logged those as warnings — so it passed
+  green while covering nothing. It now clears the override.
+
+### Features
+
+- Feat: `AdMoai.fireCustomEvent(tracking, key)` — matches the Android SDK's name.
+  `fireCustom` is kept as a `@Deprecated` alias that forwards to it, so existing
+  integrations keep compiling; it will be removed in 1.0.0.
+
+### Tests
+
+- Test: Live Journey E2E runner (`test/e2e/journey_e2e_test.dart`, tag `e2e`,
+  driven by `tool/journey_e2e.sh`) — 37 scenarios driving the real SDK against a
+  locally-seeded decision-engine, covering request forwarding, stage progression and
+  multi-node, opt-in/opt-out, tracking transport and ingestion, frequency capping,
+  both completion strategies, mandatory-hold vs optional-skip, geo/location/
+  destination targeting, runtime-state TTL expiry and refresh, video delivery, and
+  a wizard-parity group driven by a journey authored in the Ad Manager UI. Preflight
+  aborts with a diagnosis (exit 2) when the environment is unusable; a missing
+  fixture SKIPs rather than FAILs; results are written to
+  `build/journey-e2e/report.json`. Excluded from the offline gate
+  (`flutter test --exclude-tags "live || e2e"`).
+- Test: Parity regression guards (`test/journey_parity_test.dart`) for each fix
+  above, and a compile-check (`test/doc_examples_compile_test.dart`) that fails the
+  build if the README documents an API symbol that does not exist.
+
+### Docs
+
+- Docs: Rewrote the README's Journey Takeover Ads guide — the SDK's ownership split
+  as a table, the one-session-every-call rule with both failure modes, the full
+  `sessionId` contract (ownership, stickiness, per-request override, when to rotate,
+  the 256-byte cap, and that it is PII and not a user id), the three `journeyOpt`
+  states with the **omitted-vs-`optOut` permissive trap** called out, that opt-out
+  *ends* rather than pauses a journey, all thirteen metadata accessors with a warning
+  not to branch UI on stage keys, both completion modes, no-ad as correct takeover
+  behaviour, two worked examples, the VAST double-count rule, a common-mistakes
+  table, and two self-checks.
+- Docs: Corrected "The SDK fires tracking beacons via HTTP requests automatically"
+  — it never fires anything automatically. Added the missing `fireCompletion` /
+  `fireTracking` / `fireCustomEvent` to the tracking reference, completed the
+  response-structure tree (`journey`, `verificationScriptResources`, the five
+  tracking lists), and completed the `SDKConfig` table.
+
 ## 0.4.0
 
 Adds **Journey Takeover Ads** support — additive and backward-compatible. Requires decision-engine API version **`2025-11-01`** or later (set `SDKConfig.apiVersion = "2025-11-01"`); older versions ignore the Journey fields and behave exactly as before.
