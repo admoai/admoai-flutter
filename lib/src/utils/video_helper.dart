@@ -78,29 +78,55 @@ extension VideoHelper on Creative {
     }
   }
 
+  /// Whether the video may be skipped.
+  ///
+  /// Prefers `metadata.isSkippable` — the engine-owned field, and the only source
+  /// the iOS SDK reads — then falls back to the creative's content fields.
+  ///
+  /// The fallback matches **both** `isSkippable` and `is_skippable`. It previously
+  /// matched camelCase only, while the platform creates template fields in
+  /// snake_case (`is_skippable`), so it could never hit and this method always
+  /// returned `false`. That is the same class of defect as adhub #2483, where the
+  /// journey click resolver matched a hand-maintained snake_case list while the
+  /// platform wrote camelCase — the same seam, the opposite direction.
   bool isSkippable() {
-    try {
-      final content = contents.firstWhere(
-        (c) => c.key == 'isSkippable',
-        orElse: () => Content(key: '', value: false, type: ''),
-      );
-      if (content.key.isEmpty) return false;
-      return content.value == true || content.value == 'true';
-    } catch (e) {
-      return false;
-    }
+    final fromMetadata = metadata?.isSkippable;
+    if (fromMetadata != null) return fromMetadata;
+
+    final content = contents.getContent('isSkippable') ??
+        contents.getContent('is_skippable');
+    return _asFlag(content?.value);
   }
 
+  /// Seconds before a skippable video may be skipped, as a string.
+  ///
+  /// Prefers `metadata.skipOffsetSeconds`, then falls back to the creative's
+  /// content fields, matching both `skipOffset` and `skip_offset` for the reason
+  /// above.
+  ///
+  /// Returns a `String?` to stay source-compatible; read
+  /// `creative.metadata?.skipOffsetSeconds` for a typed `int?`.
   String? getSkipOffset() {
-    try {
-      final content = contents.firstWhere(
-        (c) => c.key == 'skipOffset',
-        orElse: () => Content(key: '', value: null, type: ''),
-      );
-      if (content.key.isEmpty) return null;
-      return content.value?.toString();
-    } catch (e) {
-      return null;
-    }
+    final fromMetadata = metadata?.skipOffsetSeconds;
+    if (fromMetadata != null) return fromMetadata.toString();
+
+    final content =
+        contents.getContent('skipOffset') ?? contents.getContent('skip_offset');
+    return content?.value?.toString();
   }
+}
+
+/// Interprets a content value as a boolean flag.
+///
+/// The template field backing skippability is typed `integer`, so the value can
+/// arrive as a bool, a number, or a string depending on the template and the
+/// producer. Anything unrecognized is `false` — never a throw.
+bool _asFlag(dynamic value) {
+  if (value is bool) return value;
+  if (value is num) return value != 0;
+  if (value is String) {
+    final normalized = value.trim().toLowerCase();
+    return normalized == 'true' || normalized == '1';
+  }
+  return false;
 }

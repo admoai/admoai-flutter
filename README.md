@@ -197,8 +197,12 @@ sdk.fireVideoEvent(creative.tracking, "complete");
 
 ```dart
 final isSkippable = creative.isSkippable();
-final skipOffset = creative.getSkipOffset();
+final skipOffset = creative.getSkipOffset();   // String?
 ```
+
+Both read the engine-owned `creative.metadata` first and fall back to the creative's
+content fields. For a typed value, read `creative.metadata?.isSkippable` (`bool?`)
+and `creative.metadata?.skipOffsetSeconds` (`int?`) directly.
 
 ---
 

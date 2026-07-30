@@ -209,4 +209,147 @@ void main() {
       expect(vastXmlCreative.getSkipOffset(), isNull);
     });
   });
+
+  skippabilityParityTests();
+}
+
+// ───────────────────────────────────────────────────────────────────────────────
+// Cross-SDK parity: skippability resolution.
+//
+// `isSkippable()` / `getSkipOffset()` matched the content keys `isSkippable` and
+// `skipOffset` in camelCase. The platform creates template fields in snake_case,
+// and a live journey video serve returns `is_skippable` / `skip_offset` — the only
+// such keys in the whole template_fields table. So neither helper could ever match:
+// isSkippable() always returned false and getSkipOffset() always returned null.
+//
+// The tests that covered them used camelCase fixtures, so they encoded the same
+// wrong assumption as the code and passed throughout. Same class of defect as adhub
+// #2483 (the journey click resolver matched snake_case while the platform wrote
+// camelCase) — the same seam, the opposite direction.
+//
+// Both helpers now prefer the engine-owned metadata fields, which is the only
+// source the iOS SDK reads, and accept either casing in the content fallback. The
+// identical change is applied to the Android SDK, which had the same mismatch.
+// ───────────────────────────────────────────────────────────────────────────────
+void skippabilityParityTests() {
+  Creative creativeWithContents(List<Map<String, dynamic>> contents,
+          {Map<String, dynamic>? metadata}) =>
+      Creative.fromJson({
+        'contents': contents,
+        'advertiser': const <String, dynamic>{},
+        'template': const <String, dynamic>{},
+        'tracking': const <String, dynamic>{},
+        if (metadata != null) 'metadata': metadata,
+      });
+
+  Map<String, dynamic> baseMetadata(Map<String, dynamic> extra) => {
+        'adId': 'a',
+        'creativeId': 'c',
+        'templateId': 't',
+        'placementId': 'p',
+        'priority': 'standard',
+        ...extra,
+      };
+
+  group('skippability — snake_case content keys (the live engine shape)', () {
+    test('is_skippable as an integer 1 is skippable', () {
+      final creative = creativeWithContents([
+        {'key': 'is_skippable', 'value': 1, 'type': 'integer'},
+        {'key': 'skip_offset', 'value': '5', 'type': 'text'},
+      ]);
+
+      expect(creative.isSkippable(), isTrue);
+      expect(creative.getSkipOffset(), equals('5'));
+    });
+
+    test('is_skippable as integer 0 is not skippable', () {
+      final creative = creativeWithContents([
+        {'key': 'is_skippable', 'value': 0, 'type': 'integer'},
+      ]);
+
+      expect(creative.isSkippable(), isFalse);
+    });
+
+    test('is_skippable as the string "true" is skippable', () {
+      final creative = creativeWithContents([
+        {'key': 'is_skippable', 'value': 'true', 'type': 'integer'},
+      ]);
+
+      expect(creative.isSkippable(), isTrue);
+    });
+
+    test('a non-numeric placeholder value is not skippable, and never throws',
+        () {
+      // The mock seed fills these fields with placeholder text, so the helper
+      // must degrade rather than throw or guess.
+      final creative = creativeWithContents([
+        {'key': 'is_skippable', 'value': 'is_skippable (demo)', 'type': 'integer'},
+        {'key': 'skip_offset', 'value': 'Journey Ad demo', 'type': 'text'},
+      ]);
+
+      expect(() => creative.isSkippable(), returnsNormally);
+      expect(creative.isSkippable(), isFalse);
+      expect(creative.getSkipOffset(), equals('Journey Ad demo'));
+    });
+  });
+
+  group('skippability — camelCase content keys still work', () {
+    test('isSkippable / skipOffset remain supported', () {
+      final creative = creativeWithContents([
+        // The real template types this field `integer`; Android's ContentType
+        // enum has no `boolean` variant, so keep the two suites on one shape.
+        {'key': 'isSkippable', 'value': true, 'type': 'integer'},
+        {'key': 'skipOffset', 'value': '00:00:05', 'type': 'text'},
+      ]);
+
+      expect(creative.isSkippable(), isTrue);
+      expect(creative.getSkipOffset(), equals('00:00:05'));
+    });
+  });
+
+  group('skippability — engine metadata wins over content', () {
+    test('metadata.isSkippable takes precedence', () {
+      final creative = creativeWithContents(
+        [
+          {'key': 'is_skippable', 'value': 0, 'type': 'integer'},
+        ],
+        metadata: baseMetadata({'isSkippable': true}),
+      );
+
+      expect(creative.isSkippable(), isTrue);
+    });
+
+    test('metadata.skipOffsetSeconds takes precedence', () {
+      final creative = creativeWithContents(
+        [
+          {'key': 'skip_offset', 'value': '99', 'type': 'text'},
+        ],
+        metadata: baseMetadata({'skipOffsetSeconds': 5}),
+      );
+
+      expect(creative.getSkipOffset(), equals('5'));
+    });
+
+    test('content is used when metadata omits the fields', () {
+      final creative = creativeWithContents(
+        [
+          {'key': 'is_skippable', 'value': 1, 'type': 'integer'},
+          {'key': 'skip_offset', 'value': '7', 'type': 'text'},
+        ],
+        metadata: baseMetadata(const {}),
+      );
+
+      expect(creative.isSkippable(), isTrue);
+      expect(creative.getSkipOffset(), equals('7'));
+    });
+  });
+
+  group('skippability — absent everywhere', () {
+    test('no metadata and no content fields', () {
+      final creative = creativeWithContents(const []);
+
+      expect(creative.isSkippable(), isFalse);
+      expect(creative.getSkipOffset(), isNull);
+    });
+  });
 }

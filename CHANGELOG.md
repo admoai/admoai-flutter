@@ -29,6 +29,16 @@ No version cut yet — the additions below warrant a minor bump when released.
   `TestWidgetsFlutterBinding` installs an `HttpOverrides` that answers every request
   with a mocked HTTP 400, and the suite soft-logged those as warnings — so it passed
   green while covering nothing. It now clears the override.
+- Fix: `Creative.isSkippable()` always returned `false` and
+  `Creative.getSkipOffset()` always returned `null`. Both matched the content keys
+  `isSkippable` / `skipOffset` in camelCase, while the platform creates template
+  fields in snake_case and a live serve returns `is_skippable` / `skip_offset` — so
+  neither could ever match. The tests that covered them used camelCase fixtures, so
+  they encoded the same wrong assumption as the code and passed throughout. Both now
+  prefer the engine-owned `metadata.isSkippable` / `metadata.skipOffsetSeconds`
+  (the only source the iOS SDK reads) and accept either casing in the content
+  fallback. The identical fix is applied to the Android SDK, which had the same
+  mismatch.
 - Fix: `Metadata` dropped three fields the engine's `2025-11-01` contract sends and
   that both iOS and Android model: `impId`, `skipOffsetSeconds` and `endCardMode`.
   Since the Tolerant Reader discards unknown fields by design, they were silently
