@@ -46,7 +46,7 @@ which turns a §K SKIP into a failure.
 | Thing | Value |
 |---|---|
 | Definition key | `scooter_journey` |
-| Deal | `jad_01KYSSB2ND61HZFP3KRG9NET3X` ("nike scooter ride"), `status=active` |
+| Deal | any `jad_…` deal on that definition ("nike scooter ride"), `status=active`. The public id is NOT pinned — every rebuild mints a new ULID. |
 | Stages (in order) | `pre_ride` → `post_ride` → `summary_ride` |
 | Active node placements | `promotions` → `waiting` → `poi` |
 | Templates | `carousel3Slides`, `carousel3Slides`, `imageWithText` |
