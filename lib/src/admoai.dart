@@ -272,7 +272,15 @@ class AdMoai {
             .get(uri, headers: headers)
             .timeout(config.requestTimeout);
       } catch (error) {
-        config.logger.warning('Tracking request failed: $error');
+        // PII-safe: log the error TYPE only, never the object. `http`'s ClientException
+        // stringifies as "ClientException: <message>, uri=<uri>", so interpolating `$error`
+        // wrote the full tracking URL — including the opaque `?e=` token that encodes the
+        // serve-time context — into the publisher's logs. That contradicted the redacted-reason
+        // guard a few lines above, and it fired routinely rather than rarely: any connection
+        // refusal or TLS failure takes this path.
+        config.logger.warning(
+          'Tracking request failed (${error.runtimeType}); URL withheld',
+        );
       }
     }());
   }
