@@ -248,7 +248,11 @@ void main() {
       expect(destList.length, equals(1));
       expect((destList.first as Map)['latitude'], equals(40.7128));
       expect((destList.first as Map)['longitude'], equals(-74.0060));
-      expect((destList.first as Map)['min_confidence'], equals(0.8));
+      // The engine's canonical key is camelCase `minConfidence`, matching every other field on
+      // the request contract; `min_confidence` is only a back-compat alias for already-fielded
+      // SDKs. This guard used to assert the alias.
+      expect((destList.first as Map)['minConfidence'], equals(0.8));
+      expect((destList.first as Map).containsKey('min_confidence'), isFalse);
     });
 
     test('duplicate destinations are deduplicated', () {

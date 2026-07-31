@@ -141,12 +141,15 @@ class Targeting {
         'location': location!
             .map((l) => {'latitude': l.latitude, 'longitude': l.longitude})
             .toList(),
+      // `minConfidence` is the engine's canonical key, matching every other field on the request
+      // contract. `min_confidence` survives only as a back-compat alias so already-fielded SDKs
+      // keep parsing, and camelCase wins when both are present.
       if (destination != null)
         'destination': destination!
             .map((d) => {
                   'latitude': d.latitude,
                   'longitude': d.longitude,
-                  'min_confidence': d.minConfidence,
+                  'minConfidence': d.minConfidence,
                 })
             .toList(),
       if (custom != null)
