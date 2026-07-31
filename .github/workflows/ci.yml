@@ -1,0 +1,68 @@
+# Runs on every PR and on pushes to main: static analysis + tests for the SDK,
+# and static analysis of the example app so the sample stays valid against HEAD.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# A new push to the same ref supersedes in-flight runs, saving runner minutes.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  sdk:
+    name: Analyze & test (SDK)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos
+
+      # Deterministic gate only. `live` tests hit api.mock.admoai.com and soft-log some API
+      # errors instead of failing; `e2e` needs a locally-running, seeded decision-engine and is
+      # driven through tool/journey_e2e.sh. Both are documented as excluded in dart_test.yaml —
+      # this workflow predates those tags, so a bare `flutter test` would run them and fail (or
+      # worse, pass while asserting nothing).
+      - name: Test (deterministic unit + mock suites)
+        run: flutter test --exclude-tags "live || e2e"
+
+  example:
+    name: Analyze (example app)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      # The example consumes the SDK via a local path dependency, so this
+      # analysis catches API drift between the SDK and the sample.
+      - name: Install dependencies
+        working-directory: example
+        run: flutter pub get
+
+      - name: Analyze
+        working-directory: example
+        run: flutter analyze --no-fatal-infos
