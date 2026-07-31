@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'decision_request.dart' show JourneyOpt;
 
 typedef DecisionResponse = List<Decision>;
@@ -219,8 +221,29 @@ class VerificationScriptResource {
     return VerificationScriptResource(
       vendorKey: vendorKey,
       scriptUrl: scriptUrl,
-      verificationParameters: _asString(map['verificationParameters']),
+      verificationParameters:
+          _verificationParameters(map['verificationParameters']),
     );
+  }
+}
+
+/// Reads `verificationParameters`, which the engine types as `any`.
+///
+/// A plain string passes through verbatim; an object or array is encoded to compact JSON text so
+/// the vendor payload survives. It previously went through a string-only cast, so anything
+/// structured became `null` — the resource still decoded and looked usable while the parameters
+/// IAS or DoubleVerify need to attribute a measurement were silently gone. Android already
+/// preserved these; this brings Flutter in line.
+///
+/// An explicit null stays `null` on purpose: it carries no payload, and encoding it to the literal
+/// string `"null"` would hand the vendor a fake value.
+String? _verificationParameters(dynamic raw) {
+  if (raw == null) return null;
+  if (raw is String) return raw;
+  try {
+    return jsonEncode(raw);
+  } catch (_) {
+    return null;
   }
 }
 
