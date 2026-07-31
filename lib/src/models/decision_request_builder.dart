@@ -1,3 +1,5 @@
+import 'dart:collection';
+
 import 'package:logging/logging.dart';
 
 import 'decision_request.dart';
@@ -68,9 +70,15 @@ class DecisionRequestBuilder {
   }
 
   // Targeting methods
+  /// Sets geo targets, removing duplicates and keeping first-seen order.
+  ///
+  /// Location, destination and custom targeting were all already deduplicated; geo was not, so
+  /// identical input produced a different request body on Android (which dedupes) than here. Geo
+  /// is evaluated as ANY so duplicates never changed a decision, but the payload should not differ
+  /// by platform for the same call.
   DecisionRequestBuilder setGeoTargeting(List<int>? geoNameIds) {
     _targeting = Targeting(
-      geo: geoNameIds,
+      geo: geoNameIds == null ? null : LinkedHashSet<int>.from(geoNameIds).toList(),
       location: _targeting?.location,
       destination: _targeting?.destination,
       custom: _targeting?.custom,
@@ -140,8 +148,22 @@ class DecisionRequestBuilder {
     return this;
   }
 
+  /// Replaces the destination targeting list.
+  ///
+  /// Validates `minConfidence` on every entry, which `addDestinationTargeting` already did but
+  /// this bulk setter did not — so the same out-of-range value threw on iOS and Android and was
+  /// silently sent from here.
   DecisionRequestBuilder setDestinationTargeting(
       List<Destination>? destinations) {
+    for (final d in destinations ?? const <Destination>[]) {
+      if (d.minConfidence < 0.0 || d.minConfidence > 1.0) {
+        throw ArgumentError.value(
+          d.minConfidence,
+          'minConfidence',
+          'must be between 0.0 and 1.0 inclusive',
+        );
+      }
+    }
     final unique = destinations?.fold<List<Destination>>(
       [],
       (result, dest) {
@@ -379,8 +401,17 @@ class DecisionRequestBuilder {
     return this;
   }
 
-  // Build method
+  /// Builds the request.
+  ///
+  /// Throws [ArgumentError] when no placement was added. The engine rejects that with a 422, so
+  /// failing here avoids a pointless round-trip — matching Android, which throws
+  /// AdMoaiConfigurationException from build(). (iOS raises the equivalent from requestAds
+  /// instead, because making its build() throwing would churn 80 call sites for no behavioural
+  /// difference.)
   DecisionRequest build() {
+    if (_placements.isEmpty) {
+      throw ArgumentError('At least one placement is required');
+    }
     return DecisionRequest(
       placements: _placements,
       targeting: _targeting,

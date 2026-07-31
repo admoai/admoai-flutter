@@ -15,7 +15,7 @@ void main() {
 
       expect(c.contents, isEmpty);
       expect(c.advertiser.name, isNull);
-      expect(c.template.key, equals(''));
+      expect(c.template, isNull); // absent/malformed template is null, matching iOS and Android
       expect(c.tracking.impressions, isNull);
       expect(c.metadata, isNull);
       expect(c.vast, isNull);
@@ -37,7 +37,7 @@ void main() {
         });
       }, returnsNormally);
       expect(c.contents, isEmpty);
-      expect(c.template.key, equals(''));
+      expect(c.template, isNull); // absent/malformed template is null, matching iOS and Android
       expect(c.metadata, isNull);
       expect(c.vast, isNull);
     });
@@ -87,7 +87,7 @@ void main() {
       expect(m.creativeId, equals(''));
       expect(m.templateId, equals(''));
       expect(m.placementId, equals(''));
-      expect(m.priority, equals(''));
+      expect(m.priority, equals(Priority.unknown));
       expect(m.advertiserId, isNull);
       expect(m.duration, isNull);
     });

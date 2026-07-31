@@ -16,8 +16,12 @@ enum JourneyOpt {
   /// Tolerant Reader lookup for the value the engine echoes back on
   /// `creative.journey.optStatus`. Unknown or absent values return `null`
   /// (never throws) so response parsing survives future engine values.
+  /// Surrounding whitespace is trimmed and case normalized, matching Android's
+  /// `JourneyOpt.fromWire`. The engine marshals a typed enum and only emits lowercase, so this is
+  /// defensive — but a read path that accepts `"In"` on one platform and `null` on another is a
+  /// parity seam regardless of whether today's producer can trigger it.
   static JourneyOpt? fromWire(String? value) {
-    switch (value) {
+    switch (value?.trim().toLowerCase()) {
       case 'in':
         return JourneyOpt.optIn;
       case 'out':

@@ -16,8 +16,8 @@ class HorizontalWithCompanionAd extends StatelessWidget {
     this.onAdClick,
   });
 
-  bool get isImageRight => creative.template.style == 'imageRight';
-  bool get isImageOnly => creative.template.style == 'wideImageOnly';
+  bool get isImageRight => creative.template?.style == 'imageRight';
+  bool get isImageOnly => creative.template?.style == 'wideImageOnly';
 
   String? get wideImage => creative.contents.getContent('wideImage')?.value;
   String? get squareImage => creative.contents.getContent('squareImage')?.value;

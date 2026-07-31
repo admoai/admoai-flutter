@@ -72,7 +72,7 @@ void main() {
       expect(c.isJourneyCompletion, isFalse);
       // Existing fields still parse.
       expect(c.advertiser.name, equals('Acme'));
-      expect(c.template.key, equals('native_banner'));
+      expect(c.template?.key, equals('native_banner'));
     });
   });
 

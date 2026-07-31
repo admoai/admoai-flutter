@@ -146,8 +146,8 @@ class _PreviewResultViewState extends State<PreviewResultView> {
           VehicleSelectionPreview(creative: _creative, sdk: widget.sdk),
         _ => PlaceholderAdView(
             placement: widget.placement,
-            template: _creative.template.key,
-            style: _creative.template.style ?? '',
+            template: _creative.template?.key ?? '',
+            style: _creative.template?.style ?? '',
           ),
       },
     );

@@ -61,7 +61,14 @@ class Creative {
   final List<Content> contents;
   final Metadata? metadata;
   final Advertiser advertiser;
-  final Template template;
+
+  /// Template info, or `null` when the block is absent or malformed.
+  ///
+  /// Was non-nullable and defaulted to `Template(key: '')`, so a publisher checking
+  /// `creative.template == null` — the natural guard, and the one that works on iOS and Android —
+  /// never saw null and instead rendered against an empty key. Nullable here matches both.
+  final Template? template;
+
   final Tracking tracking;
   final String? delivery;
   final VastData? vast;
@@ -76,7 +83,7 @@ class Creative {
     required this.contents,
     this.metadata,
     required this.advertiser,
-    required this.template,
+    this.template,
     required this.tracking,
     this.delivery,
     this.vast,
@@ -105,7 +112,7 @@ class Creative {
           ? Advertiser()
           : Advertiser.fromJson(_asMap(json['advertiser'])!),
       template: _asMap(json['template']) == null
-          ? Template(key: '')
+          ? null
           : Template.fromJson(_asMap(json['template'])!),
       tracking: _asMap(json['tracking']) == null
           ? Tracking()
@@ -289,6 +296,29 @@ extension ContentListExtension on List<Content> {
       any((c) => c.key == key && c.type == type);
 }
 
+/// Ad priority as returned by the engine.
+///
+/// Was a raw `String` here while iOS and Android both expose a typed enum, so branching on
+/// priority meant hardcoding string literals on Flutter only. Unknown future tiers decode to
+/// [unknown] rather than throwing, matching both.
+enum Priority {
+  sponsorship('sponsorship'),
+  standard('standard'),
+  house('house'),
+  unknown('unknown');
+
+  final String value;
+  const Priority(this.value);
+
+  /// Tolerant parse: an unrecognised, absent or retyped value yields [unknown].
+  static Priority fromWire(String? raw) {
+    for (final p in Priority.values) {
+      if (p.value == raw) return p;
+    }
+    return Priority.unknown;
+  }
+}
+
 class Metadata {
   final String adId;
   final String creativeId;
@@ -305,7 +335,7 @@ class Metadata {
   /// SDK never derives anything from it.
   final String? impId;
 
-  final String priority;
+  final Priority priority;
   final String? language;
   final int? duration;
   final String? aspectRatio;
@@ -351,7 +381,7 @@ class Metadata {
       templateId: _asString(json['templateId']) ?? '',
       placementId: _asString(json['placementId']) ?? '',
       impId: _asString(json['impId']),
-      priority: _asString(json['priority']) ?? '',
+      priority: Priority.fromWire(_asString(json['priority'])),
       language: _asString(json['language']),
       duration: _asInt(json['duration']),
       aspectRatio: _asString(json['aspectRatio']),
