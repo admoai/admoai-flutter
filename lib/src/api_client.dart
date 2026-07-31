@@ -52,11 +52,17 @@ class AdMoaiClient {
                   .toList()
               : <Decision>[];
 
+          // Parse errors/warnings rather than hardcoding them empty. The engine returns
+          // `warnings` on a 200 in staging — that is where a publisher is meant to discover a
+          // misconfiguration before it reaches production — and they were discarded here, so
+          // Flutter integrators saw none of them while iOS and Android surfaced them. Entries are
+          // dropped individually if malformed, consistent with the Tolerant Reader posture used
+          // everywhere else in this file.
           final responseBody = APIResponseBody<T>(
             success: jsonBody['success'] == true,
             data: decisions as T,
-            errors: [],
-            warnings: [],
+            errors: _messageList(jsonBody['errors'], AdMoaiError.tryFromJson),
+            warnings: _messageList(jsonBody['warnings'], AdMoaiWarning.tryFromJson),
           );
 
           return APIResponse<T>(
@@ -187,6 +193,13 @@ class APIResponseBody<T> {
   });
 }
 
+/// Tolerant Reader list parse for the envelope's `errors` / `warnings`: a non-list yields an
+/// empty list, and an entry missing or retyping `code`/`message` is dropped rather than throwing.
+List<T> _messageList<T>(dynamic raw, T? Function(dynamic) tryParse) {
+  if (raw is! List) return const [];
+  return raw.map(tryParse).whereType<T>().toList();
+}
+
 class AdMoaiError {
   final int code;
   final String message;
@@ -198,6 +211,15 @@ class AdMoaiError {
       code: json['code'] as int,
       message: json['message'] as String,
     );
+  }
+
+  /// Tolerant variant: returns `null` instead of throwing on a malformed entry.
+  static AdMoaiError? tryFromJson(dynamic json) {
+    if (json is! Map) return null;
+    final code = json['code'];
+    final message = json['message'];
+    if (code is! int || message is! String) return null;
+    return AdMoaiError(code: code, message: message);
   }
 }
 
@@ -212,6 +234,15 @@ class AdMoaiWarning {
       code: json['code'] as int,
       message: json['message'] as String,
     );
+  }
+
+  /// Tolerant variant: returns `null` instead of throwing on a malformed entry.
+  static AdMoaiWarning? tryFromJson(dynamic json) {
+    if (json is! Map) return null;
+    final code = json['code'];
+    final message = json['message'];
+    if (code is! int || message is! String) return null;
+    return AdMoaiWarning(code: code, message: message);
   }
 }
 
