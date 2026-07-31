@@ -37,6 +37,7 @@ import 'package:http/http.dart' as http;
 import 'package:logging/logging.dart';
 
 import 'journey_e2e_harness.dart';
+import 'manifest_runner.dart';
 
 // ── Fixtures ────────────────────────────────────────────────────────────────
 // The shipped demo journey. §B is bound to it rather than a dedicated
@@ -171,6 +172,12 @@ void main() {
 
   // Last: the most setup-heavy groups. §F spends real wall-clock waiting out a
   // 5-second runtime-state TTL.
+  // Shared cross-SDK manifest: normal ads, placement options, video delivery, the error
+  // contract and API-version regression. Defined once in scenarios.json and executed
+  // identically by all three SDKs — see manifest_runner.dart.
+  group('§Manifest (shared cross-SDK)', () => manifestGroup(report));
+  group('§U wire shape', () => wireShapeGroup(report));
+
   group('§F runtime-state TTL', ttlGroup);
   group('§G video delivery', videoGroup);
 }
