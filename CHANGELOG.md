@@ -1,11 +1,34 @@
-## Unreleased
+## 0.4.0 - 2026-08-06
 
-Cross-SDK parity pass on Journey Takeover Ads: the divergences from the Android
-reference implementation found by a line-by-line contract review, plus the live
-end-to-end verification that proves the SDK and the decision-engine actually agree.
-No version cut yet — the additions below warrant a minor bump when released.
+Adds **Journey Takeover Ads** support — additive and backward-compatible. Requires decision-engine API version **`2025-11-01`** or later (set `SDKConfig.apiVersion = "2025-11-01"`); older versions ignore the Journey fields and behave exactly as before.
 
-### Fixes
+Also carries the cross-SDK parity pass: the divergences from the Android reference
+implementation found by a line-by-line contract review, plus the live end-to-end
+verification that proves the SDK and the decision-engine actually agree. Signed off
+with three consecutive runs of the 70-scenario live E2E suite against a local
+decision-engine — 70 passed, 0 failed, 0 skipped each, with the wizard-parity group
+mechanically enforced (`ADMOAI_JOURNEY_E2E_REQUIRE_WIZARD=1`) so the
+platform-writes/engine-reads seam could not silently go unverified.
+
+### Features — Journey Takeover Ads
+
+- Feat: Journey request context — top-level `sessionId` and `journeyOpt` (`JourneyOpt.optIn` / `optOut`) on the request; builder `setSessionId` / `clearSessionId` / `setJourneyOpt` / `clearJourneyOpt`; sticky-but-rotatable session via `AdMoai.initialize(sessionId:)` + `AdMoai.setSessionId` / `clearSessionId` (per-request builder override wins). `sessionId` is trimmed and omitted when blank; over-length values (> 256 UTF-8 bytes) are sent as-is with a PII-safe warning (reason token only).
+- Feat: Read-only Journey response metadata — `Creative.journey` (`CreativeJourney`: `dealId`, `instanceId`, `definitionKey`, `stageId`, `stageKey`, `stageNodeId`, `sessionId`, `optStatus`, `isCompletion`, `pricingModel`, `fallbackBillingMode`) and `JourneyHelper` extension (`isJourneyAd`, read-only getters, `isJourneyCompletion`, `hasCompletionUrl`).
+- Feat: Journey tracking — `Tracking.completions` + `getCompletionUrl` + `TrackingType.completion`, and `AdMoai.fireCompletion(tracking, key:)` for `custom_event` completion deals.
+- Feat: No-ad helpers — `Decision.hasCreative` / `isNoAd` treat `creatives: []` (single-brand takeover protection) and `creatives: null` (no-fill) uniformly as no-ad; the SDK never substitutes a local/cached/competing ad.
+- Feat: Deprecation-aware logging — a single warning is logged when a response carries `X-API-Deprecated: true` (with sunset date when present).
+
+### Fixes — Journey Takeover Ads
+
+- Fix: Tracking requests now send `X-Tracking-Version` (from `apiVersion`) instead of `X-Decision-Version`. The engine's tracking endpoint version-routes on `X-Tracking-Version` only; the previous header silently routed Journey callbacks to a handler that skipped Journey enrichment and custom-event completion.
+
+### Features — cross-SDK parity
+
+- Feat: `AdMoai.fireCustomEvent(tracking, key)` — matches the Android SDK's name.
+  `fireCustom` is kept as a `@Deprecated` alias that forwards to it, so existing
+  integrations keep compiling; it will be removed in 1.0.0.
+
+### Fixes — cross-SDK parity
 
 - Fix: `Creative.isJourneyAd()` now requires a real server-issued `dealId` or
   `instanceId` instead of merely a non-null `journey` block. The Tolerant Reader
@@ -46,12 +69,6 @@ No version cut yet — the additions below warrant a minor bump when released.
   journey serve. A Flutter publisher could not read a value their iOS and Android
   counterparts could.
 
-### Features
-
-- Feat: `AdMoai.fireCustomEvent(tracking, key)` — matches the Android SDK's name.
-  `fireCustom` is kept as a `@Deprecated` alias that forwards to it, so existing
-  integrations keep compiling; it will be removed in 1.0.0.
-
 ### Tests
 
 - Test: Live Journey E2E runner (`test/e2e/journey_e2e_test.dart`, tag `e2e`,
@@ -71,6 +88,27 @@ No version cut yet — the additions below warrant a minor bump when released.
   above, and a compile-check (`test/doc_examples_compile_test.dart`) that fails the
   build if the README documents an API symbol that does not exist.
 
+- Test: the live E2E runner's ingestion path now sends `X-Tracking-Version` on every
+  fired tracking URL, via a single `fireTracking` helper in the harness. `GET
+  /v1/tracking` version-routes on that header: without it the callback lands on the
+  `v20250101` handler, which has no Journey enrichment, so the row reaches Tinybird
+  with an empty `jy` block and is invisible to every Journey KPI — while still
+  answering 202, so the scenario passed anyway. §D6 previously fired with a bare
+  client and no headers, verifying strictly less than it claimed
+  (see admoai-android#80, the same defect on the Android runner; iOS was unaffected).
+  Redirects are controlled per-request so a click's 302 is success and is not chased
+  to the advertiser URL.
+- Test: §Y metric-emission group (Y1/Y2/Y3), ported from the Android runner. These
+  procedurally FIRE tracking rather than only asserting a URL was exposed: Y1 fires an
+  impression and a click so CTR has data at all; Y2 emits one journey clicked three
+  times and another never clicked, which is the acceptance case for adhub#2580
+  (impression CTR and Journey CTR must diverge); Y3 spans 3s of real wall-clock before
+  completing, so Avg Duration and the Avg Attention Time derived from it are non-zero
+  rather than floored at ~0. Verified end to end against a local tinybird-local: all
+  rows landed with Journey context, and the deal Y2 targets reported CTR 66.67% against
+  Journey CTR 16.67% — the first time that divergence has been demonstrated from the
+  Flutter SDK.
+
 ### Docs
 
 - Docs: Rewrote the README's Journey Takeover Ads guide — the SDK's ownership split
@@ -87,22 +125,6 @@ No version cut yet — the additions below warrant a minor bump when released.
   `fireTracking` / `fireCustomEvent` to the tracking reference, completed the
   response-structure tree (`journey`, `verificationScriptResources`, the five
   tracking lists), and completed the `SDKConfig` table.
-
-## 0.4.0
-
-Adds **Journey Takeover Ads** support — additive and backward-compatible. Requires decision-engine API version **`2025-11-01`** or later (set `SDKConfig.apiVersion = "2025-11-01"`); older versions ignore the Journey fields and behave exactly as before.
-
-### Features
-
-- Feat: Journey request context — top-level `sessionId` and `journeyOpt` (`JourneyOpt.optIn` / `optOut`) on the request; builder `setSessionId` / `clearSessionId` / `setJourneyOpt` / `clearJourneyOpt`; sticky-but-rotatable session via `AdMoai.initialize(sessionId:)` + `AdMoai.setSessionId` / `clearSessionId` (per-request builder override wins). `sessionId` is trimmed and omitted when blank; over-length values (> 256 UTF-8 bytes) are sent as-is with a PII-safe warning (reason token only).
-- Feat: Read-only Journey response metadata — `Creative.journey` (`CreativeJourney`: `dealId`, `instanceId`, `definitionKey`, `stageId`, `stageKey`, `stageNodeId`, `sessionId`, `optStatus`, `isCompletion`, `pricingModel`, `fallbackBillingMode`) and `JourneyHelper` extension (`isJourneyAd`, read-only getters, `isJourneyCompletion`, `hasCompletionUrl`).
-- Feat: Journey tracking — `Tracking.completions` + `getCompletionUrl` + `TrackingType.completion`, and `AdMoai.fireCompletion(tracking, key:)` for `custom_event` completion deals.
-- Feat: No-ad helpers — `Decision.hasCreative` / `isNoAd` treat `creatives: []` (single-brand takeover protection) and `creatives: null` (no-fill) uniformly as no-ad; the SDK never substitutes a local/cached/competing ad.
-- Feat: Deprecation-aware logging — a single warning is logged when a response carries `X-API-Deprecated: true` (with sunset date when present).
-
-### Fixes
-
-- Fix: Tracking requests now send `X-Tracking-Version` (from `apiVersion`) instead of `X-Decision-Version`. The engine's tracking endpoint version-routes on `X-Tracking-Version` only; the previous header silently routed Journey callbacks to a handler that skipped Journey enrichment and custom-event completion.
 
 ### Compatibility
 
