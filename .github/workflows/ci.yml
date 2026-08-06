@@ -36,8 +36,13 @@ jobs:
       - name: Analyze
         run: flutter analyze --no-fatal-infos
 
-      - name: Test (unit + live integration)
-        run: flutter test
+      # Deterministic gate only. `live` tests hit api.mock.admoai.com and soft-log some API
+      # errors instead of failing; `e2e` needs a locally-running, seeded decision-engine and is
+      # driven through tool/journey_e2e.sh. Both are documented as excluded in dart_test.yaml —
+      # this workflow predates those tags, so a bare `flutter test` would run them and fail (or
+      # worse, pass while asserting nothing).
+      - name: Test (deterministic unit + mock suites)
+        run: flutter test --exclude-tags "live || e2e"
 
   example:
     name: Analyze (example app)

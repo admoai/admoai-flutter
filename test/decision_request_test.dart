@@ -58,6 +58,7 @@ void main() {
     test('testLocationTargeting', () {
       final builder = sdk.createRequestBuilder();
       var request = builder
+          .addPlacement(key: 'home')
           .addLocationTargeting(latitude: 40.7128, longitude: -74.0060) // NYC
           .addLocationTargeting(latitude: 51.5074, longitude: -0.1278) // London
           .addLocationTargeting(latitude: 48.8566, longitude: 2.3522) // Paris
@@ -88,6 +89,7 @@ void main() {
     test('testLocationTargetingUniqueness', () {
       final builder = sdk.createRequestBuilder();
       var request = builder
+          .addPlacement(key: 'home')
           .addLocationTargeting(latitude: 40.7128, longitude: -74.0060) // NYC
           .addLocationTargeting(latitude: 51.5074, longitude: -0.1278) // London
           .addLocationTargeting(
@@ -109,6 +111,7 @@ void main() {
     test('testCustomTargeting', () {
       final builder = sdk.createRequestBuilder();
       final request = builder
+          .addPlacement(key: 'home')
           .addCustomTargeting(key: 'age', value: 25)
           .addCustomTargeting(key: 'score', value: 98.6)
           .addCustomTargeting(key: 'name', value: 'John')
@@ -129,6 +132,7 @@ void main() {
     test('testCustomTargetingUniqueness', () {
       final builder = sdk.createRequestBuilder();
       final request = builder
+          .addPlacement(key: 'home')
           .addCustomTargeting(key: 'category', value: 'sports')
           .addCustomTargeting(key: 'category', value: 'news') // Should override
           .build();
@@ -208,19 +212,28 @@ void main() {
           .addCustomTargeting(key: 'category', value: 'news')
           .setUserId('user123');
 
-      var request = builder.clearPlacements().build();
-      expect(request.placements.isEmpty, isTrue);
+      // clearPlacements leaves the builder in a state build() now rejects: a request with no
+      // placements is one the engine always answers with a 422, so it fails locally instead.
+      // Targeting must survive the clear, which is what this half was really asserting.
+      builder.clearPlacements();
+      expect(builder.build, throwsA(isA<ArgumentError>()));
+
+      var request = builder.addPlacement(key: 'home').build();
+      expect(request.placements.length, equals(1));
       expect(request.targeting?.geo?.isEmpty, isFalse);
 
-      request = builder.clearTargeting().build();
+      request = builder.clearTargeting().addPlacement(key: 'home').build();
       expect(request.targeting, isNull);
       expect(request.user, isNotNull);
 
       request = builder.clearUser().build();
       expect(request.user, isNull);
 
-      request = builder.clearAll().build();
-      expect(request.placements.isEmpty, isTrue);
+      // clearAll() also empties placements, so it too must be followed by one.
+      builder.clearAll();
+      expect(builder.build, throwsA(isA<ArgumentError>()));
+
+      request = builder.addPlacement(key: 'home').build();
       expect(request.targeting, isNull);
       expect(request.user, isNull);
       expect(request.device, isNull);
@@ -232,6 +245,7 @@ void main() {
     test('single destination is added and serialized correctly', () {
       final request = sdk
           .createRequestBuilder()
+          .addPlacement(key: 'home')
           .addDestinationTargeting(
               latitude: 40.7128, longitude: -74.0060, minConfidence: 0.8)
           .build();
@@ -248,12 +262,17 @@ void main() {
       expect(destList.length, equals(1));
       expect((destList.first as Map)['latitude'], equals(40.7128));
       expect((destList.first as Map)['longitude'], equals(-74.0060));
-      expect((destList.first as Map)['min_confidence'], equals(0.8));
+      // The engine's canonical key is camelCase `minConfidence`, matching every other field on
+      // the request contract; `min_confidence` is only a back-compat alias for already-fielded
+      // SDKs. This guard used to assert the alias.
+      expect((destList.first as Map)['minConfidence'], equals(0.8));
+      expect((destList.first as Map).containsKey('min_confidence'), isFalse);
     });
 
     test('duplicate destinations are deduplicated', () {
       final request = sdk
           .createRequestBuilder()
+          .addPlacement(key: 'home')
           .addDestinationTargeting(
               latitude: 40.7128, longitude: -74.0060, minConfidence: 0.8)
           .addDestinationTargeting(
@@ -269,6 +288,7 @@ void main() {
         () {
       final request = sdk
           .createRequestBuilder()
+          .addPlacement(key: 'home')
           .addDestinationTargeting(
               latitude: 40.7128, longitude: -74.0060, minConfidence: 0.5)
           .addDestinationTargeting(
@@ -286,6 +306,7 @@ void main() {
 
       final request = sdk
           .createRequestBuilder()
+          .addPlacement(key: 'home')
           .addDestinationTargeting(
               latitude: 99, longitude: 99, minConfidence: 0.1)
           .setDestinationTargeting([destA, destB])
@@ -299,6 +320,7 @@ void main() {
     test('clearDestinationTargeting removes all destinations', () {
       final request = sdk
           .createRequestBuilder()
+          .addPlacement(key: 'home')
           .addDestinationTargeting(
               latitude: 1, longitude: 2, minConfidence: 0.5)
           .addGeoTargeting(5819)
@@ -312,6 +334,7 @@ void main() {
     test('clearTargeting removes destinations', () {
       final request = sdk
           .createRequestBuilder()
+          .addPlacement(key: 'home')
           .addDestinationTargeting(
               latitude: 1, longitude: 2, minConfidence: 0.5)
           .clearTargeting()
@@ -341,6 +364,7 @@ void main() {
     test('minConfidence at 0.0 and 1.0 boundaries is accepted', () {
       final request = sdk
           .createRequestBuilder()
+          .addPlacement(key: 'home')
           .addDestinationTargeting(
               latitude: 1, longitude: 2, minConfidence: 0.0)
           .addDestinationTargeting(
@@ -353,6 +377,7 @@ void main() {
     test('destination coexists with other targeting fields', () {
       final request = sdk
           .createRequestBuilder()
+          .addPlacement(key: 'home')
           .addGeoTargeting(5819)
           .addLocationTargeting(latitude: 10, longitude: 20)
           .addDestinationTargeting(

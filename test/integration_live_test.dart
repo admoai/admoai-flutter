@@ -1,11 +1,21 @@
 // ignore_for_file: avoid_print
+@Tags(['live'])
+library;
+
 //
-// Live integration test for AdMoai Flutter SDK v0.3.0
+// Live integration test for AdMoai Flutter SDK.
 //
-// Hits api.mock.admoai.com with all placement / apiVersion combinations and
-// exercises every new v0.3.0 SDK feature. No API key required.
+// DIAGNOSTIC, NOT A CI GATE. This suite makes real network calls to
+// api.mock.admoai.com and intentionally soft-logs some client/API errors
+// instead of hard-failing, so a green run here is not a reliable release
+// signal for live behavior. Deterministic SDK acceptance lives in the
+// unit/mock-HTTP suites (admoai_test, journey_*_test, decision_*_test,
+// api_client_test, tolerant_reader_test).
 //
-// Run with:
+// It is tagged `live` (see dart_test.yaml). Exclude it from a deterministic
+// gate with:
+//   flutter test --exclude-tags live
+// Or run it alone with:
 //   flutter test test/integration_live_test.dart --reporter expanded
 //
 // The live-request tests (§3, §4) never hard-fail on response content —
@@ -20,6 +30,7 @@
 //   • 422 on destination targeting → minConfidence key name is wrong (see §1)
 
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -160,6 +171,16 @@ const _apiVersions = <String?>[null, '2025-11-01'];
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  // Re-enable real networking. `TestWidgetsFlutterBinding` installs an
+  // `HttpOverrides` that answers every `HttpClient` request with a mocked
+  // HTTP 400 and an empty body, without touching the network.
+  //
+  // This suite shipped without clearing it, so every "live" call below returned
+  // 400 from Flutter's mock and the soft-logging (see the header) reported it as
+  // a warning — the suite stayed green while making no network call at all. An
+  // assertion that never ran is indistinguishable from a passing one.
+  HttpOverrides.global = null;
+
   // Mock the timezone channel (required by the SDK even in forTesting mode)
   setUpAll(() {
     const channel = MethodChannel('flutter_timezone');
@@ -251,7 +272,7 @@ void main() {
 
   // ── §2  Header assertions (mock network, no live calls) ───────────────────
   group('§2  Header assertions', () {
-    test('User-Agent is AdMoaiSDK/0.3.0', () async {
+    test('User-Agent is AdMoaiSDK/0.4.0', () async {
       String? capturedUA;
       final sdk = AdMoai.forTesting(
         config: SDKConfig(baseUrl: _baseUrl),
@@ -269,7 +290,7 @@ void main() {
 
       print('\n[§2-UA] $capturedUA');
       expect(capturedUA, contains('AdMoaiSDK/'));
-      expect(capturedUA, contains('0.3.0'));
+      expect(capturedUA, contains('0.4.0'));
     });
 
     test('Accept-Language is sent when defaultLanguage is set', () async {

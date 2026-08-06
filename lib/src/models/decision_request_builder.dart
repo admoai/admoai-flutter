@@ -1,3 +1,7 @@
+import 'dart:collection';
+
+import 'package:logging/logging.dart';
+
 import 'decision_request.dart';
 import '../configs.dart';
 
@@ -9,12 +13,18 @@ class DecisionRequestBuilder {
   App? _app;
   bool _collectAppData = true;
   bool _collectDeviceData = true;
+  String? _sessionId;
+  JourneyOpt? _journeyOpt;
+  final Logger _logger;
 
   DecisionRequestBuilder({
     required AppConfig appConfig,
     required DeviceConfig deviceConfig,
     required UserConfig userConfig,
-  }) {
+    String? sessionId,
+    Logger? logger,
+  }) : _sessionId = sessionId,
+        _logger = logger ?? Logger('AdMoai') {
     _app = App(
       name: appConfig.name,
       version: appConfig.version,
@@ -60,9 +70,15 @@ class DecisionRequestBuilder {
   }
 
   // Targeting methods
+  /// Sets geo targets, removing duplicates and keeping first-seen order.
+  ///
+  /// Location, destination and custom targeting were all already deduplicated; geo was not, so
+  /// identical input produced a different request body on Android (which dedupes) than here. Geo
+  /// is evaluated as ANY so duplicates never changed a decision, but the payload should not differ
+  /// by platform for the same call.
   DecisionRequestBuilder setGeoTargeting(List<int>? geoNameIds) {
     _targeting = Targeting(
-      geo: geoNameIds,
+      geo: geoNameIds == null ? null : LinkedHashSet<int>.from(geoNameIds).toList(),
       location: _targeting?.location,
       destination: _targeting?.destination,
       custom: _targeting?.custom,
@@ -132,8 +148,22 @@ class DecisionRequestBuilder {
     return this;
   }
 
+  /// Replaces the destination targeting list.
+  ///
+  /// Validates `minConfidence` on every entry, which `addDestinationTargeting` already did but
+  /// this bulk setter did not — so the same out-of-range value threw on iOS and Android and was
+  /// silently sent from here.
   DecisionRequestBuilder setDestinationTargeting(
       List<Destination>? destinations) {
+    for (final d in destinations ?? const <Destination>[]) {
+      if (d.minConfidence < 0.0 || d.minConfidence > 1.0) {
+        throw ArgumentError.value(
+          d.minConfidence,
+          'minConfidence',
+          'must be between 0.0 and 1.0 inclusive',
+        );
+      }
+    }
     final unique = destinations?.fold<List<Destination>>(
       [],
       (result, dest) {
@@ -287,6 +317,42 @@ class DecisionRequestBuilder {
     return this;
   }
 
+  // Journey methods
+  /// Sets the per-request Journey session identifier, overriding any sticky
+  /// SDK-level default seeded into this builder. Emits a PII-safe warning
+  /// (reason token only, never the value) when the engine would treat the
+  /// value as absent (blank-after-trim or > 256 UTF-8 bytes).
+  DecisionRequestBuilder setSessionId(String sessionId) {
+    final reason = journeySessionIdRejectionReason(sessionId);
+    if (reason != null) {
+      _logger.warning(
+        'sessionId will disable Journey for this request (reason: $reason)',
+      );
+    }
+    // Normalize so the built request's `sessionId` matches the wire: trim, and
+    // treat blank-after-trim as null. Over-length kept as-is (engine rejects).
+    final trimmed = sessionId.trim();
+    _sessionId = trimmed.isEmpty ? null : trimmed;
+    return this;
+  }
+
+  DecisionRequestBuilder clearSessionId() {
+    _sessionId = null;
+    return this;
+  }
+
+  /// Forwards the publisher-provided Journey opt control without interpreting
+  /// progression locally.
+  DecisionRequestBuilder setJourneyOpt(JourneyOpt opt) {
+    _journeyOpt = opt;
+    return this;
+  }
+
+  DecisionRequestBuilder clearJourneyOpt() {
+    _journeyOpt = null;
+    return this;
+  }
+
   // Collection control methods
   DecisionRequestBuilder disableAppCollection() {
     _collectAppData = false;
@@ -316,23 +382,44 @@ class DecisionRequestBuilder {
     return this;
   }
 
+  /// Resets the builder for reuse. Clears placements, targeting, user, and
+  /// disables app/device collection. Also clears the per-request Journey
+  /// override [_journeyOpt] — it is a per-decision control and must not leak
+  /// (e.g. a stale `optOut`) into an unrelated reused request.
+  ///
+  /// The sticky Journey [_sessionId] is intentionally **preserved**: it is a
+  /// session-scoped default (seeded from [AdMoai] / set explicitly) and is
+  /// meant to persist across requests in the same journey. Call
+  /// [clearSessionId] to drop it explicitly.
   DecisionRequestBuilder clearAll() {
     clearPlacements();
     clearTargeting();
     clearUser();
     disableDeviceCollection();
     disableAppCollection();
+    clearJourneyOpt();
     return this;
   }
 
-  // Build method
+  /// Builds the request.
+  ///
+  /// Throws [ArgumentError] when no placement was added. The engine rejects that with a 422, so
+  /// failing here avoids a pointless round-trip — matching Android, which throws
+  /// AdMoaiConfigurationException from build(). (iOS raises the equivalent from requestAds
+  /// instead, because making its build() throwing would churn 80 call sites for no behavioural
+  /// difference.)
   DecisionRequest build() {
+    if (_placements.isEmpty) {
+      throw ArgumentError('At least one placement is required');
+    }
     return DecisionRequest(
       placements: _placements,
       targeting: _targeting,
       user: _user,
       device: _collectDeviceData ? _device : null,
       app: _collectAppData ? _app : null,
+      sessionId: _sessionId,
+      journeyOpt: _journeyOpt,
     );
   }
 }

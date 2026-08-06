@@ -95,9 +95,9 @@ class InfoTabView extends StatelessWidget {
     return _buildCard(
       child: Column(
         children: [
-          _buildInfoItem(context, 'Key', creative.template.key),
+          _buildInfoItem(context, 'Key', creative.template?.key ?? '—'),
           const Divider(height: 1),
-          _buildInfoItem(context, 'Style', creative.template.style ?? '—'),
+          _buildInfoItem(context, 'Style', creative.template?.style ?? '—'),
         ],
       ),
     );
@@ -118,7 +118,7 @@ class InfoTabView extends StatelessWidget {
           const Divider(height: 1),
           _buildInfoItem(context, 'Placement ID', metadata.placementId),
           const Divider(height: 1),
-          _buildInfoItem(context, 'Priority', metadata.priority),
+          _buildInfoItem(context, 'Priority', metadata.priority.value),
           const Divider(height: 1),
           _buildInfoItem(context, 'Language', metadata.language ?? '—'),
         ],

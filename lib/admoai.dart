@@ -9,3 +9,4 @@ export 'src/utils/app_details.dart';
 export 'src/utils/device_details.dart';
 export 'src/utils/video_helper.dart';
 export 'src/utils/om_helper.dart';
+export 'src/utils/journey_helper.dart';

@@ -99,7 +99,7 @@ class _VideoTestScreenState extends State<VideoTestScreen> {
           final creative = decision.creatives![j];
           result += '\nCreative ${j + 1}:\n';
           result += '  Advertiser: ${creative.advertiser.name}\n';
-          result += '  Template: ${creative.template.key}\n';
+          result += '  Template: ${creative.template?.key ?? '—'}\n';
           result += '  Delivery: ${creative.delivery ?? "native"}\n';
 
           if (creative.vast != null) {

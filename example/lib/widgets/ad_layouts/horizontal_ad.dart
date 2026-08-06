@@ -11,8 +11,8 @@ class HorizontalAdView extends StatelessWidget {
     required this.sdk,
   });
 
-  bool get isImageRight => creative.template.style == 'imageRight';
-  bool get isImageOnly => creative.template.style == 'wideImageOnly';
+  bool get isImageRight => creative.template?.style == 'imageRight';
+  bool get isImageOnly => creative.template?.style == 'wideImageOnly';
 
   String? get wideImage => creative.contents
       .firstWhere((c) => c.key == 'wideImage',
