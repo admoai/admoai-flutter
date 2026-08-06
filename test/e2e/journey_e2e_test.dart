@@ -33,7 +33,6 @@ library;
 
 import 'package:admoai/admoai.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:http/http.dart' as http;
 import 'package:logging/logging.dart';
 
 import 'journey_e2e_harness.dart';
@@ -180,6 +179,10 @@ void main() {
 
   group('§F runtime-state TTL', ttlGroup);
   group('§G video delivery', videoGroup);
+
+  // Emits the tracking patterns the Ad Manager KPIs are computed from (clicks, a
+  // timed completion). Last, because Y3 spends 3s of real wall-clock.
+  group('§Y metric emission', metricEmissionGroup);
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -1064,18 +1067,15 @@ void trackingGroup() {
               Uri.parse(minted).queryParameters['e'],
           'normalization left the opaque token untouched');
 
-      final client = http.Client();
-      try {
-        final response = await client
-            .get(Uri.parse(normalized))
-            .timeout(const Duration(seconds: 15));
-        check(response.statusCode >= 200 && response.statusCode < 300,
-            'the tracking endpoint accepted the token it minted '
-            '(got HTTP ${response.statusCode})');
-        notes.add('ingestion returned HTTP ${response.statusCode}');
-      } finally {
-        client.close();
-      }
+      // Fired through `fireTracking`, which sends `X-Tracking-Version`. This
+      // scenario previously used a bare `http.Client().get()` with no headers,
+      // so the callback routed to the `v20250101` handler and the row landed
+      // with no journey context — the request answered 202 and the claim below
+      // passed while verifying strictly less than it says (admoai-android#80).
+      final status = await fireTracking(minted);
+      check(status >= 200 && status < 300,
+          'the tracking endpoint accepted the token it minted (got HTTP $status)');
+      notes.add('ingestion returned HTTP $status with journey context');
     });
   });
 }
@@ -1788,5 +1788,172 @@ void videoGroup() {
       notes.add('vast_tag + vast_xml exposed with zero SDK-surfaced video '
           'beacons');
     });
+  });
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// §Y metric emission (procedural: these FIRE tracking, they do not just assert
+// that a URL was exposed)
+//
+// Ported from the Android runner's `metricEmissionGroup`
+// (sdk/src/test/kotlin/com/admoai/sdk/e2e/ManifestRunner.kt). Every Journey KPI in
+// the Ad Manager is computed by Tinybird pipes from emitted tracking rows, and
+// until these existed the suite emitted almost none of them: it asserted a click
+// URL was *exposed* and never fired it, so no `event='click'` row ever existed and
+// BOTH CTR and Journey CTR were structurally unverifiable end to end. Scenarios
+// also completed in milliseconds, so Avg Duration was ~0 and Avg Attention Time
+// (avgDuration x pct) was 0 with it.
+//
+// These assert only what the SDK can observe — that the engine accepted the
+// callback. The metric arithmetic is verified separately by adhub's Go pipe tests
+// (tests/decision-engine/tinybird/journey_reporting_pipes_test.go), which can read
+// the computed values; an SDK runner cannot.
+//
+// Y2's pattern is the acceptance case for adhub#2580: one journey clicked three
+// times, another not clicked at all, so impression CTR and Journey CTR must
+// diverge. Fired via `fireTracking`, which sends `X-Tracking-Version` — without it
+// the rows carry no journey context and are invisible to every KPI, which is the
+// whole point of the group (admoai-android#80).
+void metricEmissionGroup() {
+  scenario(report, 'Y1',
+      'a fired click is accepted by the engine, so CTR has data to compute from',
+      (notes) async {
+    await withDriver((driver) async {
+      final session = freshSession('y1');
+      final served = await decide(
+        driver,
+        placements: [demoStage1Placement],
+        sessionId: session,
+        opt: JourneyOpt.optIn,
+      );
+      final creative = served.creativeFor(demoStage1Placement);
+      if (creative == null || !creative.isJourneyAd()) {
+        throw SkipScenario('no journey served on "$demoStage1Placement"');
+      }
+
+      final impression = creative.tracking.getImpressionUrl();
+      check(isTrackingUrl(impression),
+          'a served creative exposes an impression URL');
+      await fireTracking(impression!);
+
+      final click = creative.tracking.getClickUrl();
+      if (!isTrackingUrl(click)) {
+        throw SkipScenario(
+          'this creative exposes no click URL (no destination field configured)',
+        );
+      }
+      // The gap this closes: previously only the URL's presence was asserted,
+      // never fired, so `event='click'` never existed for any journey.
+      final code = await fireTracking(click!, allowRedirect: true);
+      notes.add('impression + click accepted (click returned HTTP $code)');
+    });
+  });
+
+  scenario(
+      report,
+      'Y2',
+      'one journey clicked 3x and another not clicked at all — the Journey CTR '
+          'case (adhub#2580)', (notes) async {
+    // Journey A: three clicks in ONE instance. Journey CTR must count it ONCE.
+    final instanceA = await withDriver((driver) async {
+      final served = await decide(
+        driver,
+        placements: [demoStage1Placement],
+        sessionId: freshSession('y2a'),
+        opt: JourneyOpt.optIn,
+      );
+      final a = served.creativeFor(demoStage1Placement);
+      if (a == null || !a.isJourneyAd()) {
+        throw SkipScenario('no journey served on "$demoStage1Placement"');
+      }
+      final click = a.tracking.getClickUrl();
+      if (!isTrackingUrl(click)) {
+        throw SkipScenario('this creative exposes no click URL');
+      }
+      await fireTracking(a.tracking.getImpressionUrl()!);
+      for (var i = 0; i < 3; i++) {
+        await fireTracking(click!, allowRedirect: true);
+      }
+      return a.journeyInstanceId;
+    });
+
+    // Journey B: impression only, never clicked.
+    final instanceB = await withDriver((driver) async {
+      final served = await decide(
+        driver,
+        placements: [demoStage1Placement],
+        sessionId: freshSession('y2b'),
+        opt: JourneyOpt.optIn,
+      );
+      final b = served.creativeFor(demoStage1Placement);
+      if (b == null || !b.isJourneyAd()) {
+        throw SkipScenario('no journey served for the unclicked arm');
+      }
+      await fireTracking(b.tracking.getImpressionUrl()!);
+      return b.journeyInstanceId;
+    });
+
+    // The SDK cannot read the computed metric, so the claim here is only that the
+    // pattern was emitted as two separate instances. Expected downstream, over
+    // this window: impression CTR counts every click, Journey CTR counts the
+    // clicked journey once — so the two must differ.
+    check(
+      instanceA != null && instanceB != null && instanceA != instanceB,
+      'the two arms are separate journey instances, so per-journey reach is '
+      'measurable ($instanceA vs $instanceB)',
+    );
+    notes.add('clicked instance $instanceA (3 clicks), unclicked $instanceB');
+  });
+
+  scenario(
+      report,
+      'Y3',
+      'a completed journey spans real wall-clock, so Avg Duration and Avg '
+          'Attention Time are non-zero', (notes) async {
+    final session = freshSession('y3');
+
+    await withDriver((driver) async {
+      final served = await decide(
+        driver,
+        placements: [cptFinalEarlyPlacement],
+        sessionId: session,
+        opt: JourneyOpt.optIn,
+      );
+      final early = served.creativeFor(cptFinalEarlyPlacement);
+      if (early == null || !early.isJourneyAd()) {
+        throw SkipScenario(
+          'no journey served on "$cptFinalEarlyPlacement" — is '
+          '`e2e_cpt_final_journey` present in this database? (adhub#2362)',
+        );
+      }
+      await fireTracking(early.tracking.getImpressionUrl()!);
+    });
+
+    // Avg Duration is measured completion_ts - first_event_ts. Every other
+    // scenario completes in milliseconds, so the metric floored at ~0 and
+    // "0 because fast" was indistinguishable from "0 because broken". This gap
+    // makes the value assertable downstream.
+    await Future.delayed(const Duration(seconds: 3));
+
+    await withDriver((driver) async {
+      final served = await decide(
+        driver,
+        placements: [cptFinalCompletePlacement],
+        sessionId: session,
+        opt: JourneyOpt.optIn,
+      );
+      final complete = served.creativeFor(cptFinalCompletePlacement);
+      if (complete == null || !complete.isJourneyAd()) {
+        throw SkipScenario('final stage did not serve');
+      }
+      check(complete.isJourneyCompletion == true,
+          'the final stage of a final_stage deal flips isCompletion, which is '
+          'what closes the instance');
+      await fireTracking(complete.tracking.getImpressionUrl()!);
+      notes.add('completed instance ${complete.journeyInstanceId} after >=3s');
+    });
+
+    // Downstream, over this window: avg_duration_seconds >= 3, and Avg Attention
+    // Time = avg_duration x 30/100 (the pct seeded on e2e_cpt_final_journey).
   });
 }

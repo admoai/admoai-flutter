@@ -364,6 +364,54 @@ String normalizeForLocalIngestion(String url) {
       .toString();
 }
 
+/// Fires an engine-minted tracking URL and returns the HTTP status.
+///
+/// **`X-Tracking-Version` is not optional here.** `GET /v1/tracking`
+/// version-routes on that header: without it the callback lands on the
+/// `v20250101` handler, which has no journey enrichment, and the row reaches
+/// Tinybird with an empty `jy` block — no `journey_instance_id`, no
+/// `journey_deal_public_id`. Every node of `journey_summary` requires a non-empty
+/// `journey_instance_id`, so such a row is invisible to every Journey KPI while
+/// the request still answers 202 and the scenario still passes. That is exactly
+/// the defect filed as admoai-android#80, where the Android runner hand-rolled an
+/// `HttpURLConnection` with no headers. Fire through here, never a bare client.
+///
+/// Clicks answer **302** (the engine records the event, then redirects to the
+/// creative's destination), so a redirect is success for them, not a failure.
+/// The redirect is deliberately not followed: the destination is an advertiser
+/// URL that may be unreachable from a test machine, and chasing it would turn a
+/// correct 302 into a network error.
+/// Uses `dart:io`'s [HttpClient] rather than `package:http` on purpose:
+/// `followRedirects` is a per-request flag there, and `IOClient` defaults it to
+/// `true`, which would chase a click's 302 to the advertiser URL and turn a
+/// correct redirect into a network error on a test machine.
+Future<int> fireTracking(String mintedUrl, {bool allowRedirect = false}) async {
+  final client = HttpClient();
+  try {
+    final request = await client
+        .getUrl(Uri.parse(normalizeForLocalIngestion(mintedUrl)))
+        .timeout(const Duration(seconds: 15));
+    request.followRedirects = false;
+    request.headers.set('X-Tracking-Version', e2eApiVersion);
+    final response = await request.close().timeout(
+          const Duration(seconds: 15),
+        );
+    final code = response.statusCode;
+    // Drained so the socket is released back to the client before it closes.
+    await response.drain<void>();
+    final accepted =
+        (code >= 200 && code < 300) || (allowRedirect && code == 302);
+    if (!accepted) {
+      throw StateError(
+        'the tracking endpoint rejected a token it minted (HTTP $code)',
+      );
+    }
+    return code;
+  } finally {
+    client.close();
+  }
+}
+
 /// True when [url] meets the tracking transport contract: absolute, path
 /// `/v1/tracking`, carrying an opaque `?e=` token.
 bool isTrackingUrl(String? url) {
