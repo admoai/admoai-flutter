@@ -12,7 +12,7 @@ AdMoai Flutter SDK is a cross-platform advertising solution that enables seamles
 
 - **Native Ads** - Multiple template types (wide, image+text, text-only, carousel)
 - **Video Ads** - JSON, VAST Tag, and VAST XML delivery methods, with `Format.video` placement filter
-- **Journey Takeover Ads** - Multi-stage, single-brand trip journeys via `sessionId` / `journeyOpt` and read-only `creative.journey` metadata (requires `apiVersion: "2025-11-01"`)
+- **Journey Ads** - Multi-stage, single-brand trip journeys via `sessionId` / `journeyOpt` and read-only `creative.journey` metadata (requires `apiVersion: "2025-11-01"`)
 - **Rich Targeting** - Geo, current-location, destination, and custom key-value targeting
 - **GDPR Compliance** - Built-in user consent management
 - **Event Tracking** - Impressions, clicks, video quartiles, and custom events
@@ -143,7 +143,7 @@ sdk.clearAppConfig();
 | `logger` | Logger | SDK default | Custom logger instance |
 
 `AdMoai.initialize` additionally accepts `sessionId` (the sticky Journey session —
-see [Journey Takeover Ads](#journey-takeover-ads)) and `httpClient` (a custom
+see [Journey Ads](#journey-ads)) and `httpClient` (a custom
 `http.Client`).
 
 ---
@@ -238,9 +238,9 @@ Each tracking type supports multiple keys. Use `"default"` for standard events o
 
 ---
 
-## Journey Takeover Ads
+## Journey Ads
 
-A **Journey Takeover Ad** is a single-advertiser takeover spanning several screens
+A **Journey Ad** is a single-advertiser takeover spanning several screens
 of one user session (e.g. pre-ride → in-ride → post-ride). Instead of an
 independent decision per placement, one advertiser holds the journey: the engine
 walks the user through an ordered set of **stages**, keeps progress against the
@@ -252,6 +252,30 @@ until the journey ends.
 > empty response. The SDK logs a warning if you send Journey context without an
 > `apiVersion`. Journey fields are fully additive, so existing integrations keep
 > working unchanged.
+
+<!-- MIRRORED SECTION START — this Journey Ads guide is duplicated in admoai-ios, admoai-android
+     (sdk/README.md) and admoai-flutter. Prose must stay equivalent in all three; only the code
+     samples differ. Change all three together. -->
+
+### Why your integration matters commercially
+
+A Journey Ad is **one advertiser buying one user's activity as a single deal**, usually
+priced **CPT** (cost per takeover) — the advertiser pays for the journey as a unit, not
+per impression. In exchange, competing ads are suppressed on the placements the journey
+owns.
+
+That moves real commercial weight into your app:
+
+| If your app… | Consequence |
+|---|---|
+| Sends a different `sessionId` per screen | The journey restarts at stage 1 forever. The advertiser's multi-screen story never happens and the campaign under-delivers. |
+| Never fires the completion beacon (on `custom_event` deals) | The journey never completes, so **CPT revenue is never recorded**. |
+| Substitutes another ad on a journey no-ad | Breaks the single-brand exclusivity the advertiser paid for. |
+| Branches UI on journey metadata | Breaks silently when someone edits the campaign. |
+
+**None of this raises an error at request time.** Requests succeed, ads appear, and the
+problem only shows up later in reporting — which is why the checklist and checks at the
+end of this section matter more than usual.
 
 ### What the SDK does, and never does
 
@@ -281,6 +305,30 @@ Two ways to get it wrong, both silent:
 |---|---|
 | A *different* `sessionId` on a later screen | The engine sees a new session and **restarts** the journey from stage 1. The user sees stage 1 again and never reaches the end. |
 | *No* `sessionId` at all | Journeys **never activate**. You keep serving normal ads. This is the safe default — nothing breaks, you just get no journeys. |
+
+### What a session actually is
+
+The most common mistake is reaching for something identity-shaped — a login, a user id,
+an app launch. **A session is one activity, not one user and not one app run.** Define it
+as the thing that starts and finishes in your product, because that is the unit the
+advertiser is buying.
+
+Examples, **not prescriptions** — pick the equivalent in your own product:
+
+| Product | One `sessionId` = | Starts | Ends |
+|---|---|---|---|
+| Ride-hailing | one ride | user opens the booking flow | ride completed or cancelled |
+| Delivery | one order | checkout begins | order delivered |
+| Micromobility | one trip | unlock | lock / trip ends |
+
+Two consequences worth internalising:
+
+- **Login is usually the wrong boundary.** A user who takes three rides today should
+  produce three `sessionId` values, not one — otherwise all three collapse into a single
+  journey.
+- **Concurrent activities need separate ids.** If your product allows two live orders at
+  once, give each its own `sessionId` (a per-request override is the simplest way). One
+  id for both makes them share one journey and one stage pointer.
 
 ### 1. The `sessionId` contract
 
@@ -341,6 +389,12 @@ final sdk = await AdMoai.initialize(
 it — the engine mints a **new** `journeyInstanceId` and starts over. Completed
 journeys are terminal for the same reason.
 
+> **The exception to "omitted is permissive".** Once a session has explicitly opted
+> out, that refusal is remembered. Later requests that simply **omit** `journeyOpt`
+> do **not** re-enable journeys for it — the session must re-consent with an explicit
+> `JourneyOpt.optIn`. So a consent toggle that sends `optOut` when off and *nothing*
+> when on will leave journeys permanently disabled for that session.
+
 ### 3. Read journey metadata (read-only)
 
 ```dart
@@ -387,14 +441,29 @@ impression rather than a replacement. Always fire the impression as usual.
 when you fire the beacon. If you never fire it, the advertiser is never charged for
 the completion.
 
+> **Do not hard-code the completion key.** The key is **campaign-specific** — it is the
+> event name the Admoai ad operator configured for this deal, so it differs between
+> campaigns and is not a fixed string you can rely on. Read it from
+> `creative.tracking.completions`, which carries exactly one entry when the deal uses
+> `custom_event`. Passing a key that is not in that list logs a warning and fires
+> **nothing** — no error, no completion, no revenue.
+
 ```dart
-if (creative.hasCompletionUrl) {
-  sdk.fireCompletion(creative.tracking, key: 'journey_complete');
+// Read the key the engine returned; never invent it locally.
+final completions = creative.tracking.completions;
+if (completions != null && completions.isNotEmpty) {
+  sdk.fireCompletion(creative.tracking, key: completions.first.key);
 }
 ```
 
-Fire it **once**, when the action you agreed with the advertiser actually happens.
-Do not also fire a matching `custom` URL for the same action — that double counts.
+Fire it **once**, when the action you agreed with the advertiser actually happens —
+not on render. Which app action that is, is a commercial decision the SDK cannot tell
+you; get it from your Admoai contact before you ship (see
+[Before you ship](#before-you-ship)).
+
+Completion is **idempotent server-side**, so firing twice will not double-charge the
+advertiser — but still fire once: repeated callbacks add confusing analytics rows and
+make debugging harder.
 
 **`final_stage` — there is nothing to fire.**
 
@@ -419,7 +488,10 @@ if (decision == null || decision.isNoAd) {
   reason is server-side only.
 - **Do not substitute** another ad on a journey surface — it breaks the takeover you
   sold.
-- **Do not retry in a loop.** The answer will not change within the session.
+- **Do not immediately retry the same placement in a loop.** Collapse the slot and
+  carry on; request again when your app naturally reaches its next ad opportunity. A
+  later request may well serve — the answer depends on placement, stage, time and
+  campaign state. See [Why a journey can stop serving](#why-a-journey-can-stop-serving).
 
 ### 6. Journey ads with video
 
@@ -529,13 +601,145 @@ Two checks catch most integration bugs.
    If it changes mid-session, your `sessionId` is changing (or the session's
    server-side state expired).
 
-2. **The stage key must advance and never repeat.**
+2. **The stage NODE id must never repeat within one instance.**
 
    ```dart
-   debugPrint('journey stage: ${creative.journeyStageKey}');
+   debugPrint('stage: ${creative.journeyStageKey}  node: ${creative.journeyStageNodeId}');
    ```
 
-   Seeing `pre_ride` on every screen means each request is starting a new journey.
+   `journeyStageNodeId` must **never repeat** while the same `journeyInstanceId` is
+   active — each node serves at most once per journey. `journeyStageKey` **may**
+   repeat, and that is not a bug: one stage can own several surfaces, and the engine
+   will serve another unserved node from a stage it already served without advancing.
+   The real red flag is `pre_ride` on every screen **with a changing instance id** —
+   that means each request is starting a new journey.
+
+### How long a journey stays alive
+
+A journey's server-side progress has an **idle expiry**, configured by the Admoai ad
+operator **per journey definition** — not per campaign, and not by your app. It defaults
+to **24 hours** and can be set to anything from minutes to days.
+
+Two things follow, and the second surprises people:
+
+- **The clock runs from the last activity, not from the start.** Every serve refreshes it,
+  so an active journey does not expire mid-use.
+- **After the idle window the journey is gone — even if your `sessionId` never changed.**
+  The next request starts a **new** journey at stage 1 with a new `journeyInstanceId`. An
+  unchanged `sessionId` is not enough to keep a journey alive.
+
+Pick the window to match how long your activity realistically pauses. *As an example
+only:* a delivery product whose orders complete within a couple of hours has no reason to
+keep state for a day. Agree the value with your Admoai contact — there is no universally
+correct number.
+
+### Why a journey can stop serving
+
+**Frequency capping** decides whether a **new** journey may start. It is set per deal by
+Admoai ad-ops, as "X times per Y period". There is **no default — if it is not configured,
+no cap applies.** Two properties matter to you:
+
+- It **never interrupts a journey already in progress.** A cap filling up mid-journey
+  cannot cut the user off.
+- It is scoped per **user + deal**, so it only applies when you send a **user id**.
+  Without one, journey frequency capping cannot apply.
+
+**Edge cases — uncommon, but they explain a journey that stops mid-session.** An active
+journey can end early if the deal's **budget** runs out, its **pacing** limit is reached,
+an **event cap** is hit, or it falls outside its **parting** window (the times of day and
+days of week the campaign is allowed to serve). Add the idle expiry above, a **mandatory
+stage** with nothing servable on the requested placement, and an explicit **opt-out**, and
+you have the full list.
+
+Your app's response is identical in every case: collapse the slot and carry on. The
+distinction only matters when someone asks ad-ops why delivery stopped.
+
+### Before you ship
+
+**Get these from your Admoai contact.** Guessing any of them produces an integration that
+looks fine and reports wrongly:
+
+| What | Why you need it |
+|---|---|
+| Placement keys owned by the journey | Which of your surfaces participate |
+| The billable app action | Which real user action fires completion |
+| Completion mode (`custom_event` or `final_stage`) | Whether you fire anything at all |
+| Idle expiry for the definition | How long a paused activity survives |
+| Video delivery mode (JSON or VAST) | Who owns the video beacons |
+| Whether a user id is expected | Frequency capping needs one |
+
+**Then check your own integration:**
+
+- [ ] `apiVersion: '2025-11-01'` is set.
+- [ ] One `sessionId` per **activity** (see [What a session actually is](#what-a-session-actually-is)), not per screen and not per login.
+- [ ] `journeyInstanceId` is constant across one activity; `journeyStageNodeId` never repeats.
+- [ ] Completion key is read from `creative.tracking.completions`, never hard-coded.
+- [ ] Completion fires **once**, on the agreed action — not on render.
+- [ ] Normal impression still fires on journey serves.
+- [ ] A journey no-ad collapses the slot; no substitute ad, no retry loop.
+- [ ] Consent toggle sends an explicit `JourneyOpt.optIn` to re-enable, not an omitted field.
+- [ ] Nothing fires automatically; VAST beacons left to the player.
+- [ ] UI renders from `contents` / `template`, never from journey metadata.
+
+### Glossary
+
+For product and ops readers.
+
+| Term | Meaning |
+|---|---|
+| **Journey** | One advertiser's multi-screen experience across a single user activity. |
+| **Journey definition** | The reusable template: ordered stages, and the idle-expiry setting. |
+| **Journey deal** | A campaign bought against a definition: pricing, budget, caps, flight dates. |
+| **Instance** (`journeyInstanceId`) | One concrete run of a deal for one session. The unit reporting and billing reconcile on. |
+| **Stage** | One ordered step of a journey. May own several surfaces. |
+| **Stage node** | One placement + template within a stage. Serves at most once per instance. |
+| **Takeover protection** | Suppression of competing ads on placements a journey owns. |
+| **CPT** | Cost per takeover — the advertiser pays per journey, not per impression. |
+| **Completion** | The moment the journey is considered fulfilled; what CPT bills on. |
+| **Parting** | The times of day / days of week a campaign may serve. |
+| **Pacing** | Spreading delivery over the flight instead of spending at once. |
+
+### Questions publishers ask
+
+**We do not implement `sessionId` at all. Can we still request ads?**
+Yes. Everything works exactly as before — only Journey Ads are ineligible. Journeys never
+activate, ordinary ads keep serving. It is a valid, safe default.
+
+**Do we need `apiVersion` if we only want normal ads?**
+No. It is required only for Journey Ads (and the format filter).
+
+**Two users share a device. Same `sessionId`?**
+No. A session is one activity by one user. On account switch, rotate it.
+
+**The app was killed mid-activity. Reuse the id or rotate?**
+Reuse it if the activity is still the same one — that is the whole point of it being yours
+to persist. Rotate only when the activity itself ends.
+
+**Our `sessionId` never changed, but the journey restarted at stage 1. Why?**
+Almost certainly the idle expiry — see
+[How long a journey stays alive](#how-long-a-journey-stays-alive).
+
+**How do we tell the completion beacon apart from our own template custom events?**
+They are separate lists. Your template's events are in `tracking.custom` and unchanged.
+The journey completion beacon is the single entry in `tracking.completions`, fired with
+`fireCompletion`.
+
+**We fired the completion twice. Did we double-charge the advertiser?**
+No — completion is idempotent server-side. Still fire once; duplicates only clutter
+analytics.
+
+**We never fire it. What happens?**
+On a `custom_event` deal the journey never completes and **CPT revenue is never recorded**.
+Nothing errors. This is the most expensive mistake on this page.
+
+**The user opted out, then we stopped sending `journeyOpt`. Why no journeys?**
+A stored opt-out is remembered and an omitted field does not clear it. Send an explicit
+`JourneyOpt.optIn`.
+
+**A journey stopped serving mid-session and we never opted out.**
+See [Why a journey can stop serving](#why-a-journey-can-stop-serving).
+
+<!-- MIRRORED SECTION END -->
 
 ---
 
