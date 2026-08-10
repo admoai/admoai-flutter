@@ -135,7 +135,7 @@ sdk.clearAppConfig();
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `baseUrl` | String | Required | Decision Engine API endpoint |
-| `apiVersion` | String? | `null` | API version. **Required for Journey Ads** (`"2025-11-01"` or later) and for the `format` placement filter |
+| `apiVersion` | String? | `null` | Engine API version. `"2025-11-01"` gates Journey Ads, video ads, POI / destination targeting, mid-flight campaign changes, Open Measurement and the `format` placement filter |
 | `defaultLanguage` | String? | `null` | Sent as `Accept-Language` on every request |
 | `requestTimeout` | Duration | 10s | Per-request timeout |
 | `connectTimeout` | Duration | 10s | Connection timeout (default HTTP client only) |
@@ -253,6 +253,11 @@ until the journey ends.
 > `apiVersion`. Journey fields are fully additive, so existing integrations keep
 > working unchanged.
 
+`2025-11-01` is not only about Journey Ads. It gates several capabilities, so
+unless you have a specific reason not to, set it: **Journey Ads**, **video ads**,
+**POI / destination targeting**, **mid-flight campaign changes**, **Open
+Measurement** support, and the **format filter**.
+
 <!-- MIRRORED SECTION START — this Journey Ads guide is duplicated in admoai-ios, admoai-android
      (sdk/README.md) and admoai-flutter. Prose must stay equivalent in all three; only the code
      samples differ. Change all three together. -->
@@ -274,8 +279,8 @@ That moves real commercial weight into your app:
 | Uses journey metadata (stage keys, node ids) to drive app logic or layout | Breaks silently the moment someone edits the campaign. |
 
 **None of this raises an error at request time.** Requests succeed, ads appear, and the
-problem only shows up later in reporting — which is why the checklist and checks at the
-end of this section matter more than usual.
+problem only shows up later in reporting — which is why the checklist and the checks
+at the end of this section matter more than usual.
 
 ### What the SDK does, and never does
 
@@ -579,16 +584,23 @@ resume the one it closed.
 
 | Mistake | Consequence | Do this instead |
 |---|---|---|
-| A new `sessionId` on each screen | The journey restarts at stage 1 forever | Mint one id per session and reuse it on every call |
-| No `sessionId` | Journeys never activate; you see only normal ads | Set it once via `initialize(sessionId:)` or `setSessionId` |
-| Omitting `journeyOpt` to mean "no journeys" | Permissive — journeys serve and continue anyway | Send `JourneyOpt.optOut`, or no `sessionId` at all |
-| No `apiVersion` (or an older one) | Journey fields are silently ignored | Set `apiVersion: "2025-11-01"` |
-| Substituting a house ad on a journey no-ad | Breaks the single-brand takeover you sold | Collapse the slot |
-| Branching UI on `journeyStageKey` | Breaks when a campaign is reconfigured | Render the creative's contents |
-| Not firing the `custom_event` completion beacon | The advertiser is never charged for the completion | Fire it once when the agreed action happens |
-| Firing `creative.tracking` for `vast_*` delivery | Every event counted twice | Let the player fire the VAST beacons |
-| Re-requesting in a loop after a no-ad | Wasted calls; the answer will not change | Collapse the slot and move on |
-| Reusing your `user.id` as the `sessionId` | Cross-session PII leak, and journeys never end | Use an opaque per-session id |
+| A new `sessionId` per screen or per request | The journey restarts at stage 1 forever and never progresses | One id per activity, rotated only when the activity ends |
+| Reusing a user id, account id or login as the `sessionId` | Every activity by that user collapses into a single journey | Mint an opaque id per activity |
+| No `sessionId` at all | Journeys never activate; the feature is silently off (ordinary ads still serve) | Set it once via `AdMoai.initialize(sessionId: …)` |
+| Omitting `journeyOpt` to mean "no journeys" | Permissive — journeys still serve, and an active one continues | Send `JourneyOpt.optOut` explicitly |
+| Expecting opt-out to pause a journey | The instance is **closed**; a later opt-in starts a brand-new one | Treat opt-out as terminal |
+| Sending `JourneyOpt.optOut`, then omitting `journeyOpt` to re-enable | A stored opt-out persists, so journeys stay off for that session | Send `JourneyOpt.optIn` explicitly to re-consent |
+| Missing or older `apiVersion` | Journey fields are ignored silently, and completions do not record | Set `2025-11-01` |
+| Not firing the `custom_event` completion beacon | The journey never completes and CPT never bills | Fire it once when the agreed action happens |
+| Hard-coding the completion key | The key is campaign-specific; a wrong key fires **nothing** and only logs a warning | Read it from `creative.tracking``.completions` |
+| Firing a completion on a `final_stage` deal | Nothing to fire; the call is a no-op | Check `isJourneyCompletion` and fire only the impression |
+| Firing the completion on render instead of on the action | Completions and CPT revenue are reported for journeys that never delivered the outcome | Fire on the real user action |
+| Filling a journey-owned slot with another ad when the journey returns no ad | Breaks the single-brand takeover the advertiser paid for | Collapse the slot |
+| Immediately re-requesting the same placement in a loop after a no-ad | Wasted calls; a placement the journey is holding will not free up mid-loop | Collapse, then request again at your next natural ad opportunity |
+| Treating a repeated `journeyStageKey` as a bug | One stage can own several surfaces, so it legitimately repeats | Use `journeyStageNodeId` for the no-repeat rule |
+| Using journey metadata to drive app logic or layout | Breaks silently the moment someone edits the campaign | Render from `contents` / `template` |
+| Rebuilding or appending to a tracking URL | Invalidates the encrypted token; attribution is lost | Fire the string verbatim |
+| Firing SDK video events for VAST delivery | Every event counts twice | Let the player's VAST beacons do it |
 
 ### Verifying your integration
 
