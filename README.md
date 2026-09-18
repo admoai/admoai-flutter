@@ -236,6 +236,30 @@ removed in 1.0.0.
 
 Each tracking type supports multiple keys. Use `"default"` for standard events or specify custom keys defined in your campaign configuration.
 
+### Third-party Event Trackers (automatic)
+
+Campaigns can carry fixed third-party tracking URLs (agency ad servers such as
+CM360). When the decision response includes them (`tracking.thirdPartyTrackers`,
+served under `X-Decision-Version: 2025-11-01`), **`fireImpression` and `fireClick`
+fan them out automatically** — your call sites do not change and there is nothing
+to opt into:
+
+- Impression trackers fire with `fireImpression`; click trackers fire with
+  `fireClick` (an *any-click* tracker on every valid key, a *specific* tracker only
+  when the reported key matches its configured event).
+- Exactly **one attempt per matching tracker per invocation** — no retries, no
+  queuing, and byte-identical URLs are deduplicated within an invocation.
+- Dispatch happens on a **separate, credential-isolated HTTP client**: plain GET,
+  no Admoai or SDK identity headers, redirects never followed. A slow or failing
+  tracker never delays your app, the canonical beacon, or the other trackers.
+- The URL is fired exactly as stored. A URL the platform parser cannot represent
+  byte-identically (e.g. a raw `%%MACRO%%` placeholder) is discarded — firing a
+  normalized variant would corrupt the agency's counts.
+- If the reported key has no canonical tracking URL, nothing fires — canonical or
+  third-party.
+
+Older SDK versions simply ignore the field. Tracker URLs are never logged.
+
 ---
 
 ## Journey Ads

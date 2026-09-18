@@ -1,3 +1,21 @@
+## Unreleased
+
+### Added
+
+- **Third-party event trackers** — `fireImpression`/`fireClick` automatically fan
+  out the fixed agency tracking URLs the engine serves under
+  `tracking.thirdPartyTrackers` (`X-Decision-Version: 2025-11-01`), with public
+  signatures unchanged. Impression trackers fire on `fireImpression`; *any*-click
+  trackers on every valid click; *specific* trackers only when the reported key
+  equals their `eventKey`. Exactly one attempt per matching tracker per
+  invocation, byte-identical URLs deduplicated per invocation, and more than 10
+  valid entries discards the whole collection. Dispatch uses a dedicated
+  credential-isolated client (plain GET, no identity headers, redirects
+  terminal, per-tracker failure isolation) and tracker URLs are never logged.
+  A URL the platform parser cannot round-trip byte-identically (e.g. a raw
+  `%%MACRO%%`) is discarded rather than fired mutated. Decoding is tolerant
+  per entry; older SDK versions ignore the field.
+
 ## 0.4.0 - 2026-08-06
 
 Adds **Journey Takeover Ads** support — additive and backward-compatible. Requires decision-engine API version **`2025-11-01`** or later (set `SDKConfig.apiVersion = "2025-11-01"`); older versions ignore the Journey fields and behave exactly as before.

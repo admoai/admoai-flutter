@@ -10,6 +10,7 @@ import 'api_client.dart';
 import 'models/decision_request.dart';
 import 'models/decision_response.dart';
 import 'models/decision_request_builder.dart';
+import 'third_party_tracker_dispatcher.dart';
 import 'version.dart';
 
 class AdMoai {
@@ -19,6 +20,11 @@ class AdMoai {
   late DeviceConfig deviceConfig;
   late UserConfig userConfig;
   final http.Client _httpClient;
+
+  /// Fires `tracking.thirdPartyTrackers` through its own credential-isolated
+  /// client — never through [_httpClient], whose requests carry the SDK
+  /// User-Agent and Admoai headers.
+  final ThirdPartyTrackerDispatcher _thirdPartyDispatcher;
 
   /// Sticky, publisher-owned Journey session identifier inherited by every
   /// request builder created via [createRequestBuilder]. Never auto-generated
@@ -42,6 +48,10 @@ class AdMoai {
       deviceConfig: deviceConfig,
       userConfig: userConfig,
       httpClient: resolvedClient,
+      // A test-injected client also serves third-party dispatch so stubs can
+      // observe the fan-out; in production the dispatcher builds its own
+      // dedicated client (nothing shared with the API client).
+      thirdPartyClient: httpClient,
     );
   }
 
@@ -51,7 +61,12 @@ class AdMoai {
     required this.deviceConfig,
     required this.userConfig,
     required http.Client httpClient,
+    http.Client? thirdPartyClient,
   })  : _httpClient = httpClient,
+        _thirdPartyDispatcher = ThirdPartyTrackerDispatcher(
+          logger: config.logger,
+          httpClient: thirdPartyClient,
+        ),
         _client = AdMoaiClient(
           baseUrl: config.baseUrl,
           apiVersion: config.apiVersion,
@@ -238,20 +253,30 @@ class AdMoai {
   }
 
   // Tracking
-  void fireTracking(String url) {
+
+  /// Whether [url] is an absolute http(s) URL with a host — the only shape a
+  /// canonical beacon the engine minted can have. Shared by [fireTracking]'s
+  /// guard and the fan-out gate in [fireImpression]/[fireClick], so third-party
+  /// trackers can never fire when the canonical beacon was rejected.
+  static bool _isAbsoluteHttpUrl(String url) {
     final uri = Uri.tryParse(url);
+    return uri != null &&
+        (uri.scheme == 'http' || uri.scheme == 'https') &&
+        uri.host.isNotEmpty;
+  }
+
+  void fireTracking(String url) {
     // Require an absolute http(s) URL with a host. `hasScheme` alone would admit
     // `mailto:`, `file:`, `ftp://…` and scheme-only strings, which cannot be a
     // beacon the engine minted. PII-safe: the URL carries an opaque `?e=` token,
     // so log a redacted reason and never the value.
-    if (uri == null ||
-        (uri.scheme != 'http' && uri.scheme != 'https') ||
-        uri.host.isEmpty) {
+    if (!_isAbsoluteHttpUrl(url)) {
       config.logger.warning(
         'Tracking URL rejected: not an absolute http(s) URL',
       );
       return;
     }
+    final uri = Uri.parse(url);
     final headers = <String, String>{
       'User-Agent': 'AdMoaiSDK/$sdkVersion',
     };
@@ -285,14 +310,37 @@ class AdMoai {
     }());
   }
 
+  /// Fires the canonical impression beacon and fans out every third-party
+  /// impression tracker (`tracking.thirdPartyTrackers`) exactly once, through
+  /// the credential-isolated dispatcher. A key with no canonical impression
+  /// URL fires nothing — canonical or third-party — so third-party counts can
+  /// never exceed ours.
   void fireImpression(Tracking tracking, {String key = 'default'}) {
     final url = tracking.getImpressionUrl(key: key);
-    if (url != null) fireTracking(url);
+    if (url == null) return;
+    fireTracking(url);
+    // Fan out only when the canonical beacon actually fired — a rejected
+    // canonical URL must not leave third-party counts above ours.
+    if (!_isAbsoluteHttpUrl(url)) return;
+    _fireThirdPartyTrackers(tracking, const ThirdPartyImpressionEvent());
   }
 
+  /// Fires the canonical click beacon and fans out matching third-party click
+  /// trackers: `any`-click trackers on every valid key, `specific` trackers
+  /// only when [key] equals their `eventKey`. A key with no canonical click
+  /// URL fires nothing at all.
   void fireClick(Tracking tracking, {String key = 'default'}) {
     final url = tracking.getClickUrl(key: key);
-    if (url != null) fireTracking(url);
+    if (url == null) return;
+    fireTracking(url);
+    if (!_isAbsoluteHttpUrl(url)) return;
+    _fireThirdPartyTrackers(tracking, ThirdPartyClickEvent(key));
+  }
+
+  void _fireThirdPartyTrackers(Tracking tracking, ThirdPartyTrackerEvent event) {
+    final trackers = tracking.thirdPartyTrackers;
+    if (trackers == null || trackers.isEmpty) return;
+    _thirdPartyDispatcher.dispatch(trackers, event);
   }
 
   /// Fires the custom-event beacon for [key]. Named to match the Android SDK's
@@ -346,5 +394,8 @@ class AdMoai {
 
   void dispose() {
     _httpClient.close();
+    // Closes the dispatcher's own client; a shared test-injected client is
+    // left alone (already closed on the line above).
+    _thirdPartyDispatcher.close();
   }
 }

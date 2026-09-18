@@ -446,12 +446,22 @@ class Tracking {
   /// `final_stage` deals (completion is recorded server-side) and normal Ads.
   final List<TrackingItem>? completions;
 
+  /// Third-party event trackers (agency ad servers such as CM360), served
+  /// additively under `X-Decision-Version: 2025-11-01` and absent otherwise
+  /// (the engine never sends `[]`). [AdMoai.fireImpression]/[AdMoai.fireClick]
+  /// fan these out automatically through a credential-isolated dispatcher —
+  /// publishers never fire them by hand. Not addressed by key, so deliberately
+  /// outside [TrackingType]/[getTrackingUrl]: entries are matched by event
+  /// semantics (`eventType`/`matchType`/`eventKey`).
+  final List<ThirdPartyTracker>? thirdPartyTrackers;
+
   Tracking({
     this.impressions,
     this.clicks,
     this.custom,
     this.videoEvents,
     this.completions,
+    this.thirdPartyTrackers,
   });
 
   factory Tracking.fromJson(Map<String, dynamic> json) {
@@ -461,7 +471,18 @@ class Tracking {
       custom: _trackingList(json['custom']),
       videoEvents: _trackingList(json['videoEvents']),
       completions: _trackingList(json['completions']),
+      thirdPartyTrackers: _thirdPartyTrackerList(json['thirdPartyTrackers']),
     );
+  }
+
+  /// Tolerant Reader list parse for [ThirdPartyTracker] entries: `null` when
+  /// the value is not a list; individual malformed entries are dropped.
+  static List<ThirdPartyTracker>? _thirdPartyTrackerList(dynamic value) {
+    if (value is! List) return null;
+    return value
+        .map(ThirdPartyTracker.tryFromJson)
+        .whereType<ThirdPartyTracker>()
+        .toList();
   }
 
   /// Tolerant Reader list parse: returns `null` when the value is not a list,
@@ -554,6 +575,62 @@ class TrackingItem {
     final url = json['url'];
     if (key is! String || url is! String) return null;
     return TrackingItem(key: key, url: url);
+  }
+}
+
+/// One fixed third-party tracker entry, exactly as the engine serialized it
+/// (`tracking.thirdPartyTrackers[]`, served additively under
+/// `X-Decision-Version: 2025-11-01`).
+///
+/// Fields stay raw [String]s so decoding is tolerant of values this SDK
+/// version does not know; semantic validation (event/match shape, HTTPS)
+/// happens at fire time in `ThirdPartyTrackerDispatcher`, where invalid
+/// entries are dropped individually with a sanitized log. The [url] is stored
+/// and dispatched verbatim — never normalized, re-encoded, or logged.
+class ThirdPartyTracker {
+  /// Public tracker id (`tpt_<ULID>`) — the only identifier ever allowed in logs.
+  final String trackerId;
+
+  /// `"impression"` or `"click"`.
+  final String eventType;
+
+  /// `"any"` or `"specific"`; present on click trackers only.
+  final String? matchType;
+
+  /// Template click-event key; present on `specific` click trackers only.
+  final String? eventKey;
+
+  /// Fixed HTTPS tracking URL, byte-identical to what the operator stored.
+  final String url;
+
+  ThirdPartyTracker({
+    required this.trackerId,
+    required this.eventType,
+    this.matchType,
+    this.eventKey,
+    required this.url,
+  });
+
+  /// Tolerant Reader parse: `null` (instead of throwing) when the entry is not
+  /// a map or a required field is missing/retyped — one malformed entry never
+  /// breaks the whole response.
+  static ThirdPartyTracker? tryFromJson(dynamic json) {
+    if (json is! Map) return null;
+    final trackerId = json['trackerId'];
+    final eventType = json['eventType'];
+    final url = json['url'];
+    if (trackerId is! String || eventType is! String || url is! String) {
+      return null;
+    }
+    final matchType = json['matchType'];
+    final eventKey = json['eventKey'];
+    return ThirdPartyTracker(
+      trackerId: trackerId,
+      eventType: eventType,
+      matchType: matchType is String ? matchType : null,
+      eventKey: eventKey is String ? eventKey : null,
+      url: url,
+    );
   }
 }
 
