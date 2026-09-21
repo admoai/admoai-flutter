@@ -1,4 +1,4 @@
-## Unreleased
+## 0.5.0 - 2026-09-21
 
 ### Added
 
@@ -15,6 +15,14 @@
   A URL the platform parser cannot round-trip byte-identically (e.g. a raw
   `%%MACRO%%`) is discarded rather than fired mutated. Decoding is tolerant
   per entry; older SDK versions ignore the field.
+
+### Tests
+
+- Test: Live third-party tracker E2E runner
+  (`test/e2e/third_party_tracker_e2e_test.dart`, tag `e2e`) — 8 scenarios driving
+  the real SDK against a locally-seeded decision-engine and Turso, self-seeding
+  its tracker fixtures and asserting the wire byte-identically. Excluded from the
+  offline gate.
 
 ## 0.4.0 - 2026-08-06
 
