@@ -191,6 +191,27 @@ void main() {
       }
     });
 
+    test('A8b - urls with embedded credentials or fragments are rejected', () {
+      // Defense in depth: the Ad Manager blocks these at creation, but a row
+      // written past the BFF must still never dispatch — credentials would
+      // reach the agency's access logs, and fragments are client-side-only.
+      expect(
+        ThirdPartyTrackerDispatcher.rejectionReason(
+            tracker(url: 'https://user:pass@agency.example/imp')),
+        isNotNull,
+      );
+      expect(
+        ThirdPartyTrackerDispatcher.rejectionReason(
+            tracker(url: 'https://user@agency.example/imp')),
+        isNotNull,
+      );
+      expect(
+        ThirdPartyTrackerDispatcher.rejectionReason(
+            tracker(url: 'https://agency.example/imp#frag')),
+        isNotNull,
+      );
+    });
+
     test('A9 A10 - unknown types and keyless specific clicks are rejected', () {
       expect(
         ThirdPartyTrackerDispatcher.rejectionReason(tracker(eventType: 'conversion')),
