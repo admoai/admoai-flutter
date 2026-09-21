@@ -34,7 +34,7 @@ Add this to your package's pubspec.yaml file:
 
 ```yaml
 dependencies:
-  admoai: ^0.4.0
+  admoai: ^0.5.0
 ```
 
 Then run:
