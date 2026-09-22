@@ -184,6 +184,17 @@ class ThirdPartyTrackerDispatcher {
     if (uri == null || uri.scheme != 'https' || uri.host.isEmpty) {
       return 'url is not an absolute https URL';
     }
+    // Defense in depth (the Ad Manager already rejects these at creation): a
+    // tracker URL must carry no embedded credentials — they would travel in
+    // cleartext through proxies and land in the agency server's access logs —
+    // and no fragment, which is client-side-only and never part of a fixed
+    // measurement URL.
+    if (uri.userInfo.isNotEmpty) {
+      return 'url embeds credentials (userinfo)';
+    }
+    if (uri.hasFragment) {
+      return 'url carries a fragment';
+    }
     // The wire request is built from the parsed Uri, and Dart's Uri (like the
     // URL types on iOS and Android) normalizes what it cannot represent
     // verbatim — an invalid percent-sequence such as a raw %%MACRO%% would be
