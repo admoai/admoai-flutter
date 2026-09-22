@@ -1,3 +1,12 @@
+## 0.5.1 - 2026-09-22
+
+### Fixed
+
+- Third-party tracker URLs with embedded credentials (`user:pass@`) or a
+  fragment are now discarded at dispatch validation with sanitized, URL-free
+  reasons — defense in depth alongside the Ad Manager's creation-time
+  rejection, matching the iOS and Android SDKs.
+
 ## 0.5.0 - 2026-09-21
 
 ### Added

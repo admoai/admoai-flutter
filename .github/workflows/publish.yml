@@ -1,0 +1,36 @@
+# Publishes the package to pub.dev when a version tag is pushed.
+#
+# Uses pub.dev's OIDC-based automated publishing — no long-lived secret:
+# `dart-lang/setup-dart` mints a short-lived pub.dev token from the workflow's
+# GitHub OIDC identity. For this to be accepted, a pub.dev ADMIN of the
+# `admoai` package must enable it once, under
+#   pub.dev/packages/admoai/admin → Automated publishing →
+#   "Enable publishing from GitHub Actions"
+# with repository `admoai/admoai-flutter` and tag pattern `v{{version}}`.
+#
+# The tag must match pubspec.yaml's version (v0.5.1 ↔ version: 0.5.1) or
+# pub.dev rejects the upload. Publishing was manual (and silently skipped)
+# through 0.3.0–0.5.0; this makes the git tag the single release trigger.
+name: Publish to pub.dev
+
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write # required: mints the pub.dev OIDC token
+    steps:
+      - uses: actions/checkout@v4
+      # Mints the temporary pub.dev credential from the OIDC token.
+      - uses: dart-lang/setup-dart@v1
+      # The package depends on Flutter, so resolution and publish go through
+      # the Flutter tool (the Dart SDK alone cannot resolve `sdk: flutter`).
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - run: flutter pub get
+      - run: flutter pub publish --force
