@@ -125,17 +125,171 @@ enum Format {
   const Format(this.value);
 }
 
+/// A rectangle to search inside, in degrees.
+///
+/// The engine refuses one that crosses the antimeridian, which keeps `west < east` a flat
+/// invariant rather than a special case; supporting it later is additive.
+class DistanceBounds {
+  final double north;
+  final double south;
+  final double east;
+  final double west;
+
+  const DistanceBounds({
+    required this.north,
+    required this.south,
+    required this.east,
+    required this.west,
+  });
+}
+
+/// One Sponsored Pin search: a point, exactly one shape around it, and an optional cap.
+///
+/// Dart has no method overloading, so the two shapes are two named constructors rather than two
+/// `setDistanceTargeting` signatures. The effect is the one iOS and Android get from overloads:
+/// a call naming both a radius and a rectangle, or neither, cannot be written.
+///
+/// The origin stays required for a bounds search, because "nearest first" needs somewhere to
+/// measure from and the centre of a rectangle is not necessarily where the viewer is.
+///
+/// Both constructors validate the origin, the shape and the limit, and deliberately do NOT
+/// validate the 50 km radius and 100 km diagonal ceilings: those are server policy, and a client
+/// that hard-codes them refuses what a newer engine would accept.
+class Distance {
+  final double latitude;
+  final double longitude;
+
+  /// Radius in **metres**. Null when this is a bounds search.
+  final double? radius;
+  final DistanceBounds? bounds;
+
+  /// Narrows the campaign's own cap on how many points come back; it can never widen it.
+  final int? limit;
+
+  Distance._({
+    required this.latitude,
+    required this.longitude,
+    this.radius,
+    this.bounds,
+    this.limit,
+  });
+
+  /// Asks for the campaign's pins within [radiusMeters] of a point.
+  ///
+  /// Throws [ArgumentError] on an impossible origin, a radius of zero or less, or a limit of
+  /// zero or less.
+  factory Distance.radius({
+    required double latitude,
+    required double longitude,
+    required double radiusMeters,
+    int? limit,
+  }) {
+    _validateOrigin(latitude, longitude);
+    if (radiusMeters <= 0) {
+      throw ArgumentError.value(
+          radiusMeters, 'radiusMeters', 'must be greater than 0 metres');
+    }
+    _validateLimit(limit);
+    return Distance._(
+      latitude: latitude,
+      longitude: longitude,
+      radius: radiusMeters,
+      limit: limit,
+    );
+  }
+
+  /// Asks for the campaign's pins inside a rectangle, measured from a point.
+  ///
+  /// Throws [ArgumentError] on an impossible origin, a rectangle that encloses nothing or
+  /// crosses the antimeridian, or a limit of zero or less.
+  factory Distance.bounds({
+    required double latitude,
+    required double longitude,
+    required DistanceBounds bounds,
+    int? limit,
+  }) {
+    _validateOrigin(latitude, longitude);
+    if (bounds.north < -90 ||
+        bounds.north > 90 ||
+        bounds.south < -90 ||
+        bounds.south > 90 ||
+        bounds.east < -180 ||
+        bounds.east > 180 ||
+        bounds.west < -180 ||
+        bounds.west > 180) {
+      throw ArgumentError.value(bounds, 'bounds',
+          'latitudes must be in [-90, 90] and longitudes in [-180, 180]');
+    }
+    if (bounds.north <= bounds.south) {
+      throw ArgumentError.value(
+          bounds, 'bounds', 'require north greater than south');
+    }
+    // The engine refuses a rectangle crossing the antimeridian, so west < east is flat.
+    if (bounds.west >= bounds.east) {
+      throw ArgumentError.value(bounds, 'bounds',
+          'must not cross the antimeridian: west must be less than east');
+    }
+    _validateLimit(limit);
+    return Distance._(
+      latitude: latitude,
+      longitude: longitude,
+      bounds: bounds,
+      limit: limit,
+    );
+  }
+
+  static void _validateOrigin(double latitude, double longitude) {
+    if (latitude < -90 || latitude > 90) {
+      throw ArgumentError.value(latitude, 'latitude', 'must be in [-90, 90]');
+    }
+    if (longitude < -180 || longitude > 180) {
+      throw ArgumentError.value(
+          longitude, 'longitude', 'must be in [-180, 180]');
+    }
+  }
+
+  static void _validateLimit(int? limit) {
+    if (limit != null && limit <= 0) {
+      throw ArgumentError.value(limit, 'limit', 'must be greater than 0');
+    }
+  }
+
+  Map<String, dynamic> toJson() => {
+        'latitude': latitude,
+        'longitude': longitude,
+        if (radius != null) 'radius': radius,
+        if (bounds != null)
+          'bounds': {
+            'north': bounds!.north,
+            'south': bounds!.south,
+            'east': bounds!.east,
+            'west': bounds!.west,
+          },
+        if (limit != null) 'limit': limit,
+      };
+}
+
 class Targeting {
   final List<int>? geo;
   final List<Location>? location;
   final List<Destination>? destination;
   final List<CustomKeyValue>? custom;
 
+  /// The Sponsored Pin search (Sponsored Pin Locations, epic #3138). Additive: a request that
+  /// omits it behaves exactly as it did before.
+  ///
+  /// This is **not** [location], which it resembles on the wire and differs from entirely.
+  /// `location` is where the viewer is, matched against a fence the advertiser drew, and it
+  /// decides whether an Ad may serve at all. `distance` decides which pins a serving creative
+  /// carries, and filters no candidate by itself. They compose, and neither implies the other.
+  final Distance? distance;
+
   Targeting({
     this.geo,
     this.location,
     this.destination,
     this.custom,
+    this.distance,
   });
 
   Map<String, dynamic> toJson() {
@@ -158,6 +312,7 @@ class Targeting {
             .toList(),
       if (custom != null)
         'custom': custom!.map((c) => {'key': c.key, 'value': c.value}).toList(),
+      if (distance != null) 'distance': distance!.toJson(),
     };
   }
 }

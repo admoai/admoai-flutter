@@ -10,6 +10,7 @@ typedef DecisionResponse = List<Decision>;
 String? _asString(dynamic v) => v is String ? v : null;
 bool? _asBool(dynamic v) => v is bool ? v : null;
 int? _asInt(dynamic v) => v is int ? v : (v is num ? v.toInt() : null);
+double? _asDouble(dynamic v) => v is num ? v.toDouble() : null;
 Map<String, dynamic>? _asMap(dynamic v) =>
     v is Map<String, dynamic> ? v : null;
 
@@ -546,6 +547,140 @@ class Tracking {
 
   String? getCompletionUrl({required String key}) {
     return completions?.where((item) => item.key == key).firstOrNull?.url;
+  }
+}
+
+/// The `contents` key the engine puts Matched Points under.
+const String matchedPointsContentKey = 'matched_points';
+
+/// One Matched Point's three beacon lists.
+///
+/// `views` and `taps` are analytics only and cost nothing. `clicks` is a standard billable click
+/// at the campaign's CPC, attributed to that location — which is why `trackPointClick` replaces
+/// the creative-level click rather than joining it.
+class MatchedPointTracking {
+  final List<TrackingItem>? views;
+  final List<TrackingItem>? taps;
+  final List<TrackingItem>? clicks;
+
+  MatchedPointTracking({this.views, this.taps, this.clicks});
+
+  static List<TrackingItem>? _list(dynamic raw) {
+    if (raw is! List) return null;
+    return raw
+        .map((e) {
+          final map = _asMap(e);
+          if (map == null) return null;
+          final key = _asString(map['key']);
+          final url = _asString(map['url']);
+          if (key == null || url == null) return null;
+          return TrackingItem(key: key, url: url);
+        })
+        .whereType<TrackingItem>()
+        .toList();
+  }
+
+  static MatchedPointTracking? tryFromJson(dynamic json) {
+    final map = _asMap(json);
+    if (map == null) return null;
+    return MatchedPointTracking(
+      views: _list(map['views']),
+      taps: _list(map['taps']),
+      clicks: _list(map['clicks']),
+    );
+  }
+}
+
+/// One Advertiser Location a Sponsored Pin creative is promoting.
+///
+/// Read [clickUrl] verbatim. The engine has already applied the precedence — the location's own
+/// URL, unless the campaign overrides every pin with the creative's default — so falling back to
+/// the creative's URL would silently defeat a campaign that deliberately points each shop at its
+/// own page.
+class MatchedPoint {
+  /// The Advertiser Location's public id. The server's internal integer never leaves it.
+  final String id;
+  final String name;
+
+  /// Absent when the location has no address — never an empty string.
+  final String? address;
+  final double latitude;
+  final double longitude;
+
+  /// Metres from the point the request searched around.
+  final int distance;
+
+  /// Where a click on this pin goes, already resolved. Absent when nothing supplies one: a pin
+  /// with no destination is still a pin on the map.
+  final String? clickUrl;
+
+  /// This point's own beacons. Absent leaves the point perfectly renderable — it simply has
+  /// nothing to report.
+  final MatchedPointTracking? tracking;
+
+  MatchedPoint({
+    required this.id,
+    required this.name,
+    this.address,
+    required this.latitude,
+    required this.longitude,
+    required this.distance,
+    this.clickUrl,
+    this.tracking,
+  });
+
+  /// Tolerant Reader variant: returns `null` when the entry is not an object or is missing a
+  /// field the point cannot be rendered without, so one malformed point never costs the others.
+  static MatchedPoint? tryFromJson(dynamic json) {
+    final map = _asMap(json);
+    if (map == null) return null;
+    final id = _asString(map['id']);
+    final name = _asString(map['name']);
+    final latitude = _asDouble(map['latitude']);
+    final longitude = _asDouble(map['longitude']);
+    final distance = _asInt(map['distance']);
+    if (id == null ||
+        name == null ||
+        latitude == null ||
+        longitude == null ||
+        distance == null) {
+      return null;
+    }
+    return MatchedPoint(
+      id: id,
+      name: name,
+      address: _asString(map['address']),
+      latitude: latitude,
+      longitude: longitude,
+      distance: distance,
+      clickUrl: _asString(map['clickUrl']),
+      tracking: MatchedPointTracking.tryFromJson(map['tracking']),
+    );
+  }
+}
+
+/// The Advertiser Locations this creative is promoting, nearest first (Sponsored Pin Locations,
+/// epic #3138). Empty for every creative that is not a Sponsored Pin creative.
+///
+/// Resolved from the `matched_points` entry in [Creative.contents], where the wire format puts
+/// it — mirroring it onto the creative as well would give two places to read the same thing and
+/// one of them to forget. Tolerant per entry: a malformed point is dropped and its siblings
+/// survive.
+///
+/// **Rendering these is your job.** The SDK draws no map and knows nothing about clustering,
+/// sheets or scroll position, which is exactly why it never fires a point event on your behalf.
+extension CreativeMatchedPoints on Creative {
+  List<MatchedPoint> get matchedPoints {
+    for (final content in contents) {
+      if (content.key != matchedPointsContentKey) continue;
+      final raw = content.value;
+      if (raw is! List) return const <MatchedPoint>[];
+      return raw
+          .map(MatchedPoint.tryFromJson)
+          .whereType<MatchedPoint>()
+          .toList();
+    }
+    return const <MatchedPoint>[];
   }
 }
 
