@@ -82,6 +82,7 @@ class DecisionRequestBuilder {
       location: _targeting?.location,
       destination: _targeting?.destination,
       custom: _targeting?.custom,
+      distance: _targeting?.distance,
     );
     return this;
   }
@@ -99,6 +100,7 @@ class DecisionRequestBuilder {
         location: _targeting?.location,
         destination: _targeting?.destination,
         custom: _targeting?.custom,
+        distance: _targeting?.distance,
       );
     }
     return this;
@@ -123,6 +125,7 @@ class DecisionRequestBuilder {
       location: uniqueLocations,
       destination: _targeting?.destination,
       custom: _targeting?.custom,
+      distance: _targeting?.distance,
     );
     return this;
   }
@@ -143,6 +146,7 @@ class DecisionRequestBuilder {
         location: null,
         destination: _targeting?.destination,
         custom: _targeting?.custom,
+        distance: _targeting?.distance,
       );
     }
     return this;
@@ -183,6 +187,7 @@ class DecisionRequestBuilder {
       location: _targeting?.location,
       destination: unique,
       custom: _targeting?.custom,
+      distance: _targeting?.distance,
     );
     return this;
   }
@@ -215,6 +220,7 @@ class DecisionRequestBuilder {
         location: _targeting?.location,
         destination: null,
         custom: _targeting?.custom,
+        distance: _targeting?.distance,
       );
     }
     return this;
@@ -235,6 +241,7 @@ class DecisionRequestBuilder {
       location: _targeting?.location,
       destination: _targeting?.destination,
       custom: uniqueCustom,
+      distance: _targeting?.distance,
     );
     return this;
   }
@@ -248,6 +255,39 @@ class DecisionRequestBuilder {
     return setCustomTargeting(currentCustom);
   }
 
+  /// Asks for the campaign's pins near a point (Sponsored Pin Locations).
+  ///
+  /// Build the [Distance] with [Distance.radius] or [Distance.bounds]; each validates its own
+  /// arguments, so an ambiguous or impossible search cannot reach here.
+  ///
+  /// This is a search the publisher is running, not a statement about where the viewer is — see
+  /// [Targeting.distance]. Rendering the pins that come back is the app's job; the SDK draws
+  /// nothing and never infers that a pin was seen.
+  DecisionRequestBuilder setDistanceTargeting(Distance distance) {
+    _targeting = Targeting(
+      geo: _targeting?.geo,
+      location: _targeting?.location,
+      destination: _targeting?.destination,
+      custom: _targeting?.custom,
+      distance: distance,
+    );
+    return this;
+  }
+
+  /// Removes a previously set Sponsored Pin search, leaving every other targeting axis alone.
+  DecisionRequestBuilder clearDistanceTargeting() {
+    if (_targeting != null) {
+      _targeting = Targeting(
+        geo: _targeting?.geo,
+        location: _targeting?.location,
+        destination: _targeting?.destination,
+        custom: _targeting?.custom,
+        distance: null,
+      );
+    }
+    return this;
+  }
+
   DecisionRequestBuilder clearCustomTargeting() {
     if (_targeting != null) {
       _targeting = Targeting(
@@ -255,6 +295,7 @@ class DecisionRequestBuilder {
         location: _targeting?.location,
         destination: _targeting?.destination,
         custom: null,
+        distance: _targeting?.distance,
       );
     }
     return this;
