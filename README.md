@@ -222,6 +222,11 @@ SDK's own scope, and never throw into the caller. Network failures are logged, n
 surfaced — so there is no return value to retry on. If you need a retry, call the
 method again with the same `Tracking` object; the identical URL is re-fired.
 
+A click beacon records the click and nothing else. The tracking endpoint answers
+a click with a `302` to the creative's destination, which is meant for browsers;
+the SDK takes that response as final and never requests the destination. Opening
+it is your app's job — call `fireClick` and navigate from the creative's contents.
+
 ### Available Methods
 
 ```dart
