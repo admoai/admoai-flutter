@@ -14,7 +14,7 @@ import 'package:flutter_test/flutter_test.dart';
 /// then update this constant in all three. Cross-repo enforcement in CI belongs in adhub, the only
 /// place that can see all three at once.
 const expectedManifestSha256 =
-    '5b7c2b3d261d68b5b4e52091d0b00ac7ec1bd09cf950f482ce968e1e1a34d2ca';
+    'e6a48841c7bce33ea74f06183fe9c5d979a7272eafc465234642145ef3c7324a';
 
 void main() {
   final file = File('test/e2e/scenarios.json');

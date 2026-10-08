@@ -70,6 +70,35 @@ Future<void> _run(Map<String, dynamic> entry, List<String> notes) async {
       builder.setJourneyOpt(
           request['journeyOpt'] == 'in' ? JourneyOpt.optIn : JourneyOpt.optOut);
     }
+    // Sponsored Pin: a radius or a bounds search. Declarative so the same manifest entry
+    // drives all three SDKs, each through its own idiom for the two shapes.
+    final distance = request['distance'] as Map<String, dynamic>?;
+    if (distance != null) {
+      final lat = (distance['latitude'] as num).toDouble();
+      final lng = (distance['longitude'] as num).toDouble();
+      final limit = distance['limit'] as int?;
+      final bounds = distance['bounds'] as Map<String, dynamic>?;
+      builder.setDistanceTargeting(
+        bounds == null
+            ? Distance.radius(
+                latitude: lat,
+                longitude: lng,
+                radiusMeters: (distance['radius'] as num).toDouble(),
+                limit: limit,
+              )
+            : Distance.bounds(
+                latitude: lat,
+                longitude: lng,
+                bounds: DistanceBounds(
+                  north: (bounds['north'] as num).toDouble(),
+                  south: (bounds['south'] as num).toDouble(),
+                  east: (bounds['east'] as num).toDouble(),
+                  west: (bounds['west'] as num).toDouble(),
+                ),
+                limit: limit,
+              ),
+      );
+    }
 
     final outcome = expect['outcome'] as String;
 
@@ -210,6 +239,62 @@ void _assertCreative(Creative creative, Map<String, dynamic> e, List<String> not
           'NO engine-side impression URL is exposed (VAST owns it; both would double-count)');
       break;
   }
+  // --- Sponsored Pin -------------------------------------------------------------------
+  final points = creative.matchedPoints;
+
+  final atLeast = e['matchedPointsAtLeast'] as int?;
+  if (atLeast != null) {
+    check(points.length >= atLeast,
+        'the creative carries at least $atLeast matched point(s) (got ${points.length})');
+    notes.add('${points.length} matched point(s)');
+  }
+  final exactly = e['matchedPointsEquals'] as int?;
+  if (exactly != null) {
+    check(points.length == exactly,
+        'the creative carries exactly $exactly matched point(s) (got ${points.length})');
+  }
+  if (e['matchedPointsNone'] == true) {
+    check(points.isEmpty, 'the creative carries NO matched points (got ${points.length})');
+  }
+  if (e['matchedPointsNearestFirst'] == true) {
+    var ordered = true;
+    for (var i = 1; i < points.length; i++) {
+      if (points[i - 1].distance > points[i].distance) ordered = false;
+    }
+    check(ordered, 'matched points are ordered nearest first');
+  }
+  if (e['matchedPointsWellFormed'] == true) {
+    check(points.isNotEmpty, 'there are matched points to inspect');
+    for (final p in points) {
+      check(p.id.isNotEmpty, 'point id is non-empty');
+      check(p.id.startsWith('advertiser_location_'),
+          'point id is an Advertiser Location public id (got ${p.id})');
+      check(p.name.isNotEmpty, 'point "${p.id}" has a name');
+      check(p.distance >= 0, 'point "${p.name}" has a non-negative distance');
+    }
+  }
+  if (e['matchedPointsHaveBeacons'] == true) {
+    check(points.isNotEmpty, 'there are matched points to inspect');
+    final seen = <String>{};
+    for (final p in points) {
+      final t = p.tracking;
+      check(t != null, 'point "${p.name}" carries tracking');
+      check((t?.views ?? []).isNotEmpty, 'point "${p.name}" has a view beacon');
+      check((t?.taps ?? []).isNotEmpty, 'point "${p.name}" has a tap beacon');
+      check((t?.clicks ?? []).isNotEmpty, 'point "${p.name}" has a click beacon');
+      // A shared beacon would attribute every shop's numbers to whichever the token names.
+      for (final item in (t?.views ?? <TrackingItem>[])) {
+        check(seen.add(item.url), 'point "${p.name}" has its own view beacon, not a shared one');
+      }
+    }
+  }
+  if (e['matchedPointsHaveClickUrl'] == true) {
+    for (final p in points) {
+      check((p.clickUrl ?? '').isNotEmpty,
+          'point "${p.name}" carries a resolved destination');
+    }
+  }
+
   final clicksAtLeast = e['clicksAtLeast'] as int?;
   if (clicksAtLeast != null) {
     final clicks = creative.tracking.clicks ?? [];

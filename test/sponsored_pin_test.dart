@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:admoai/admoai.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -249,6 +251,49 @@ void main() {
       expect((targeting['distance'] as Map<String, dynamic>)['radius'], 8000);
       expect(targeting['geo'], [42]);
     });
+
+    // The one that matters: what actually leaves the device.
+    //
+    // Every other request-side test here inspects the builder's output. Between `build()`
+    // and the socket the SDK still merges its own config into the request, and a merge that
+    // forgets an axis drops it on the floor — which is exactly what happened to `distance`
+    // on Android until the live-engine scenarios caught it (admoai/admoai-android#90). The
+    // builder was correct and the wire was not. Assert on the recorded body.
+    test(
+        'AC1 - the distance search survives the request pipeline and reaches the wire',
+        () async {
+      final (sdk, captured) = await sdkWithCapture();
+      final request = sdk
+          .createRequestBuilder()
+          .addPlacement(key: 'map')
+          .setDistanceTargeting(Distance.radius(
+            latitude: -33.4175,
+            longitude: -70.6065,
+            radiusMeters: 8000,
+            limit: 7,
+          ))
+          .build();
+
+      // The shared capture client answers with an empty body, so the decode throws. This
+      // test is about the bytes that went out, not the ones that came back.
+      try {
+        await sdk.requestAds(request);
+      } catch (_) {}
+      await settle();
+
+      final posted =
+          captured.firstWhere((r) => r.url.path.contains('decision'));
+      final body = jsonDecode(posted.body) as Map<String, dynamic>;
+      final distance = (body['targeting'] as Map<String, dynamic>?)?['distance']
+          as Map<String, dynamic>?;
+
+      expect(distance, isNotNull,
+          reason: 'the wire body carries no distance search: ${posted.body}');
+      expect(distance!['radius'], 8000);
+      expect(distance['latitude'], -33.4175);
+      expect(distance['limit'], 7);
+      expect(distance.containsKey('bounds'), isFalse);
+    });
   });
 
   group('response side', () {
@@ -383,8 +428,9 @@ void main() {
   group('point tracking', () {
     test('AC8 - each helper fires its own list', () async {
       final (sdk, captured) = await sdkWithCapture();
-      final point =
-          creative(pointsContent([trackedPoint('loc_1', 'p')])).matchedPoints.single;
+      final point = creative(pointsContent([trackedPoint('loc_1', 'p')]))
+          .matchedPoints
+          .single;
 
       sdk.trackPointView(point);
       await settle();
@@ -405,8 +451,9 @@ void main() {
     /// money when it is wrong, so it is asserted rather than documented.
     test('AC12 - a tap never fires the click beacon', () async {
       final (sdk, captured) = await sdkWithCapture();
-      final point =
-          creative(pointsContent([trackedPoint('loc_1', 'p')])).matchedPoints.single;
+      final point = creative(pointsContent([trackedPoint('loc_1', 'p')]))
+          .matchedPoints
+          .single;
 
       sdk.trackPointTap(point);
       await settle();
@@ -418,8 +465,9 @@ void main() {
     /// AC8 — the point click replaces the creative click; it never also fires it.
     test('AC8 - point click does not fire the creative click', () async {
       final (sdk, captured) = await sdkWithCapture();
-      final point =
-          creative(pointsContent([trackedPoint('loc_1', 'p')])).matchedPoints.single;
+      final point = creative(pointsContent([trackedPoint('loc_1', 'p')]))
+          .matchedPoints
+          .single;
 
       sdk.trackPointClick(point);
       await settle();
@@ -483,8 +531,9 @@ void main() {
 
     test('AC8b - bulk deduplicates within the invocation', () async {
       final (sdk, captured) = await sdkWithCapture();
-      final point =
-          creative(pointsContent([trackedPoint('a', 'a')])).matchedPoints.single;
+      final point = creative(pointsContent([trackedPoint('a', 'a')]))
+          .matchedPoints
+          .single;
 
       sdk.trackPointViews([point, point, point]);
       await settle();
@@ -494,8 +543,9 @@ void main() {
 
     test('AC8b - bulk does not deduplicate across invocations', () async {
       final (sdk, captured) = await sdkWithCapture();
-      final point =
-          creative(pointsContent([trackedPoint('a', 'a')])).matchedPoints.single;
+      final point = creative(pointsContent([trackedPoint('a', 'a')]))
+          .matchedPoints
+          .single;
 
       sdk.trackPointViews([point]);
       sdk.trackPointViews([point]);
@@ -503,6 +553,42 @@ void main() {
 
       expect(firedUrls(captured),
           ['https://t.example/a/view', 'https://t.example/a/view']);
+    });
+
+    // The campaign cap is 50 matched points, and max cardinality is where collection bugs
+    // live: a truncated list, a set that de-duplicates on the wrong key, a dispatch that
+    // drops under load. The scenarios above use three, which proves none of that.
+    test('AC8b - a full screenful of 50 points fires 50 distinct beacons',
+        () async {
+      final (sdk, captured) = await sdkWithCapture();
+      final points = creative(pointsContent([
+        for (var i = 0; i < 50; i++) trackedPoint('p$i', 'p$i'),
+      ])).matchedPoints;
+
+      expect(points, hasLength(50), reason: 'all 50 points decode');
+
+      sdk.trackPointViews(points);
+      await settle();
+
+      final urls = firedUrls(captured);
+      expect(urls, hasLength(50), reason: 'one beacon per point, none dropped');
+      expect(urls.toSet(), hasLength(50), reason: 'and all of them distinct');
+      expect(urls.toSet(),
+          {for (var i = 0; i < 50; i++) 'https://t.example/p$i/view'});
+    });
+
+    test('AC8b - deduplication still holds at 50', () async {
+      final (sdk, captured) = await sdkWithCapture();
+      final points = creative(pointsContent([
+        for (var i = 0; i < 50; i++) trackedPoint('p$i', 'p$i'),
+      ])).matchedPoints;
+
+      sdk.trackPointViews([...points, ...points]);
+      await settle();
+
+      expect(firedUrls(captured), hasLength(50),
+          reason:
+              'the same screenful listed twice in one call is still one view each');
     });
 
     test('AC8b - bulk with no points fires nothing', () async {
