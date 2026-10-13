@@ -293,8 +293,21 @@ class AdMoai {
     }
     unawaited(() async {
       try {
-        await _httpClient
-            .get(uri, headers: headers)
+        // A beacon is terminal: the engine records the event on the first
+        // response. `/v1/tracking` answers a click with `302 Location:
+        // <destination>` so a browser can record and land in one hop, but a
+        // beacon is not navigation — the app opens the destination itself.
+        // `package:http` follows redirects by default, which sent a second,
+        // invisible GET to the advertiser's landing page on every click.
+        final request = http.Request('GET', uri)
+          ..followRedirects = false
+          ..headers.addAll(headers);
+        await () async {
+          final response = await _httpClient.send(request);
+          // Drain the body so the connection is released immediately instead
+          // of pinning a socket until the idle timeout.
+          await response.stream.drain<void>();
+        }()
             .timeout(config.requestTimeout);
       } catch (error) {
         // PII-safe: log the error TYPE only, never the object. `http`'s ClientException
