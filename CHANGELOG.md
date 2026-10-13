@@ -1,3 +1,28 @@
+## 0.6.0 - 2026-10-13
+
+### Added
+
+- **Sponsored Pin Locations** — a distance search on the request
+  (`setDistanceTargeting` with `Distance.radius` or `Distance.bounds`, never
+  both, plus an optional `limit`), typed access to the places that answered it
+  (`creative.matchedPoints`, nearest first, tolerant per entry), and point-level
+  tracking (`trackPointView` / `trackPointViews` / `trackPointTap` /
+  `trackPointClick`). Nothing fires automatically: the SDK draws no map and
+  cannot know which pins the user saw. A tap is free; a click is billable and
+  *replaces* `fireClick` for that gesture. Requires decision-engine API version
+  `2025-11-01`. (#56)
+
+### Fixed
+
+- `fireClick` no longer follows the tracking endpoint's `302`. The redirect is
+  meant for browsers that navigate with the tracking URL; a beacon takes the
+  first response as final and never requests the advertiser's landing page.
+  Opening the destination is the app's job, from the creative's contents. (#59)
+
+### Documentation
+
+- A Sponsored Pin campaign needs a distance search on the request to serve. (#57)
+
 ## 0.5.1 - 2026-09-22
 
 ### Fixed
