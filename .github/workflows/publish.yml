@@ -11,6 +11,12 @@
 # The tag must match pubspec.yaml's version (v0.5.1 ↔ version: 0.5.1) or
 # pub.dev rejects the upload. Publishing was manual (and silently skipped)
 # through 0.3.0–0.5.0; this makes the git tag the single release trigger.
+#
+# Once pub.dev has accepted the upload, the `release` job publishes the GitHub
+# Release for the tag, with the tag's section of CHANGELOG.md as its notes
+# (tool/release_notes.sh). A draft someone already created for the tag is
+# filled in and published rather than duplicated. The notes are checked before
+# the upload, so a missing CHANGELOG section stops the release before pub.dev.
 name: Publish to pub.dev
 
 on:
@@ -25,6 +31,9 @@ jobs:
       id-token: write # required: mints the pub.dev OIDC token
     steps:
       - uses: actions/checkout@v4
+      # Fails before anything is uploaded if CHANGELOG.md has no section for this tag.
+      - name: Release notes exist
+        run: tool/release_notes.sh "${GITHUB_REF_NAME#v}" > /dev/null
       # Mints the temporary pub.dev credential from the OIDC token.
       - uses: dart-lang/setup-dart@v1
       # The package depends on Flutter, so resolution and publish go through
@@ -34,3 +43,29 @@ jobs:
           channel: stable
       - run: flutter pub get
       - run: flutter pub publish --force
+
+  release:
+    needs: publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # required: creates or publishes the GitHub Release
+    steps:
+      - uses: actions/checkout@v4
+      - name: Publish the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          tool/release_notes.sh "${TAG#v}" > "$RUNNER_TEMP/notes.md"
+          url="https://github.com/${GITHUB_REPOSITORY}/releases/tag/$TAG"
+          if ! draft="$(gh release view "$TAG" --json isDraft --jq .isDraft 2>/dev/null)"; then
+            gh release create "$TAG" --verify-tag --title "$TAG" --notes-file "$RUNNER_TEMP/notes.md"
+            echo "Published $url"
+          elif [[ "$draft" == "true" ]]; then
+            # Someone drafted it already: publish that draft (keeping its title) with the CHANGELOG notes.
+            gh release edit "$TAG" --notes-file "$RUNNER_TEMP/notes.md" --draft=false
+            echo "Published the existing draft: $url"
+          else
+            # Already published by hand: leave it exactly as it is.
+            echo "Already published, left untouched: $url"
+          fi

@@ -33,6 +33,11 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      # The tag for pubspec.yaml's version will be released with its CHANGELOG.md section
+      # (publish.yml); catch a missing section on the release PR, not after the tag.
+      - name: Release notes exist for pubspec.yaml's version
+        run: tool/release_notes.sh > /dev/null
+
       - name: Analyze
         run: flutter analyze --no-fatal-infos
 
