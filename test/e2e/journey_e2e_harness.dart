@@ -173,10 +173,23 @@ class RecordingClient extends http.BaseClient {
   final http.Client _inner;
   final List<String> sent = [];
 
+  /// Every request that came back, with the engine's HTTP status (`-1` for a
+  /// transport error), in completion order. Lets a scenario prove a beacon was
+  /// not only sent but accepted.
+  final List<(String, int)> answered = [];
+
   @override
-  Future<http.StreamedResponse> send(http.BaseRequest request) {
-    sent.add(request.url.toString());
-    return _inner.send(request);
+  Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    final url = request.url.toString();
+    sent.add(url);
+    try {
+      final response = await _inner.send(request);
+      answered.add((url, response.statusCode));
+      return response;
+    } catch (_) {
+      answered.add((url, -1));
+      rethrow;
+    }
   }
 
   @override

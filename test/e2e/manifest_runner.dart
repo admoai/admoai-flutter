@@ -128,7 +128,8 @@ Future<void> _run(Map<String, dynamic> entry, List<String> notes) async {
     }
 
     // --- served / no-ad ---------------------------------------------------------------
-    final response = await driver.sdk.requestAds(builder.build());
+    final built = builder.build();
+    final response = await driver.sdk.requestAds(built);
     final decisions = response.body.data ?? <Decision>[];
 
     final expectedDecisions = expect['decisions'] as int?;
@@ -174,9 +175,175 @@ Future<void> _run(Map<String, dynamic> entry, List<String> notes) async {
     if (creativeExpect != null) {
       _assertCreative(creatives.first, creativeExpect, notes);
     }
+    final pinTracking = entry['pinTracking'] as Map<String, dynamic>?;
+    if (pinTracking != null) {
+      await _runPinTracking(pinTracking, driver, creatives.first.matchedPoints, notes,
+          fetchAgain: () async {
+        final again = await driver.sdk.requestAds(built);
+        return again.body.data?.firstOrNull?.creatives?.firstOrNull?.matchedPoints ??
+            const <MatchedPoint>[];
+      });
+    }
   } finally {
     driver.dispose();
   }
+}
+
+// ---- Sponsored Pin tracking (adhub#4410) ----
+//
+// `pinTracking` replays what a map does with the pins it was served, through the SDK's real
+// point-tracking calls, and asserts what actually reached the engine. The semantics are the
+// manifest's, so all three interpreters implement them identically:
+//
+// - Steps run in order against the pins of the CURRENT response — the first creative of the
+//   first decision. `{"newResponse": true}` sends the scenario's request again and makes its pins
+//   current.
+// - `{"views": "all"}` → `trackPointViews(all)`; `{"views": {"from": a, "to": b}}` →
+//   `trackPointViews(pins.sublist(a, b))`; `{"view": i}` → `trackPointView(pins[i])`;
+//   `{"tap": i}` and `{"click": i}` → `trackPointTap` / `trackPointClick` on `pins[i]`.
+// - Expected beacons are derived from the steps: every view URL of every pin a view step named,
+//   once; every tap/click URL, once per call naming it. The runner waits for that many tracking
+//   GETs, then a further 1.5 s so a duplicate arriving late is still caught.
+// - `viewsOncePerResponse`: each expected view URL was sent exactly once, and no view URL of a
+//   pin the app never showed was sent. `interactionsEveryCall`: each tap/click URL was sent once
+//   per call. `newResponseHasNewViewUrls`: no view URL repeats across responses.
+//   `engineAcceptsEveryBeacon`: the engine answered every tracking GET with a status below 400.
+//   Always: the total number of tracking GETs equals the expected total — nothing stray.
+
+Iterable<String> _viewUrls(MatchedPoint p) => (p.tracking?.views ?? const []).map((t) => t.url);
+
+Future<void> _runPinTracking(
+  Map<String, dynamic> pinTracking,
+  Driver driver,
+  List<MatchedPoint> served,
+  List<String> notes, {
+  required Future<List<MatchedPoint>> Function() fetchAgain,
+}) async {
+  final sdk = driver.sdk;
+  final client = driver.client;
+  final responses = <List<MatchedPoint>>[served];
+  final expectedViews = <String>{};
+  final expectedInteractions = <String, int>{};
+
+  MatchedPoint pick(int i) {
+    final pins = responses.last;
+    check(i < pins.length, 'the response carries a pin at index $i (got ${pins.length})');
+    return pins[i];
+  }
+
+  List<String> tracking() => client.sent.where((u) => u.contains('/v1/tracking')).toList();
+
+  // The decision that served this scenario went through the recorder too; only beacons count.
+  client.sent.clear();
+  client.answered.clear();
+  for (final step in (pinTracking['steps'] as List).cast<Map<String, dynamic>>()) {
+    if (step['newResponse'] == true) {
+      final pins = await fetchAgain();
+      check(pins.isNotEmpty, 'the new decision response carries pins');
+      responses.add(pins);
+    }
+    final views = step['views'];
+    if (views != null) {
+      final pins = responses.last;
+      final List<MatchedPoint> slice;
+      if (views is String) {
+        check(views == 'all', 'views is "all" or {from, to}');
+        slice = pins;
+      } else {
+        final range = views as Map<String, dynamic>;
+        final from = range['from'] as int;
+        final to = range['to'] as int;
+        check(to <= pins.length, 'the response carries $to pins (got ${pins.length})');
+        slice = pins.sublist(from, to);
+      }
+      sdk.trackPointViews(slice);
+      for (final p in slice) {
+        expectedViews.addAll(_viewUrls(p));
+      }
+    }
+    final view = step['view'] as int?;
+    if (view != null) {
+      final p = pick(view);
+      sdk.trackPointView(p);
+      expectedViews.addAll(_viewUrls(p));
+    }
+    final tap = step['tap'] as int?;
+    if (tap != null) {
+      final p = pick(tap);
+      sdk.trackPointTap(p);
+      for (final t in p.tracking?.taps ?? const <TrackingItem>[]) {
+        expectedInteractions.update(t.url, (n) => n + 1, ifAbsent: () => 1);
+      }
+    }
+    final click = step['click'] as int?;
+    if (click != null) {
+      final p = pick(click);
+      sdk.trackPointClick(p);
+      for (final t in p.tracking?.clicks ?? const <TrackingItem>[]) {
+        expectedInteractions.update(t.url, (n) => n + 1, ifAbsent: () => 1);
+      }
+    }
+  }
+
+  final interactionTotal = expectedInteractions.values.fold(0, (a, b) => a + b);
+  final expectedTotal = expectedViews.length + interactionTotal;
+  check(expectedTotal > 0, 'the steps name at least one beacon to send');
+  final deadline = DateTime.now().add(const Duration(seconds: 10));
+  while (tracking().length < expectedTotal && DateTime.now().isBefore(deadline)) {
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+  }
+  await Future<void>.delayed(const Duration(milliseconds: 1500));
+  final sent = tracking();
+  final counts = <String, int>{};
+  for (final u in sent) {
+    counts.update(u, (n) => n + 1, ifAbsent: () => 1);
+  }
+  final e = pinTracking['expect'] as Map<String, dynamic>;
+
+  if (e['viewsOncePerResponse'] == true) {
+    final everyViewUrl = responses.expand((pins) => pins).expand(_viewUrls).toSet();
+    for (final url in expectedViews) {
+      check(counts[url] == 1,
+          "a shown pin's view beacon is sent exactly once (got ${counts[url] ?? 0})");
+    }
+    final unexpected = sent.toSet().intersection(everyViewUrl).difference(expectedViews);
+    check(unexpected.isEmpty,
+        'no view beacon is sent for a pin the app never showed (got ${unexpected.length})');
+  }
+  if (e['interactionsEveryCall'] == true) {
+    expectedInteractions.forEach((url, times) {
+      check(counts[url] == times,
+          'a tap/click beacon is sent on every call: $times (got ${counts[url] ?? 0})');
+    });
+  }
+  check(sent.length == expectedTotal,
+      'exactly $expectedTotal tracking GETs reach the engine, nothing stray (got ${sent.length})');
+  if (e['newResponseHasNewViewUrls'] == true) {
+    check(responses.length >= 2, 'the steps fetched a second response');
+    final perResponse = responses.map((pins) => pins.expand(_viewUrls).toSet()).toList();
+    for (var i = 0; i < perResponse.length; i++) {
+      for (var j = i + 1; j < perResponse.length; j++) {
+        check(perResponse[i].intersection(perResponse[j]).isEmpty,
+            'a new response mints new view URLs for the same pins');
+      }
+    }
+  }
+  if (e['engineAcceptsEveryBeacon'] == true) {
+    List<(String, int)> answers() =>
+        client.answered.where((a) => a.$1.contains('/v1/tracking')).toList();
+    final answerDeadline = DateTime.now().add(const Duration(seconds: 10));
+    while (answers().length < sent.length && DateTime.now().isBefore(answerDeadline)) {
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+    }
+    final all = answers();
+    check(all.length == sent.length,
+        'the engine answered every beacon (${all.length}/${sent.length})');
+    final rejected = all.where((a) => a.$2 < 200 || a.$2 >= 400).map((a) => a.$2).toList();
+    check(rejected.isEmpty, 'the engine accepts every beacon (rejected: $rejected)');
+  }
+  notes.add('${responses.length} response(s), ${responses.map((p) => p.length).toList()} pins: '
+      '${expectedViews.length} view GET(s), $interactionTotal tap/click GET(s), '
+      '${sent.length} sent in total');
 }
 
 Format? _format(String? raw) {
