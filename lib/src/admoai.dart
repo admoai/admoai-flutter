@@ -10,6 +10,7 @@ import 'api_client.dart';
 import 'models/decision_request.dart';
 import 'models/decision_response.dart';
 import 'models/decision_request_builder.dart';
+import 'point_view_ledger.dart';
 import 'third_party_tracker_dispatcher.dart';
 import 'version.dart';
 
@@ -33,6 +34,9 @@ class AdMoai {
   /// overrides it. Safe for one active Journey per instance; apps running
   /// overlapping journeys should set `sessionId` per request instead.
   String? _sessionId;
+
+  /// Sponsored Pin view URLs already fired — see [trackPointView].
+  final PointViewLedger _pointViews = PointViewLedger();
 
   factory AdMoai._({
     required SDKConfig config,
@@ -361,7 +365,18 @@ class AdMoai {
   ///
   /// Pin views are **in addition to** the creative's own impression, never summed into it: one
   /// served creative is one impression however many pins it shows.
-  void trackPointView(MatchedPoint point) => _fireAll(point.tracking?.views);
+  ///
+  /// **Once per decision response.** A pin is reported the first time it is shown for the
+  /// response that returned it; calling this again for the same point — a re-render, a zoom, a
+  /// cluster expanding — sends nothing. A new decision response returning the same location
+  /// carries a new view URL and is reported again. The SDK remembers the last 500 view URLs (ten
+  /// full responses), and a view is never retried: a beacon that failed to send is not re-sent on
+  /// the next render. Taps and clicks are never de-duplicated.
+  void trackPointView(MatchedPoint point) {
+    for (final item in point.tracking?.views ?? const <TrackingItem>[]) {
+      if (_pointViews.claim(item.url)) fireTracking(item.url);
+    }
+  }
 
   /// Reports that the user **tapped the marker** (`pin_tap`). Free.
   ///
@@ -384,17 +399,14 @@ class AdMoai {
   /// Reports that several pins became visible at once (`pin_view` each) — the bulk form of
   /// [trackPointView], for the usual case of a map drawing a screenful.
   ///
-  /// A point named twice in one call is reported once. There is no de-duplication *across*
-  /// calls: two renders are two views, which is what the number means.
+  /// Follows the same once-per-decision-response rule: call it on every render with whatever is
+  /// visible, and only pins not yet reported for their response send anything. A point named
+  /// twice in one call is reported once.
   ///
   /// There is deliberately no bulk tap or bulk click. Each of those is one user gesture, so a
   /// plural form could only report something that did not happen — and for clicks, bill for it.
-  void trackPointViews(List<MatchedPoint> points) {
-    final seen = <String>{};
-    for (final point in points) {
-      if (seen.add(point.id)) trackPointView(point);
-    }
-  }
+  void trackPointViews(List<MatchedPoint> points) =>
+      points.forEach(trackPointView);
 
   void _fireAll(List<TrackingItem>? items) {
     if (items == null) return;
@@ -403,7 +415,8 @@ class AdMoai {
     }
   }
 
-  void _fireThirdPartyTrackers(Tracking tracking, ThirdPartyTrackerEvent event) {
+  void _fireThirdPartyTrackers(
+      Tracking tracking, ThirdPartyTrackerEvent event) {
     final trackers = tracking.thirdPartyTrackers;
     if (trackers == null || trackers.isEmpty) return;
     _thirdPartyDispatcher.dispatch(trackers, event);
