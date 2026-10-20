@@ -128,6 +128,7 @@ Most were earned on the Android runner; two are specific to Flutter.
 | `§J` | mandatory hold vs optional skip, geo/location/destination targeting |
 | `§F` | runtime-state TTL expiry and refresh (spends real wall-clock) |
 | `§G` | video delivery: JSON beacons exposed, VAST beacons *not* surfaced |
+| `§Manifest` | the shared cross-SDK scenarios (`scenarios.json`), including Sponsored Pin `SP1`–`SP14`. `SP9`–`SP14` drive `trackPointViews`/`trackPointView`/`trackPointTap`/`trackPointClick` on real served pins and count the tracking GETs that reach the engine: each view once per decision response, taps and clicks on every call (adhub#4410) |
 
 §K runs early on purpose: it is the only platform-authored fixture and cannot be
 recreated from code.

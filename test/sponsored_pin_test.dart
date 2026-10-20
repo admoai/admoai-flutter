@@ -541,7 +541,10 @@ void main() {
       expect(firedUrls(captured), ['https://t.example/a/view']);
     });
 
-    test('AC8b - bulk does not deduplicate across invocations', () async {
+    // A second render of the same response is not a second view. The full rule
+    // lives in point_view_ledger_test.dart, scenario by scenario.
+    test('AC8b - bulk deduplicates across invocations of the same response',
+        () async {
       final (sdk, captured) = await sdkWithCapture();
       final point = creative(pointsContent([trackedPoint('a', 'a')]))
           .matchedPoints
@@ -551,8 +554,7 @@ void main() {
       sdk.trackPointViews([point]);
       await settle();
 
-      expect(firedUrls(captured),
-          ['https://t.example/a/view', 'https://t.example/a/view']);
+      expect(firedUrls(captured), ['https://t.example/a/view']);
     });
 
     // The campaign cap is 50 matched points, and max cardinality is where collection bugs
