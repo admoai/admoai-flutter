@@ -41,8 +41,8 @@ void main() {
 
       expect(creative.verificationScriptResources, isNotNull);
       expect(creative.verificationScriptResources!.length, equals(2));
-      expect(creative.verificationScriptResources!.first.vendorKey,
-          equals('ias'));
+      expect(
+          creative.verificationScriptResources!.first.vendorKey, equals('ias'));
       expect(creative.verificationScriptResources!.first.scriptUrl,
           equals('https://cdn.ias.com/x.js'));
       expect(creative.verificationScriptResources!.first.verificationParameters,

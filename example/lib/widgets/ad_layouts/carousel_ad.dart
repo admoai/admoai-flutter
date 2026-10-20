@@ -198,7 +198,9 @@ class _CarouselAdViewState extends State<CarouselAdView> {
                                           borderRadius:
                                               BorderRadius.circular(4),
                                           child: Image.network(
-                                            widget.creative.advertiser.logoUrl ?? '',
+                                            widget.creative.advertiser
+                                                    .logoUrl ??
+                                                '',
                                             width: 16,
                                             height: 16,
                                             errorBuilder:

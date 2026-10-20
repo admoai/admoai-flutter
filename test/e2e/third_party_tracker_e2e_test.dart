@@ -100,8 +100,8 @@ Future<List<List<String?>>> db(String sql) async {
   if (response.statusCode != 200) {
     throw StateError('sqld answered HTTP ${response.statusCode}');
   }
-  final first =
-      (jsonDecode(response.body)['results'] as List).first as Map<String, dynamic>;
+  final first = (jsonDecode(response.body)['results'] as List).first
+      as Map<String, dynamic>;
   if (first['type'] != 'ok') {
     throw StateError('sqld error: ${jsonEncode(first)}');
   }
@@ -207,7 +207,8 @@ Future<void> awaitWire(Driver driver, bool Function() predicate) async {
     if (predicate()) break;
     await Future<void>.delayed(const Duration(milliseconds: 25));
   }
-  check(predicate(), 'the expected tracker dispatches were recorded on the wire');
+  check(
+      predicate(), 'the expected tracker dispatches were recorded on the wire');
   await Future<void>.delayed(const Duration(milliseconds: 300));
 }
 
@@ -235,7 +236,8 @@ void main() {
       final ad = await db('SELECT id, template_id FROM ads '
           "WHERE public_id = ${sq(classicAdPublicId)} AND status = 'published'");
       if (ad.isEmpty) {
-        throw StateError('classic fixture ad $classicAdPublicId is not seeded/published');
+        throw StateError(
+            'classic fixture ad $classicAdPublicId is not seeded/published');
       }
       classicAdId = int.parse(ad.first[0]!);
       classicTemplateId = int.parse(ad.first[1]!);
@@ -244,14 +246,16 @@ void main() {
           'WHERE template_id = $classicTemplateId AND key = ${sq(classicSpecificKey)} '
           "AND event = 'click' AND status = 'active'");
       if (event.isEmpty) {
-        throw StateError('click event "$classicSpecificKey" missing on template $classicTemplateId');
+        throw StateError(
+            'click event "$classicSpecificKey" missing on template $classicTemplateId');
       }
       classicSpecificEventId = int.parse(event.first.first!);
 
       final deal = await db('SELECT id FROM journey_deals '
           "WHERE public_id = ${sq(journeyDealPublicId)} AND status = 'active'");
       if (deal.isEmpty) {
-        throw StateError('journey fixture deal $journeyDealPublicId is not seeded/active');
+        throw StateError(
+            'journey fixture deal $journeyDealPublicId is not seeded/active');
       }
       journeyDealId = int.parse(deal.first.first!);
 
@@ -260,7 +264,10 @@ void main() {
       await insertAdTracker(
           adId: classicAdId, eventType: 'impression', url: classicImpUrl);
       await insertAdTracker(
-          adId: classicAdId, eventType: 'click', matchType: 'any', url: classicAnyUrl);
+          adId: classicAdId,
+          eventType: 'click',
+          matchType: 'any',
+          url: classicAnyUrl);
       await insertAdTracker(
           adId: classicAdId,
           eventType: 'click',
@@ -271,7 +278,10 @@ void main() {
       await insertDealTracker(
           dealId: journeyDealId, eventType: 'impression', url: journeyImpUrl);
       await insertDealTracker(
-          dealId: journeyDealId, eventType: 'click', matchType: 'any', url: journeyAnyUrl);
+          dealId: journeyDealId,
+          eventType: 'click',
+          matchType: 'any',
+          url: journeyAnyUrl);
       await insertDealTracker(
           dealId: journeyDealId,
           eventType: 'click',
@@ -293,8 +303,7 @@ void main() {
             sessionId: freshSession('tpt_preflight'),
             configure: (b) => b.setUserId(freshUser('tpt_preflight')),
           );
-          final tracking =
-              served.creativeFor(journeyStage1Placement)?.tracking;
+          final tracking = served.creativeFor(journeyStage1Placement)?.tracking;
           seen = tracking?.thirdPartyTrackers?.isNotEmpty ?? false;
         });
         if (!seen) await Future<void>.delayed(const Duration(seconds: 2));
@@ -325,7 +334,8 @@ void main() {
   });
 
   // T1 — the wire contract, end to end: DB rows → engine effective set → SDK model
-  scenario(report, 'T1', 'classic ad serves its three trackers byte-identical', (notes) async {
+  scenario(report, 'T1', 'classic ad serves its three trackers byte-identical',
+      (notes) async {
     await withDriver((d) async {
       final creative =
           await decideUntilAd(d, classicPlacement, classicAdPublicId);
@@ -334,25 +344,39 @@ void main() {
           'exactly the 3 seeded trackers are served (got ${trackers?.length})');
       final byUrl = {for (final t in trackers!) t.url: t};
       final imp = byUrl[classicImpUrl];
-      check(imp != null, 'the impression tracker URL round-tripped byte-identical');
-      check(imp!.eventType == 'impression' && imp.matchType == null && imp.eventKey == null,
+      check(imp != null,
+          'the impression tracker URL round-tripped byte-identical');
+      check(
+          imp!.eventType == 'impression' &&
+              imp.matchType == null &&
+              imp.eventKey == null,
           'impression entry carries no click fields');
       final any = byUrl[classicAnyUrl];
-      check(any != null && any.eventType == 'click' && any.matchType == 'any' && any.eventKey == null,
+      check(
+          any != null &&
+              any.eventType == 'click' &&
+              any.matchType == 'any' &&
+              any.eventKey == null,
           'any-click entry shape');
       final spec = byUrl[classicSpecUrl];
-      check(spec != null && spec.matchType == 'specific' && spec.eventKey == classicSpecificKey,
+      check(
+          spec != null &&
+              spec.matchType == 'specific' &&
+              spec.eventKey == classicSpecificKey,
           'specific-click entry carries its eventKey');
       check(trackers.every((t) => t.trackerId.startsWith('tpt_')),
           'entries carry tpt_ public ids');
       check(creative.tracking.getImpressionUrl() != null,
           'canonical impression tracking is intact');
-      notes.add('served ${trackers.length} trackers on ${creative.metadata?.adId}');
+      notes.add(
+          'served ${trackers.length} trackers on ${creative.metadata?.adId}');
     });
   });
 
   // T2 — additive by version: the 2025-01-01 handler never sees the field
-  scenario(report, 'T2', 'the field is absent under X-Decision-Version 2025-01-01', (notes) async {
+  scenario(
+      report, 'T2', 'the field is absent under X-Decision-Version 2025-01-01',
+      (notes) async {
     await withDriver((d) async {
       final creative =
           await decideUntilAd(d, classicPlacement, classicAdPublicId);
@@ -362,25 +386,32 @@ void main() {
   });
 
   // T3 — impression fan-out on the wire, exactly once per invocation
-  scenario(report, 'T3', 'fireImpression dispatches the impression tracker once per invocation', (notes) async {
+  scenario(report, 'T3',
+      'fireImpression dispatches the impression tracker once per invocation',
+      (notes) async {
     await withDriver((d) async {
       final creative =
           await decideUntilAd(d, classicPlacement, classicAdPublicId);
       final wireBefore = d.client.sent.length;
       d.sdk.fireImpression(creative.tracking);
       await awaitWire(d, () => countSent(d, classicImpUrl) == 1);
-      check(countSent(d, classicAnyUrl) == 0 && countSent(d, classicSpecUrl) == 0,
+      check(
+          countSent(d, classicAnyUrl) == 0 && countSent(d, classicSpecUrl) == 0,
           'click trackers never fire on an impression');
-      check(d.client.sent.length > wireBefore, 'the canonical beacon was attempted too');
+      check(d.client.sent.length > wireBefore,
+          'the canonical beacon was attempted too');
       d.sdk.fireImpression(creative.tracking);
       await awaitWire(d, () => countSent(d, classicImpUrl) == 2);
-      notes.add('impression tracker attempted exactly once per invocation, twice total');
+      notes.add(
+          'impression tracker attempted exactly once per invocation, twice total');
     });
   });
 
   // T4 — click matching: any on every valid key, specific only on its key,
   //      and a key with no canonical click fires NOTHING
-  scenario(report, 'T4', 'fireClick matches any/specific and refuses unknown keys', (notes) async {
+  scenario(
+      report, 'T4', 'fireClick matches any/specific and refuses unknown keys',
+      (notes) async {
     await withDriver((d) async {
       final creative =
           await decideUntilAd(d, classicPlacement, classicAdPublicId);
@@ -393,8 +424,11 @@ void main() {
           'specific($classicSpecificKey) does not fire on $classicOtherKey');
 
       d.sdk.fireClick(creative.tracking, key: classicSpecificKey);
-      await awaitWire(d,
-          () => countSent(d, classicAnyUrl) == 2 && countSent(d, classicSpecUrl) == 1);
+      await awaitWire(
+          d,
+          () =>
+              countSent(d, classicAnyUrl) == 2 &&
+              countSent(d, classicSpecUrl) == 1);
 
       // This template has NO canonical "default" click, so the default key must
       // fire nothing at all — canonical or third-party.
@@ -410,7 +444,8 @@ void main() {
   });
 
   // T5 — journey: the deal-level set rides along on every stage of the session
-  scenario(report, 'T5', 'journey deal trackers ride along on every stage', (notes) async {
+  scenario(report, 'T5', 'journey deal trackers ride along on every stage',
+      (notes) async {
     await withDriver((d) async {
       final session = freshSession('tpt_stages');
       final user = freshUser('tpt_stages');
@@ -419,10 +454,13 @@ void main() {
           sessionId: session,
           configure: (b) => b.setUserId(user));
       final creative1 = stage1.creativeFor(journeyStage1Placement);
-      check(creative1 != null && creative1.journey != null, 'stage 1 served the journey');
-      final urls1 =
-          (creative1!.tracking.thirdPartyTrackers?.map((t) => t.url).toList() ?? [])
-            ..sort();
+      check(creative1 != null && creative1.journey != null,
+          'stage 1 served the journey');
+      final urls1 = (creative1!.tracking.thirdPartyTrackers
+              ?.map((t) => t.url)
+              .toList() ??
+          [])
+        ..sort();
       final expected = [journeyImpUrl, journeyAnyUrl, journeySpecUrl]..sort();
       check(urls1.join('|') == expected.join('|'),
           'stage 1 carries exactly the 3 deal-level trackers (got $urls1)');
@@ -432,18 +470,24 @@ void main() {
           sessionId: session,
           configure: (b) => b.setUserId(user));
       final creative2 = stage2.creativeFor(journeyStage2Placement);
-      check(creative2 != null && creative2.journey != null, 'stage 2 served the journey');
-      final urls2 =
-          (creative2!.tracking.thirdPartyTrackers?.map((t) => t.url).toList() ?? [])
-            ..sort();
+      check(creative2 != null && creative2.journey != null,
+          'stage 2 served the journey');
+      final urls2 = (creative2!.tracking.thirdPartyTrackers
+              ?.map((t) => t.url)
+              .toList() ??
+          [])
+        ..sort();
       check(urls2.join('|') == urls1.join('|'),
           'stage 2 carries the same deal-level set');
-      notes.add('same 3-tracker set on both stages of ${creative1.metadata?.adId}');
+      notes.add(
+          'same 3-tracker set on both stages of ${creative1.metadata?.adId}');
     });
   });
 
   // T6 — journey fan-out through the real helpers
-  scenario(report, 'T6', 'journey impression and click fan out from the served creative', (notes) async {
+  scenario(report, 'T6',
+      'journey impression and click fan out from the served creative',
+      (notes) async {
     await withDriver((d) async {
       final served = await decide(d,
           placements: [journeyStage1Placement],
@@ -457,15 +501,21 @@ void main() {
       check(tracking.getClickUrl(key: journeyClickKey) != null,
           'fixture sanity: canonical click exists for $journeyClickKey');
       d.sdk.fireClick(tracking, key: journeyClickKey);
-      await awaitWire(d,
-          () => countSent(d, journeyAnyUrl) == 1 && countSent(d, journeySpecUrl) == 1);
-      check(countSent(d, journeyImpUrl) == 1, 'impression tracker untouched by the click');
+      await awaitWire(
+          d,
+          () =>
+              countSent(d, journeyAnyUrl) == 1 &&
+              countSent(d, journeySpecUrl) == 1);
+      check(countSent(d, journeyImpUrl) == 1,
+          'impression tracker untouched by the click');
       notes.add('journey imp=1, any=1, specific=1 dispatches');
     });
   });
 
   // T7 — a deal with no trackers serves NO field (absent, never [])
-  scenario(report, 'T7', 'a creative without trackers has no thirdPartyTrackers field', (notes) async {
+  scenario(report, 'T7',
+      'a creative without trackers has no thirdPartyTrackers field',
+      (notes) async {
     await withDriver((d) async {
       final served = await decide(d,
           placements: [noTrackerPlacement],
@@ -473,14 +523,18 @@ void main() {
           configure: (b) => b.setUserId(freshUser('tpt_none')));
       final creative = served.creativeFor(noTrackerPlacement);
       check(creative != null, 'the no-tracker journey served');
-      check(creative!.tracking.thirdPartyTrackers == null, 'model field is null');
-      check(served.rawBody != null && !served.rawBody!.contains('thirdPartyTrackers'),
+      check(
+          creative!.tracking.thirdPartyTrackers == null, 'model field is null');
+      check(
+          served.rawBody != null &&
+              !served.rawBody!.contains('thirdPartyTrackers'),
           'the field is ABSENT on the wire, not an empty array');
     });
   });
 
   // T8 — privacy: tracker URLs never reach the SDK's log sink
-  scenario(report, 'T8', 'tracker URLs never appear in SDK logs', (notes) async {
+  scenario(report, 'T8', 'tracker URLs never appear in SDK logs',
+      (notes) async {
     await withDriver((d) async {
       final creative =
           await decideUntilAd(d, classicPlacement, classicAdPublicId);
@@ -491,7 +545,8 @@ void main() {
           d.logs.where((r) => r.message.contains(trackerHost)).toList();
       check(offenders.isEmpty,
           'no SDK log line contains the tracker host (found ${offenders.length})');
-      notes.add('${d.logs.length} log records inspected, none carry tracker URLs');
+      notes.add(
+          '${d.logs.length} log records inspected, none carry tracker URLs');
     });
   });
 }

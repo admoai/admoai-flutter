@@ -39,10 +39,7 @@ void main() {
           ]
         },
         'delivery': 'vast_tag',
-        'vast': {
-          'tagUrl': 'https://example.com/vast.xml',
-          'xmlBase64': null
-        }
+        'vast': {'tagUrl': 'https://example.com/vast.xml', 'xmlBase64': null}
       };
 
       final creative = Creative.fromJson(json);
@@ -75,8 +72,7 @@ void main() {
 
       expect(tracking.videoEvents, isNotNull);
       expect(tracking.videoEvents!.length, equals(5));
-      expect(
-          tracking.hasTrackingFor(TrackingType.videoEvent, 'start'), isTrue);
+      expect(tracking.hasTrackingFor(TrackingType.videoEvent, 'start'), isTrue);
       expect(tracking.getVideoEventUrl(key: 'midpoint'),
           equals('https://example.com/video/mid'));
     });
@@ -100,8 +96,7 @@ void main() {
           TrackingItem(key: 'default', url: 'https://example.com/impression')
         ]),
         delivery: 'vast_tag',
-        vast: VastData(
-            tagUrl: 'https://example.com/vast.xml', xmlBase64: null),
+        vast: VastData(tagUrl: 'https://example.com/vast.xml', xmlBase64: null),
       );
 
       vastXmlCreative = Creative(
@@ -186,13 +181,14 @@ void main() {
 
     test('testGetVastXmlBase64WithoutParams', () {
       final base64 = vastXmlCreative.getVastXmlBase64();
-      expect(base64,
-          equals('PFZBU1Q+PE1lZGlhRmlsZSB0eXBlPSJ2aWRlby9tcDQiPnRlc3Q8L01lZGlhRmlsZT48L1ZBU1Q+'));
+      expect(
+          base64,
+          equals(
+              'PFZBU1Q+PE1lZGlhRmlsZSB0eXBlPSJ2aWRlby9tcDQiPnRlc3Q8L01lZGlhRmlsZT48L1ZBU1Q+'));
     });
 
     test('testGetVastXmlBase64WithMediaType', () {
-      final base64 =
-          vastXmlCreative.getVastXmlBase64(mediaType: 'video/webm');
+      final base64 = vastXmlCreative.getVastXmlBase64(mediaType: 'video/webm');
       expect(base64, isNotNull);
 
       final decoded = utf8.decode(base64Decode(base64!));
@@ -283,7 +279,11 @@ void skippabilityParityTests() {
       // The mock seed fills these fields with placeholder text, so the helper
       // must degrade rather than throw or guess.
       final creative = creativeWithContents([
-        {'key': 'is_skippable', 'value': 'is_skippable (demo)', 'type': 'integer'},
+        {
+          'key': 'is_skippable',
+          'value': 'is_skippable (demo)',
+          'type': 'integer'
+        },
         {'key': 'skip_offset', 'value': 'Journey Ad demo', 'type': 'text'},
       ]);
 

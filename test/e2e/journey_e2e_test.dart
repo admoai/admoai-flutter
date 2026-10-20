@@ -236,7 +236,8 @@ Future<void> runPreflight() async {
         throw PreflightAbort(
           'no journey served on "$demoStage1Placement" with a fresh session and '
           'journeyOpt=in — the engine is silently serving normal ads',
-          recipe: 'check: Statsig `is_journey_ads_enabled = true` (default OFF), '
+          recipe:
+              'check: Statsig `is_journey_ads_enabled = true` (default OFF), '
               'Redis up, mock seeds loaded (they load only into an EMPTY db), '
               'and X-Decision-Version = $e2eApiVersion',
         );
@@ -341,8 +342,11 @@ void wizardParityGroup() {
     return creative;
   }
 
-  scenario(report, 'K1', 'platform-authored journey serves stage 1 with the '
-      'config the wizard wrote, and exposes a click URL', (notes) async {
+  scenario(
+      report,
+      'K1',
+      'platform-authored journey serves stage 1 with the '
+          'config the wizard wrote, and exposes a click URL', (notes) async {
     await withDriver((driver) async {
       final session = freshSession('k1');
       final creative =
@@ -350,7 +354,8 @@ void wizardParityGroup() {
 
       check(creative.journeyDefinitionKey == wizardDefinition,
           'definitionKey is "$wizardDefinition"');
-      check(creative.journeyDealId?.startsWith(wizardDealPrefix) ?? false,
+      check(
+          creative.journeyDealId?.startsWith(wizardDealPrefix) ?? false,
           'dealId is a $wizardDealPrefix public id '
           '(got ${creative.journeyDealId})');
       check(creative.journeyStageKey == wizardStage1,
@@ -359,7 +364,8 @@ void wizardParityGroup() {
           'an instance id was minted');
       check(creative.journeyPricingModel == 'cpt',
           'pricingModel is "cpt" (got ${creative.journeyPricingModel})');
-      check(creative.journeyFallbackBillingMode == 'bill_per_stage',
+      check(
+          creative.journeyFallbackBillingMode == 'bill_per_stage',
           'fallbackBillingMode is "bill_per_stage" '
           '(got ${creative.journeyFallbackBillingMode})');
       check(creative.isJourneyCompletion == false,
@@ -372,7 +378,8 @@ void wizardParityGroup() {
       // tracking.clicks silently becomes [] and journey CTR is unmeasurable —
       // with every other assertion here still green.
       final clickUrl = creative.tracking.getClickUrl();
-      check(isTrackingUrl(clickUrl),
+      check(
+          isTrackingUrl(clickUrl),
           'a click tracking URL is exposed and meets the transport contract '
           '(absolute, /v1/tracking, opaque ?e=) — got ${clickUrl ?? "none"}');
       final impressionUrl = creative.tracking.getImpressionUrl();
@@ -391,8 +398,7 @@ void wizardParityGroup() {
       (notes) async {
     await withDriver((driver) async {
       final session = freshSession('k2');
-      final first =
-          await requireWizardServe(driver, session, wizardPlacement1);
+      final first = await requireWizardServe(driver, session, wizardPlacement1);
 
       final secondServed = await decide(
         driver,
@@ -404,7 +410,8 @@ void wizardParityGroup() {
       check(second != null && second.isJourneyAd(),
           'stage 2 serves on "$wizardPlacement2"');
 
-      check(second!.journeyInstanceId == first.journeyInstanceId,
+      check(
+          second!.journeyInstanceId == first.journeyInstanceId,
           'the instance id is stable across stages '
           '(${first.journeyInstanceId} vs ${second.journeyInstanceId})');
       check(second.journeyDealId == first.journeyDealId,
@@ -426,8 +433,7 @@ void wizardParityGroup() {
       (notes) async {
     await withDriver((driver) async {
       final session = freshSession('k3');
-      final first =
-          await requireWizardServe(driver, session, wizardPlacement1);
+      final first = await requireWizardServe(driver, session, wizardPlacement1);
 
       // Walk the graph to the completion stage.
       await decide(
@@ -456,7 +462,8 @@ void wizardParityGroup() {
       // exclusive per deal: completion is marked inline at decision time, so
       // there is nothing for the publisher to fire. A beacon here would mean
       // double counting.
-      check(last.hasCompletionUrl == false,
+      check(
+          last.hasCompletionUrl == false,
           'a final_stage deal exposes NO completion beacon '
           '(got ${last.tracking.completions?.length ?? 0})');
 
@@ -468,8 +475,7 @@ void wizardParityGroup() {
       (notes) async {
     await withDriver((driver) async {
       final session = freshSession('k4');
-      final first =
-          await requireWizardServe(driver, session, wizardPlacement1);
+      final first = await requireWizardServe(driver, session, wizardPlacement1);
       final servedNode = first.journeyStageNodeId;
 
       final repeat = await decide(
@@ -497,7 +503,8 @@ void wizardParityGroup() {
         notes.add('no competing normal ad on "$wizardPlacement1" — suppression '
             'is asserted without a positive control');
       } else {
-        check(!controlCreative.isJourneyAd(),
+        check(
+            !controlCreative.isJourneyAd(),
             'the control (no session) serves a normal, non-journey ad, proving '
             '"$wizardPlacement1" has inventory and the no-ad above was takeover '
             'suppression rather than no-fill');
@@ -518,8 +525,9 @@ void wizardParityGroup() {
 // §A — request forwarding & backward compatibility
 // ────────────────────────────────────────────────────────────────────────────
 void requestForwardingGroup() {
-  scenario(report, 'A1',
-      'no sessionId → a normal decision with no journey metadata', (notes) async {
+  scenario(
+      report, 'A1', 'no sessionId → a normal decision with no journey metadata',
+      (notes) async {
     await withDriver((driver) async {
       // Journeys cannot activate without a publisher-supplied session. This is
       // the safe default: an integration that forgets sessionId keeps serving
@@ -538,9 +546,11 @@ void requestForwardingGroup() {
     });
   });
 
-  scenario(report, 'A3',
+  scenario(
+      report,
+      'A3',
       'sessionId/journeyOpt reach the wire top-level and camelCase, with the '
-      'version header', (notes) async {
+          'version header', (notes) async {
     await withDriver((driver) async {
       final session = freshSession('a3');
       final request = driver.sdk
@@ -552,7 +562,8 @@ void requestForwardingGroup() {
       final http = driver.sdk.getHttpRequest(request);
       final body = http.body ?? '';
 
-      check(http.headers?['X-Decision-Version'] == e2eApiVersion,
+      check(
+          http.headers?['X-Decision-Version'] == e2eApiVersion,
           'X-Decision-Version is $e2eApiVersion — without it the engine '
           'SILENTLY ignores journey fields and serves normal ads');
       check(body.contains('"sessionId":"$session"'),
@@ -567,7 +578,8 @@ void requestForwardingGroup() {
     });
   });
 
-  scenario(report, 'A4', 'sessionId is sticky across builds and not regenerated',
+  scenario(
+      report, 'A4', 'sessionId is sticky across builds and not regenerated',
       (notes) async {
     final session = freshSession('a4');
     await withDriver(sessionId: session, (driver) async {
@@ -634,14 +646,18 @@ void progressionGroup() {
     return creative!;
   }
 
-  scenario(report, 'B1', 'a new session serves the first stage and starts an '
-      'instance', (notes) async {
+  scenario(
+      report,
+      'B1',
+      'a new session serves the first stage and starts an '
+          'instance', (notes) async {
     await withDriver((driver) async {
       final creative = await startJourney(driver, freshSession('b1'));
 
       check(creative.journeyDefinitionKey == demoDefinition,
           'definitionKey is "$demoDefinition"');
-      check(creative.journeyStageKey == demoStage1Key,
+      check(
+          creative.journeyStageKey == demoStage1Key,
           'the first stage "$demoStage1Key" serves '
           '(got ${creative.journeyStageKey})');
       check((creative.journeyInstanceId ?? '').isNotEmpty,
@@ -680,8 +696,11 @@ void progressionGroup() {
     });
   });
 
-  scenario(report, 'B3', 'a repeated node returns no-ad; a positive control '
-      'proves suppression rather than no-fill', (notes) async {
+  scenario(
+      report,
+      'B3',
+      'a repeated node returns no-ad; a positive control '
+          'proves suppression rather than no-fill', (notes) async {
     await withDriver((driver) async {
       final session = freshSession('b3');
       final first = await startJourney(driver, session);
@@ -703,7 +722,8 @@ void progressionGroup() {
       // hold the surface — and could never serve the competing ad.
       final control = await decide(driver, placements: [demoStage1Placement]);
       final controlCreative = control.creativeFor(demoStage1Placement);
-      check(controlCreative != null && !controlCreative.isJourneyAd(),
+      check(
+          controlCreative != null && !controlCreative.isJourneyAd(),
           'the no-session control serves a competing normal ad, proving the '
           'placement has inventory and the no-ad above was takeover '
           'suppression, not a fill failure');
@@ -727,10 +747,12 @@ void progressionGroup() {
       check(second != null && second.isJourneyAd(),
           'stage 2 serves on "$demoStage2Placement"');
 
-      check(second!.journeyStageKey == demoStage2Key,
+      check(
+          second!.journeyStageKey == demoStage2Key,
           'the stage advanced to "$demoStage2Key" '
           '(got ${second.journeyStageKey})');
-      check(second.journeyInstanceId == first.journeyInstanceId,
+      check(
+          second.journeyInstanceId == first.journeyInstanceId,
           'the instance id is stable across '
           '$demoStage1Key → $demoStage2Key');
       notes.add('instance ${first.journeyInstanceId} held across stages');
@@ -817,7 +839,8 @@ void progressionGroup() {
       // Guards the tolerant-reader mapping. If one field silently decodes to
       // null, every other scenario stays green — this is the scenario that
       // notices.
-      check(first.journeySessionId == session,
+      check(
+          first.journeySessionId == session,
           'the engine echoes the session id back '
           '(got ${first.journeySessionId})');
       check(first.journeyOptStatus == JourneyOpt.optIn,
@@ -836,9 +859,9 @@ void progressionGroup() {
       // so every journey-block assertion above stayed green while a field iOS and
       // Android both expose went missing. Asserted live, because the engine is the
       // only thing that can prove it is actually sent.
-      check(first.metadata != null,
-          'the serve carries a metadata block');
-      check((first.metadata!.impId ?? '').isNotEmpty,
+      check(first.metadata != null, 'the serve carries a metadata block');
+      check(
+          (first.metadata!.impId ?? '').isNotEmpty,
           'metadata.impId is surfaced on a journey serve '
           '(got ${first.metadata!.impId ?? "null"})');
 
@@ -864,7 +887,8 @@ void progressionGroup() {
 // §C — opt-in / opt-out
 // ────────────────────────────────────────────────────────────────────────────
 void optGroup() {
-  scenario(report, 'C1', 'opt-out before any serve → no journey', (notes) async {
+  scenario(report, 'C1', 'opt-out before any serve → no journey',
+      (notes) async {
     await withDriver((driver) async {
       final served = await decide(
         driver,
@@ -874,7 +898,8 @@ void optGroup() {
       );
       final creative = served.creativeFor(demoStage1Placement);
       check(creative != null, 'a normal ad serves instead');
-      check(!creative!.isJourneyAd(),
+      check(
+          !creative!.isJourneyAd(),
           'opt-out suppresses the journey entirely — note that OMITTING '
           'journeyOpt would be permissive and start one');
       notes.add('opt-out fell back to a normal ad '
@@ -918,7 +943,8 @@ void optGroup() {
       final rejoinedCreative = rejoined.creativeFor(demoStage1Placement);
       check(rejoinedCreative != null && rejoinedCreative.isJourneyAd(),
           'a journey serves again after opting back in');
-      check(rejoinedCreative!.journeyInstanceId != firstInstance,
+      check(
+          rejoinedCreative!.journeyInstanceId != firstInstance,
           'the new instance id differs from the closed one '
           '($firstInstance → ${rejoinedCreative.journeyInstanceId})');
       notes.add('instance $firstInstance closed; '
@@ -961,7 +987,8 @@ void trackingGroup() {
       final creative = await serveTrackable(driver, freshSession('d1'));
       final impression = creative.tracking.getImpressionUrl();
 
-      check(isTrackingUrl(impression),
+      check(
+          isTrackingUrl(impression),
           'the impression URL is absolute, path /v1/tracking, with a non-empty '
           '?e= token (got ${impression ?? "none"})');
       final uri = Uri.parse(impression!);
@@ -972,8 +999,9 @@ void trackingGroup() {
     });
   });
 
-  scenario(report, 'D5',
-      'a journey creative with a destination exposes a click URL', (notes) async {
+  scenario(
+      report, 'D5', 'a journey creative with a destination exposes a click URL',
+      (notes) async {
     // Regression guard for adhub #2483: the platform writes camelCase template
     // fields while the click resolver matched a snake_case list, so
     // tracking.clicks was [] on EVERY journey serve for weeks. The suite stayed
@@ -983,7 +1011,8 @@ void trackingGroup() {
       final creative = await serveTrackable(driver, freshSession('d5'));
       final click = creative.tracking.getClickUrl();
 
-      check(isTrackingUrl(click),
+      check(
+          isTrackingUrl(click),
           'a click tracking URL is exposed and meets the same transport '
           'contract as the impression (got ${click ?? "none"})');
       check(click != creative.tracking.getImpressionUrl(),
@@ -1018,7 +1047,8 @@ void trackingGroup() {
     });
   });
 
-  scenario(report, 'D4', 'a no-ad response exposes no tracking and fires nothing',
+  scenario(
+      report, 'D4', 'a no-ad response exposes no tracking and fires nothing',
       (notes) async {
     await withDriver((driver) async {
       final session = freshSession('d4');
@@ -1063,7 +1093,8 @@ void trackingGroup() {
       // base URL and the ?e= token is left untouched — rewriting the token would
       // invalidate the very thing being tested.
       final normalized = normalizeForLocalIngestion(minted);
-      check(Uri.parse(normalized).queryParameters['e'] ==
+      check(
+          Uri.parse(normalized).queryParameters['e'] ==
               Uri.parse(minted).queryParameters['e'],
           'normalization left the opaque token untouched');
 
@@ -1089,8 +1120,11 @@ void trackingGroup() {
 // unique per run or the cap keys collide across runs and the suite is a one-shot.
 // ────────────────────────────────────────────────────────────────────────────
 void frequencyCapGroup() {
-  scenario(report, 'E1', 'new-entry capping gates deterministically at the '
-      'configured amount', (notes) async {
+  scenario(
+      report,
+      'E1',
+      'new-entry capping gates deterministically at the '
+          'configured amount', (notes) async {
     await withDriver((driver) async {
       final userId = freshUser('e1');
       final admitted = <String>[];
@@ -1118,7 +1152,8 @@ void frequencyCapGroup() {
         }
       }
 
-      check(admitted.length == freqCapAmount,
+      check(
+          admitted.length == freqCapAmount,
           'exactly $freqCapAmount new instances were admitted and the next was '
           'refused (got ${admitted.length})');
       check(admitted.toSet().length == freqCapAmount,
@@ -1127,8 +1162,11 @@ void frequencyCapGroup() {
     });
   });
 
-  scenario(report, 'E2', 'the cap never blocks continuation of an active '
-      'instance', (notes) async {
+  scenario(
+      report,
+      'E2',
+      'the cap never blocks continuation of an active '
+          'instance', (notes) async {
     await withDriver((driver) async {
       final userId = freshUser('e2');
       final liveSession = freshSession('e2_live');
@@ -1182,10 +1220,12 @@ void frequencyCapGroup() {
         configure: (builder) => builder.setUserId(userId),
       );
       final continuation = continued.creativeFor(freqCapLaterPlacement);
-      check(continuation != null && continuation.isJourneyAd(),
+      check(
+          continuation != null && continuation.isJourneyAd(),
           'the active instance still serves its next node with the cap '
           'exhausted');
-      check(continuation!.journeyInstanceId == liveInstance,
+      check(
+          continuation!.journeyInstanceId == liveInstance,
           'it is the same instance, not a new admission '
           '($liveInstance vs ${continuation.journeyInstanceId})');
       notes.add('instance $liveInstance continued past an exhausted cap');
@@ -1204,8 +1244,11 @@ void frequencyCapGroup() {
 //     stage, marked inline at decision time, and there is NO beacon.
 // ────────────────────────────────────────────────────────────────────────────
 void completionGroup() {
-  scenario(report, 'H1/H2', 'a CPT deal surfaces the exact pricing model and '
-      'fallback billing mode', (notes) async {
+  scenario(
+      report,
+      'H1/H2',
+      'a CPT deal surfaces the exact pricing model and '
+          'fallback billing mode', (notes) async {
     await withDriver((driver) async {
       final served = await decide(
         driver,
@@ -1223,10 +1266,12 @@ void completionGroup() {
 
       // Asserted exactly, not just non-blank: the old non-blank check passed on
       // any wrong value, which is how a wrong billing mode ships unnoticed.
-      check(creative.journeyPricingModel == cptPricingModel,
+      check(
+          creative.journeyPricingModel == cptPricingModel,
           'pricingModel is "$cptPricingModel" '
           '(got ${creative.journeyPricingModel})');
-      check(creative.journeyFallbackBillingMode == cptCustomEventFallback,
+      check(
+          creative.journeyFallbackBillingMode == cptCustomEventFallback,
           'fallbackBillingMode is exactly "$cptCustomEventFallback" '
           '(got ${creative.journeyFallbackBillingMode})');
       notes.add('${creative.journeyPricingModel} / '
@@ -1234,8 +1279,11 @@ void completionGroup() {
     });
   });
 
-  scenario(report, 'H5', 'a custom_event CPT deal exposes a fireable completion '
-      'beacon while isCompletion stays false', (notes) async {
+  scenario(
+      report,
+      'H5',
+      'a custom_event CPT deal exposes a fireable completion '
+          'beacon while isCompletion stays false', (notes) async {
     // The CPT billing trigger, and shipped public API. On Android this surface
     // had ZERO coverage: hasCompletionUrl()/fireCompletion() were exercised by
     // nothing at all, so a break would have been invisible.
@@ -1258,10 +1306,12 @@ void completionGroup() {
           'the served node exposes a completions[] beacon');
       final completionUrl =
           creative.tracking.getCompletionUrl(key: cptCustomEventKey);
-      check(isTrackingUrl(completionUrl),
+      check(
+          isTrackingUrl(completionUrl),
           'the beacon is keyed "$cptCustomEventKey" and meets the transport '
           'contract (got ${completionUrl ?? "none"})');
-      check(creative.isJourneyCompletion == false,
+      check(
+          creative.isJourneyCompletion == false,
           'isCompletion stays FALSE for custom_event — completion is recorded '
           'only when the publisher fires the beacon');
 
@@ -1272,9 +1322,8 @@ void completionGroup() {
       driver.client.sent.clear();
       driver.sdk.fireCompletion(creative.tracking, key: cptCustomEventKey);
       await Future.delayed(const Duration(milliseconds: 400));
-      final fired = driver.client.sent
-          .where((u) => u.contains('/v1/tracking'))
-          .toList();
+      final fired =
+          driver.client.sent.where((u) => u.contains('/v1/tracking')).toList();
       check(fired.length == 1, 'fireCompletion dispatched exactly one request');
       check(fired.single == completionUrl,
           'it fired the server-provided URL verbatim');
@@ -1282,8 +1331,11 @@ void completionGroup() {
     });
   });
 
-  scenario(report, 'H3', 'a final_stage serve flips isCompletion and emits NO '
-      'beacon', (notes) async {
+  scenario(
+      report,
+      'H3',
+      'a final_stage serve flips isCompletion and emits NO '
+          'beacon', (notes) async {
     await withDriver((driver) async {
       final session = freshSession('h3');
       final early = await decide(
@@ -1314,13 +1366,15 @@ void completionGroup() {
 
       check(completion!.isJourneyCompletion == true,
           'final_stage flips isCompletion to true, inline at decision time');
-      check(completion.hasCompletionUrl == false,
+      check(
+          completion.hasCompletionUrl == false,
           'and emits NO completion beacon — there is nothing for the publisher '
           'to fire, so a beacon here would mean double counting '
           '(got ${completion.tracking.completions?.length ?? 0})');
       check(completion.journeyPricingModel == cptPricingModel,
           'CPT pricing is surfaced on the completing serve');
-      check(completion.journeyFallbackBillingMode == cptFinalStageFallback,
+      check(
+          completion.journeyFallbackBillingMode == cptFinalStageFallback,
           'fallbackBillingMode is exactly "$cptFinalStageFallback" '
           '(got ${completion.journeyFallbackBillingMode})');
       notes.add('completed inline; beacons=0; '
@@ -1365,7 +1419,8 @@ void completionGroup() {
         opt: JourneyOpt.optOut,
       );
       final normal = after.creativeFor(cptFinalCompletePlacement);
-      check(normal != null,
+      check(
+          normal != null,
           'a competing normal ad serves on the completion placement once the '
           'takeover has ended');
       check(!normal!.isJourneyAd(), 'and it is not a journey ad');
@@ -1394,7 +1449,8 @@ void targetingGroup() {
       // Positive control FIRST, so a missing fixture cannot masquerade as a hold.
       // No session at all — a session with journeyOpt omitted is effectively
       // opt-in and would start a journey that holds the surface itself.
-      final control = await decide(driver, placements: [mandatoryLaterPlacement]);
+      final control =
+          await decide(driver, placements: [mandatoryLaterPlacement]);
       final controlCreative = control.creativeFor(mandatoryLaterPlacement);
       if (controlCreative == null) {
         throw SkipScenario(
@@ -1403,22 +1459,28 @@ void targetingGroup() {
           'nothing. Is `e2e_mandatory_journey` and its control ad seeded?',
         );
       }
-      check(!controlCreative.isJourneyAd(),
+      check(
+          !controlCreative.isJourneyAd(),
           'the no-session control serves a competing normal ad, proving the '
           'placement has inventory');
 
-      check(heldCreative == null || !heldCreative.isJourneyAd(),
+      check(
+          heldCreative == null || !heldCreative.isJourneyAd(),
           'the later optional stage did not serve while the mandatory stage is '
           'unserved');
-      check(heldCreative == null,
+      check(
+          heldCreative == null,
           'the surface is HELD — no competing ad served either, which is '
           'correct takeover behaviour and not a fill failure');
       notes.add('mandatory hold confirmed against a serving control');
     });
   });
 
-  scenario(report, 'J5', 'an optional stage with no node on the requested '
-      'placement is SKIPPED and cannot serve later', (notes) async {
+  scenario(
+      report,
+      'J5',
+      'an optional stage with no node on the requested '
+          'placement is SKIPPED and cannot serve later', (notes) async {
     await withDriver((driver) async {
       final session = freshSession('j5');
 
@@ -1448,7 +1510,8 @@ void targetingGroup() {
         opt: JourneyOpt.optIn,
       );
       final earlierCreative = earlier.creativeFor(optSkipEarlyPlacement);
-      check(earlierCreative == null || !earlierCreative.isJourneyAd(),
+      check(
+          earlierCreative == null || !earlierCreative.isJourneyAd(),
           'the skipped stage cannot serve afterwards — the journey never goes '
           'backwards');
       notes.add('stage ${laterCreative.journeyStageKey} served; '
@@ -1483,7 +1546,8 @@ void targetingGroup() {
         configure: (builder) => builder.addGeoTargeting(londonGeonameId),
       );
       final unmatched = noMatch.creativeFor(targetGeoPlacement);
-      check(unmatched == null || !unmatched.isJourneyAd(),
+      check(
+          unmatched == null || !unmatched.isJourneyAd(),
           'a real but non-matching geoname ($londonGeonameId) excludes the deal '
           'cleanly, rather than erroring');
       notes.add('geo $nycGeonameId served; $londonGeonameId excluded');
@@ -1534,8 +1598,11 @@ void targetingGroup() {
     });
   });
 
-  scenario(report, 'J3', 'destination targeting: confidence at or above the '
-      'threshold serves, below does not', (notes) async {
+  scenario(
+      report,
+      'J3',
+      'destination targeting: confidence at or above the '
+          'threshold serves, below does not', (notes) async {
     await withDriver((driver) async {
       final above = await decide(
         driver,
@@ -1569,7 +1636,8 @@ void targetingGroup() {
         ),
       );
       final belowCreative = below.creativeFor(targetDestinationPlacement);
-      check(belowCreative == null || !belowCreative.isJourneyAd(),
+      check(
+          belowCreative == null || !belowCreative.isJourneyAd(),
           'a confidence below the seeded threshold ($destinationThreshold) '
           'excludes the deal');
       notes.add('confidence gate honoured at $destinationThreshold');
@@ -1603,7 +1671,8 @@ void ttlGroup() {
           '`e2e_short_ttl_journey` present?',
         );
       }
-      check(started.isJourneyCompletion != true,
+      check(
+          started.isJourneyCompletion != true,
           'the journey did not complete — so a new instance later can only be '
           'the TTL expiring, not a completed journey being replaced');
       final firstInstance = started.journeyInstanceId;
@@ -1621,15 +1690,19 @@ void ttlGroup() {
       final restarted = afterExpiry.creativeFor(shortTtlPlacement);
       check(restarted != null && restarted.isJourneyAd(),
           'the same session serves again after the TTL expired');
-      check(restarted!.journeyInstanceId != firstInstance,
+      check(
+          restarted!.journeyInstanceId != firstInstance,
           'a NEW instance was minted ($firstInstance → '
           '${restarted.journeyInstanceId}) — the expired state was not resumed');
       notes.add('instance restarted after ${shortTtlSeconds}s TTL expiry');
     });
   });
 
-  scenario(report, 'F2', 'serving a NEW node refreshes the TTL, so the instance '
-      'outlives its original deadline', (notes) async {
+  scenario(
+      report,
+      'F2',
+      'serving a NEW node refreshes the TTL, so the instance '
+          'outlives its original deadline', (notes) async {
     await withDriver((driver) async {
       final session = freshSession('f2');
       // The multi-node fixture also carries a 5s TTL, and its three nodes let us
@@ -1676,7 +1749,8 @@ void ttlGroup() {
       final survivedCreative = survived.creativeFor(multiNodePlacements[2]);
       check(survivedCreative != null && survivedCreative.isJourneyAd(),
           'the journey still serves past its original creation deadline');
-      check(survivedCreative!.journeyInstanceId == instance,
+      check(
+          survivedCreative!.journeyInstanceId == instance,
           'the instance survived because the mid-window serve refreshed the TTL '
           '($instance vs ${survivedCreative.journeyInstanceId})');
       notes.add('instance $instance survived '
@@ -1693,7 +1767,8 @@ void ttlGroup() {
 // actual player and is flagged as a follow-up rather than faked here.
 // ────────────────────────────────────────────────────────────────────────────
 void videoGroup() {
-  Future<Creative> serveVideo(Driver driver, String placement, String tag) async {
+  Future<Creative> serveVideo(
+      Driver driver, String placement, String tag) async {
     final served = await decide(
       driver,
       placements: [placement],
@@ -1710,8 +1785,11 @@ void videoGroup() {
     return creative;
   }
 
-  scenario(report, 'G1', 'a JSON video node exposes json delivery and its video '
-      'tracking', (notes) async {
+  scenario(
+      report,
+      'G1',
+      'a JSON video node exposes json delivery and its video '
+          'tracking', (notes) async {
     await withDriver((driver) async {
       final creative = await serveVideo(driver, videoJsonPlacement, 'g1');
 
@@ -1724,7 +1802,8 @@ void videoGroup() {
       // For JSON delivery the engine owns the beacons, so they must be present
       // for the publisher's player to fire.
       final events = creative.tracking.videoEvents ?? const [];
-      check(events.isNotEmpty,
+      check(
+          events.isNotEmpty,
           'video event beacons are exposed for the player to fire '
           '(got ${events.length})');
       for (final event in events) {
@@ -1753,8 +1832,11 @@ void videoGroup() {
     });
   });
 
-  scenario(report, 'G2', 'VAST tag/xml expose the payload and surface NO '
-      'VAST-owned beacons', (notes) async {
+  scenario(
+      report,
+      'G2',
+      'VAST tag/xml expose the payload and surface NO '
+          'VAST-owned beacons', (notes) async {
     await withDriver((driver) async {
       // The double-count rule: for VAST delivery the impression, quartile and
       // click beacons live INSIDE the VAST document and belong to the
@@ -1767,7 +1849,8 @@ void videoGroup() {
       final tagUrl = tag.getVastTagUrl();
       check(tagUrl != null && tagUrl.isNotEmpty,
           'the VAST tag URL is exposed for the player');
-      check((tag.tracking.videoEvents ?? const []).isEmpty,
+      check(
+          (tag.tracking.videoEvents ?? const []).isEmpty,
           'NO VAST-owned video-event beacons are surfaced '
           '(got ${tag.tracking.videoEvents?.length ?? 0})');
 
@@ -1778,7 +1861,8 @@ void videoGroup() {
       final xmlBase64 = xml.getVastXmlBase64();
       check(xmlBase64 != null && xmlBase64.isNotEmpty,
           'the inline base64 VAST document is exposed');
-      check((xml.tracking.videoEvents ?? const []).isEmpty,
+      check(
+          (xml.tracking.videoEvents ?? const []).isEmpty,
           'NO VAST-owned video-event beacons are surfaced for xml either '
           '(got ${xml.tracking.videoEvents?.length ?? 0})');
 
@@ -1946,7 +2030,8 @@ void metricEmissionGroup() {
       if (complete == null || !complete.isJourneyAd()) {
         throw SkipScenario('final stage did not serve');
       }
-      check(complete.isJourneyCompletion == true,
+      check(
+          complete.isJourneyCompletion == true,
           'the final stage of a final_stage deal flips isCompletion, which is '
           'what closes the instance');
       await fireTracking(complete.tracking.getImpressionUrl()!);

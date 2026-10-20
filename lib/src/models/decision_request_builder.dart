@@ -23,7 +23,7 @@ class DecisionRequestBuilder {
     required UserConfig userConfig,
     String? sessionId,
     Logger? logger,
-  }) : _sessionId = sessionId,
+  })  : _sessionId = sessionId,
         _logger = logger ?? Logger('AdMoai') {
     _app = App(
       name: appConfig.name,
@@ -78,7 +78,9 @@ class DecisionRequestBuilder {
   /// by platform for the same call.
   DecisionRequestBuilder setGeoTargeting(List<int>? geoNameIds) {
     _targeting = Targeting(
-      geo: geoNameIds == null ? null : LinkedHashSet<int>.from(geoNameIds).toList(),
+      geo: geoNameIds == null
+          ? null
+          : LinkedHashSet<int>.from(geoNameIds).toList(),
       location: _targeting?.location,
       destination: _targeting?.destination,
       custom: _targeting?.custom,

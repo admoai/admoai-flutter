@@ -22,11 +22,14 @@ class TrackingTabView extends StatelessWidget {
             style: Theme.of(context).textTheme.titleSmall,
           ),
           const SizedBox(height: 8),
-          ...creative.tracking.impressions?.map((t) => TrackingItemView(
-                trackingKey: t.key,
-                url: t.url,
-                sdk: sdk,
-              )).toList() ?? [],
+          ...creative.tracking.impressions
+                  ?.map((t) => TrackingItemView(
+                        trackingKey: t.key,
+                        url: t.url,
+                        sdk: sdk,
+                      ))
+                  .toList() ??
+              [],
         ],
         if (creative.tracking.clicks?.isNotEmpty == true) ...[
           const SizedBox(height: 16),

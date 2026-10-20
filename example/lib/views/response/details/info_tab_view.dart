@@ -112,7 +112,8 @@ class InfoTabView extends StatelessWidget {
           const Divider(height: 1),
           _buildInfoItem(context, 'Creative ID', metadata.creativeId),
           const Divider(height: 1),
-          _buildInfoItem(context, 'Advertiser ID', metadata.advertiserId ?? '—'),
+          _buildInfoItem(
+              context, 'Advertiser ID', metadata.advertiserId ?? '—'),
           const Divider(height: 1),
           _buildInfoItem(context, 'Template ID', metadata.templateId),
           const Divider(height: 1),

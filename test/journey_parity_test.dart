@@ -49,8 +49,8 @@ const _absent = Object();
 }
 
 Iterable<LogRecord> warningsMatching(List<LogRecord> records, String needle) =>
-    records.where(
-        (r) => r.level >= Level.WARNING && r.message.contains(needle));
+    records
+        .where((r) => r.level >= Level.WARNING && r.message.contains(needle));
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -163,7 +163,10 @@ void main() {
   group('D2: fireCompletion warns when apiVersion is null', () {
     Tracking completionTracking() => Tracking.fromJson({
           'completions': [
-            {'key': 'journey_complete', 'url': 'https://t.example/v1/tracking?e=cmp'}
+            {
+              'key': 'journey_complete',
+              'url': 'https://t.example/v1/tracking?e=cmp'
+            }
           ],
         });
 
@@ -460,7 +463,8 @@ void main() {
       await Future.delayed(Duration.zero);
 
       // Documented, deliberate: hex digits are uppercased...
-      expect(fired.single, equals('https://t.example/v1/tracking?e=aB9%2FXyz%3D'));
+      expect(
+          fired.single, equals('https://t.example/v1/tracking?e=aB9%2FXyz%3D'));
       // ...and the token's decoded value is unchanged, which is what the engine
       // reads. Nothing is added, dropped, or reordered.
       expect(
@@ -590,7 +594,8 @@ void main() {
   // tracking path.
   // ───────────────────────────────────────────────────────────────────────────
   group('R1: a journey decision request carries X-Decision-Version', () {
-    test('header is present on the wire alongside the journey fields', () async {
+    test('header is present on the wire alongside the journey fields',
+        () async {
       http.Request? captured;
       final sdk = AdMoai.forTesting(
         config: SDKConfig(baseUrl: baseUrl, apiVersion: '2025-11-01'),
@@ -637,7 +642,10 @@ void main() {
   group('fireCustomEvent / fireCustom parity', () {
     Tracking customTracking() => Tracking.fromJson({
           'custom': [
-            {'key': 'companionOpened', 'url': 'https://t.example/v1/tracking?e=c'}
+            {
+              'key': 'companionOpened',
+              'url': 'https://t.example/v1/tracking?e=c'
+            }
           ],
         });
 
