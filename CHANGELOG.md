@@ -1,3 +1,19 @@
+## 0.6.1 - 2026-10-20
+
+### Fixed
+
+- **A re-rendered pin no longer re-sends its view beacon.** `trackPointViews`
+  used to de-duplicate only within one call, so a map re-rendering the same
+  response on every zoom or pan sent the same view URLs again. The SDK now
+  remembers the last 500 pin-view URLs it fired and sends each one once per
+  decision response; a new response returning the same location is still
+  reported. `trackPointView` follows the same rule; `trackPointTap` and
+  `trackPointClick` are unchanged, and nothing is retried. **Reported
+  `pin_view` counts do not change** — the server was already de-duplicating;
+  this only removes the wasted requests. Calling `trackPointViews` on every
+  render is now the intended integration; an app-side "already viewed" set is
+  no longer needed. (#63)
+
 ## 0.6.0 - 2026-10-13
 
 ### Added

@@ -203,8 +203,8 @@ void main() {
       expect(captured!.headers['user-agent'], startsWith('AdMoaiSDK/'));
     });
 
-    test('sdkVersion constant matches expected v0.6.0', () {
-      expect(sdkVersion, equals('0.6.0'));
+    test('sdkVersion constant matches expected v0.6.1', () {
+      expect(sdkVersion, equals('0.6.1'));
     });
   });
 
