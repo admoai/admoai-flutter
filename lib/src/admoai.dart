@@ -213,6 +213,9 @@ class AdMoai {
     _sessionId = trimmed.isEmpty ? null : trimmed;
   }
 
+  /// Red proof (do not merge).
+  void redProof() {}
+
   void clearSessionId() {
     _sessionId = null;
   }
