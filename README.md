@@ -1440,6 +1440,14 @@ We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.
 - Code style and testing requirements
 - Development workflow
 
+Before pushing, run what CI runs:
+
+```bash
+tool/format.sh                      # dart format (CI: tool/format.sh --check)
+flutter analyze --fatal-infos       # infos fail CI too
+flutter test --exclude-tags "live || e2e"
+```
+
 ## Example App
 
 For a complete example implementation, check out the [example app](example/).

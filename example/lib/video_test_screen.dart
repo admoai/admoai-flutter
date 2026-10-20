@@ -66,7 +66,7 @@ class _VideoTestScreenState extends State<VideoTestScreen> {
       result += '\nBody:\n${httpRequest.body}\n\n';
 
       setState(() {
-        output = result + 'Sending request...\n';
+        output = '${result}Sending request...\n';
       });
 
       final response = await sdk.requestAds(request);
@@ -122,7 +122,7 @@ class _VideoTestScreenState extends State<VideoTestScreen> {
           result += '\nTracking:\n';
 
           setState(() {
-            output = result + 'Processing tracking...\n';
+            output = '${result}Processing tracking...\n';
           });
 
           if (creative.isVastTagDelivery() && creative.vast?.tagUrl != null) {
@@ -131,9 +131,8 @@ class _VideoTestScreenState extends State<VideoTestScreen> {
             final vastTagUrl = creative.getVastTagUrl();
             if (vastTagUrl != null) {
               try {
-                final vastTracking =
-                    await VastParser.parseVastXmlWithCategories(
-                        await http.read(Uri.parse(vastTagUrl)));
+                final vastTracking = VastParser.parseVastXmlWithCategories(
+                    await http.read(Uri.parse(vastTagUrl)));
 
                 result +=
                     '  Impressions: ${vastTracking['impressions']!.length}\n';

@@ -634,7 +634,7 @@ class _DecisionRequestFormState extends State<DecisionRequestForm> {
                     final response = await sdk.requestAds(request);
                     // print('Response: $response'); // Debug response
 
-                    if (!mounted) return;
+                    if (!context.mounted) return;
 
                     final creative = response.body.data?.first.creatives?.first;
                     if (creative == null) {
@@ -657,6 +657,7 @@ class _DecisionRequestFormState extends State<DecisionRequestForm> {
                       ),
                     );
                   } catch (e) {
+                    if (!context.mounted) return;
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text(
