@@ -1448,6 +1448,22 @@ flutter analyze --fatal-infos       # infos fail CI too
 flutter test --exclude-tags "live || e2e"
 ```
 
+## When the API check fails
+
+`api/admoai.api.txt` is the package's public API, one symbol per line with its signature,
+and CI (`Public API check`) fails when the code no longer matches it. That is deliberate: a
+removed or changed public symbol breaks every integrator's build on their next
+`flutter pub upgrade`, so the change has to appear as a diff in the PR.
+
+1. Run `tool/api.sh` (needs `dart pub global activate dart_apitool 0.23.2`) and commit
+   `api/admoai.api.txt`.
+2. Read the diff; the CI log and job summary also classify each change. Only `+` lines (new
+   API) is a minor bump. Any `-` or changed line (removed, renamed, a signature change) is
+   **breaking**: the version in `pubspec.yaml` needs a major bump (a minor one while `0.x`),
+   and the PR says what integrators must change.
+3. If the surface changed by accident (a helper that should not be exported), fix the export
+   instead of updating the baseline.
+
 ## Example App
 
 The example app was removed on 2026-10-21: it had fallen behind the SDK's features. This README
