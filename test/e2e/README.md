@@ -15,6 +15,11 @@ tool/journey_e2e.sh                                    # the gate
 flutter test test/e2e/journey_e2e_test.dart --reporter expanded   # raw output
 ```
 
+**From an adhub checkout, all three SDKs at once:** `make sdk-live` (or `make sdk-live sdk=flutter`)
+runs this suite and the third-party tracker suite, the iOS and Android runners, one shared
+preflight and one summary (admoai/adhub#4153). The same script runs in adhub's CI on every engine
+change and every pin bump (`sdk-contract-tests.yml`, admoai/adhub#4346).
+
 | Env | Default |
 |---|---|
 | `ADMOAI_JOURNEY_E2E_BASE_URL` | `http://127.0.0.1:8080` |
