@@ -51,9 +51,11 @@ const classicPlacement = 'promotions';
 const classicSpecificKey = 'slide1';
 const classicOtherKey = 'slide2';
 
-/// Seeded journey deal (mandatory two-stage). Deal-level trackers must ride
+/// Seeded journey deal (mandatory two-stage), found by its definition's key: the
+/// mock seed gives journey deals a fresh public id on every reseed, so a
+/// hardcoded id only ever matched one database. Deal-level trackers must ride
 /// along on every stage; its node-template click-event union is `default`.
-const journeyDealPublicId = 'jad_01M2TJW34GKEC2PF6ZN8FN3BX0';
+const journeyDefinitionKey = 'e2e_mandatory_journey';
 const journeyStage1Placement = 'sdk_e2e_mandatory_early';
 const journeyStage2Placement = 'sdk_e2e_mandatory_later';
 const journeyClickKey = 'default';
@@ -248,10 +250,13 @@ void main() {
       }
       classicSpecificEventId = int.parse(event.first.first!);
 
-      final deal = await db('SELECT id FROM journey_deals '
-          "WHERE public_id = ${sq(journeyDealPublicId)} AND status = 'active'");
+      final deal = await db('SELECT d.id FROM journey_deals d '
+          'JOIN journey_definitions def ON def.id = d.journey_definition_id '
+          "WHERE def.key = ${sq(journeyDefinitionKey)} AND d.status = 'active' "
+          'ORDER BY d.id LIMIT 1');
       if (deal.isEmpty) {
-        throw StateError('journey fixture deal $journeyDealPublicId is not seeded/active');
+        throw StateError('no active journey deal on the "$journeyDefinitionKey" definition '
+            '(seeded by the adhub mock seed, journeys.go)');
       }
       journeyDealId = int.parse(deal.first.first!);
 
