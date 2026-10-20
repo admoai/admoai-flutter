@@ -23,6 +23,8 @@ permissions:
 
 env:
   FLUTTER_VERSION: 3.47.7
+  # tool/api.sh's extractor; bump on purpose and re-run tool/api.sh in the same PR.
+  DART_APITOOL_VERSION: 0.23.2
 
 jobs:
   sdk:
@@ -31,6 +33,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # The API check classifies a change against the merge base with origin/main.
+          fetch-depth: 0
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
@@ -53,6 +58,14 @@ jobs:
 
       - name: Analyze
         run: flutter analyze --fatal-infos
+
+      # Public API baseline (api/admoai.api.txt). Red = the API changed and the baseline was
+      # not regenerated; the log and the job summary say which changes are breaking.
+      - name: Public API check
+        run: |
+          dart pub global activate dart_apitool "$DART_APITOOL_VERSION" > /dev/null
+          export PATH="$PATH:$HOME/.pub-cache/bin"
+          tool/api.sh --check
 
       # Deterministic gate only. `live` tests hit api.mock.admoai.com and soft-log some API
       # errors instead of failing; `e2e` needs a locally-running, seeded decision-engine and is
