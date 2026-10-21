@@ -135,6 +135,14 @@ Most were earned on the Android runner; two are specific to Flutter.
 | `§G` | video delivery: JSON beacons exposed, VAST beacons *not* surfaced |
 | `§Manifest` | the shared cross-SDK scenarios (`scenarios.json`), including Sponsored Pin `SP1`–`SP14`. `SP9`–`SP14` drive `trackPointViews`/`trackPointView`/`trackPointTap`/`trackPointClick` on real served pins and count the tracking GETs that reach the engine: each view once per decision response, taps and clicks on every call (adhub#4410) |
 
+**The shared scenarios are vendored, not edited here.** `test/e2e/scenarios.json` is a copy of the
+`scenarios.json` in the npm package [`@admoai/sdk-scenarios`](https://www.npmjs.com/package/@admoai/sdk-scenarios),
+whose source is adhub's `sdk/scenarios/`; `MANIFEST_VERSION` beside it names the version. CI's
+*Scenario manifest* job fails when the file differs from that version and warns when a newer one
+is published. To change a scenario, change it in adhub and publish; to take a new version here:
+`.github/scripts/scenarios.sh adopt test/e2e/scenarios.json <version|latest>`, then run this suite against an
+engine. The tests read the vendored file and never touch the network.
+
 §K runs early on purpose: it is the only platform-authored fixture and cannot be
 recreated from code.
 
