@@ -29,3 +29,10 @@ migrate_working_dir/
 .flutter-plugins
 .flutter-plugins-dependencies
 build/
+
+# The example app is retired (#85); only example/example.md is versioned. Anything a local
+# `flutter run` regenerates under example/ stays out: its ephemeral symlinks point into the
+# developer's home directory, and a repository holding them breaks Argo CD for admoai/adhub,
+# which fetches this one as a submodule (admoai/adhub#4585).
+/example/*
+!/example/example.md
