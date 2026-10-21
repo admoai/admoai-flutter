@@ -1,0 +1,33 @@
+# Known-vulnerability scan of the resolved dependency graph, on every PR, on main and
+# weekly (new advisories appear against unchanged lockfiles). CodeQL has no Dart support,
+# so this is the Flutter counterpart of the CodeQL job on the iOS/Android SDKs.
+#
+# example/pubspec.lock is the lockfile scanned: the package itself does not commit one
+# (it is a library), and the example resolves the SDK through a path dependency, so its
+# lockfile holds the SDK's full transitive graph as an integrator would resolve it.
+name: Dependency scan
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '23 5 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  osv:
+    name: OSV scan (pub)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Scan example/pubspec.lock
+        uses: google/osv-scanner-action/osv-scanner-action@v2.7.0
+        with:
+          scan-args: |-
+            --lockfile=example/pubspec.lock
