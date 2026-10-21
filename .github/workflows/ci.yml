@@ -1,4 +1,9 @@
-# Runs on every PR and on pushes to main: static analysis + tests for the SDK.
+# Runs on every PR and on pushes to main: format check, static analysis + tests
+# for the SDK. Analyzer infos fail the build too (--fatal-infos).
+#
+# Flutter is pinned (FLUTTER_VERSION) so the format and lint gates cannot go red
+# overnight because `stable` moved. Bump it on purpose, in its own PR, and run
+# tool/format.sh with the new version in the same PR.
 name: CI
 
 on:
@@ -15,6 +20,9 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  FLUTTER_VERSION: 3.47.7
+
 jobs:
   sdk:
     name: Analyze & test (SDK)
@@ -27,6 +35,7 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
 
       - name: Install dependencies
@@ -37,8 +46,12 @@ jobs:
       - name: Release notes exist for pubspec.yaml's version
         run: tool/release_notes.sh > /dev/null
 
+      # Fix locally with tool/format.sh.
+      - name: Format
+        run: tool/format.sh --check
+
       - name: Analyze
-        run: flutter analyze --no-fatal-infos
+        run: flutter analyze --fatal-infos
 
       # Deterministic gate only. `live` tests hit api.mock.admoai.com and soft-log some API
       # errors instead of failing; `e2e` needs a locally-running, seeded decision-engine and is
