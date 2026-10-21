@@ -30,7 +30,7 @@ jobs:
     permissions:
       id-token: write # required: mints the pub.dev OIDC token
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       # Fails before anything is uploaded if CHANGELOG.md has no section for this tag.
       - name: Release notes exist
         run: tool/release_notes.sh "${GITHUB_REF_NAME#v}" > /dev/null
@@ -50,7 +50,7 @@ jobs:
     permissions:
       contents: write # required: creates or publishes the GitHub Release
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Publish the GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
