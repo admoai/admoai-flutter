@@ -179,10 +179,8 @@ void main() {
     });
 
     test('placement without explicit format omits the field', () {
-      final request = sdk
-          .createRequestBuilder()
-          .addPlacement(key: 'home')
-          .build();
+      final request =
+          sdk.createRequestBuilder().addPlacement(key: 'home').build();
 
       final json = request.toJson();
       final placementsJson = json['placements'] as List;
@@ -299,18 +297,15 @@ void main() {
     });
 
     test('setDestinationTargeting replaces existing destinations', () {
-      final destA = Destination(
-          latitude: 1, longitude: 2, minConfidence: 0.5);
-      final destB = Destination(
-          latitude: 3, longitude: 4, minConfidence: 0.7);
+      final destA = Destination(latitude: 1, longitude: 2, minConfidence: 0.5);
+      final destB = Destination(latitude: 3, longitude: 4, minConfidence: 0.7);
 
       final request = sdk
           .createRequestBuilder()
           .addPlacement(key: 'home')
           .addDestinationTargeting(
               latitude: 99, longitude: 99, minConfidence: 0.1)
-          .setDestinationTargeting([destA, destB])
-          .build();
+          .setDestinationTargeting([destA, destB]).build();
 
       expect(request.targeting?.destination?.length, equals(2));
       expect(request.targeting?.destination?.first.latitude, equals(1));

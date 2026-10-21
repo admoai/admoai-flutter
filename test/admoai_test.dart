@@ -126,7 +126,8 @@ void main() {
   });
 
   group('fireTracking version header', () {
-    test('sends X-Tracking-Version header (not X-Decision-Version) when '
+    test(
+        'sends X-Tracking-Version header (not X-Decision-Version) when '
         'apiVersion is set', () async {
       http.Request? captured;
       final mockClient = MockClient((request) async {
@@ -150,7 +151,8 @@ void main() {
       expect(captured!.headers.containsKey('X-Decision-Version'), isFalse);
     });
 
-    test('omits X-Tracking-Version header when apiVersion is not set', () async {
+    test('omits X-Tracking-Version header when apiVersion is not set',
+        () async {
       http.Request? captured;
       final mockClient = MockClient((request) async {
         captured = request;
@@ -243,8 +245,8 @@ void main() {
         httpClient: mockClient,
       );
 
-      final request = (sdk.createRequestBuilder()..addPlacement(key: 'home'))
-          .build();
+      final request =
+          (sdk.createRequestBuilder()..addPlacement(key: 'home')).build();
       await sdk.requestAds(request);
 
       expect(captured, isNotNull);
@@ -285,8 +287,8 @@ void main() {
         httpClient: stallingClient,
       );
 
-      final request = (sdk.createRequestBuilder()..addPlacement(key: 'home'))
-          .build();
+      final request =
+          (sdk.createRequestBuilder()..addPlacement(key: 'home')).build();
 
       expect(
         () => sdk.requestAds(request),
@@ -294,8 +296,7 @@ void main() {
       );
     });
 
-    test('tracking request is fire-and-forget on timeout (no throw)',
-        () async {
+    test('tracking request is fire-and-forget on timeout (no throw)', () async {
       var completed = false;
       final stallingClient = MockClient((request) async {
         await Future.delayed(const Duration(seconds: 5));
@@ -326,8 +327,8 @@ void main() {
         ),
       );
 
-      final request = (sdk.createRequestBuilder()..addPlacement(key: 'home'))
-          .build();
+      final request =
+          (sdk.createRequestBuilder()..addPlacement(key: 'home')).build();
       final httpRequest = sdk.getHttpRequest(request);
       expect(httpRequest.path, equals('/v1/decision'));
       expect(httpRequest.method, equals(HTTPMethod.post));

@@ -5,7 +5,9 @@
 import 'package:admoai/admoai.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-class _Settings { bool personalisedJourneys = true; }
+class _Settings {
+  bool personalisedJourneys = true;
+}
 
 // Never invoked: this is a compile-time check, not a behavioural test. Calling it
 // would hit the network. The value is entirely in the analyzer resolving every
@@ -82,7 +84,8 @@ Future<void> readmeExamples() async {
   sdk.fireTracking('https://t.example/v1/tracking?e=x');
 
   // Quick Start section
-  final built = sdk.createRequestBuilder()
+  final built = sdk
+      .createRequestBuilder()
       .addPlacement(key: 'home')
       .addPlacement(key: 'promotions', format: Format.native)
       .addGeoTargeting(2643743)
@@ -90,7 +93,9 @@ Future<void> readmeExamples() async {
       .build();
   final headline = creative.contents.getContent('headline')?.value;
   sdk.setUserConfig(
-      id: 'user_123', ip: '203.0.113.1', timezone: 'UTC',
+      id: 'user_123',
+      ip: '203.0.113.1',
+      timezone: 'UTC',
       consent: Consent(gdpr: true));
   sdk.clearUserConfig();
   sdk.clearDeviceConfig();

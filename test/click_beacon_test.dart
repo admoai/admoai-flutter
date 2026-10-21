@@ -33,7 +33,8 @@ void main() {
         if (request.uri.path == '/v1/tracking') {
           response
             ..statusCode = 302
-            ..headers.set('location', 'http://127.0.0.1:${server.port}/landing');
+            ..headers
+                .set('location', 'http://127.0.0.1:${server.port}/landing');
         } else {
           // What a content-negotiating landing page answers a JSON request with.
           response
@@ -54,7 +55,8 @@ void main() {
         );
         final clickUrl = 'http://127.0.0.1:${server.port}/v1/tracking?e=click';
 
-        sdk.fireClick(Tracking(clicks: [TrackingItem(key: 'default', url: clickUrl)]));
+        sdk.fireClick(
+            Tracking(clicks: [TrackingItem(key: 'default', url: clickUrl)]));
         await Future<void>.delayed(const Duration(milliseconds: 500));
 
         expect(paths, equals(['/v1/tracking']),
@@ -66,7 +68,8 @@ void main() {
 
   group('fireClick with an injected client', () {
     const clickUrl = 'https://mock.api.admoai.com/v1/tracking?e=click';
-    final clicks = Tracking(clicks: [TrackingItem(key: 'default', url: clickUrl)]);
+    final clicks =
+        Tracking(clicks: [TrackingItem(key: 'default', url: clickUrl)]);
 
     test('a 302 click asks the client not to follow it, and sends nothing else',
         () async {

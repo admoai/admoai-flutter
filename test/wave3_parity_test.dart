@@ -12,7 +12,8 @@ void main() {
 
   setUp(() {
     sdk = AdMoai.forTesting(
-      config: SDKConfig(baseUrl: 'https://mock.api.admoai.com', apiVersion: '2025-11-01'),
+      config: SDKConfig(
+          baseUrl: 'https://mock.api.admoai.com', apiVersion: '2025-11-01'),
     );
   });
 
@@ -24,7 +25,8 @@ void main() {
     });
 
     test('a request with a placement still builds', () {
-      final request = sdk.createRequestBuilder().addPlacement(key: 'home').build();
+      final request =
+          sdk.createRequestBuilder().addPlacement(key: 'home').build();
       expect(request.placements.single.key, equals('home'));
     });
   });
@@ -46,10 +48,9 @@ void main() {
           .createRequestBuilder()
           .addPlacement(key: 'home')
           .setDestinationTargeting([
-            Destination(latitude: 1, longitude: 2, minConfidence: 0.0),
-            Destination(latitude: 3, longitude: 4, minConfidence: 1.0),
-          ])
-          .build();
+        Destination(latitude: 1, longitude: 2, minConfidence: 0.0),
+        Destination(latitude: 3, longitude: 4, minConfidence: 1.0),
+      ]).build();
       expect(request.targeting?.destination?.length, equals(2));
     });
   });
@@ -72,7 +73,8 @@ void main() {
   });
 
   group('F14 — template is nullable', () {
-    test('an absent template block yields null, not an empty-keyed Template', () {
+    test('an absent template block yields null, not an empty-keyed Template',
+        () {
       // Was non-nullable and defaulted to Template(key: ''), so `creative.template == null` —
       // the natural guard, and the one that works on iOS and Android — never fired, and a
       // publisher rendered against an empty key instead.
@@ -138,7 +140,11 @@ void main() {
         'contents': [],
         'advertiser': {},
         'tracking': {},
-        'journey': {'dealId': 'jad_1', 'instanceId': 'jinst_1', 'optStatus': 'sideways'},
+        'journey': {
+          'dealId': 'jad_1',
+          'instanceId': 'jinst_1',
+          'optStatus': 'sideways'
+        },
       });
       expect(creative.journeyOptStatus, isNull);
       expect(creative.journeyDealId, equals('jad_1'));

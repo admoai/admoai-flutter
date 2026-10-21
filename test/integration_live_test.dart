@@ -50,8 +50,7 @@ class LoggingClient extends http.BaseClient {
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
     // Buffer request body
-    final bodyBytes =
-        request is http.Request ? request.bodyBytes : <int>[];
+    final bodyBytes = request is http.Request ? request.bodyBytes : <int>[];
     final bodyStr = utf8.decode(bodyBytes);
 
     Map<String, dynamic> reqJson = {};
@@ -81,7 +80,8 @@ class LoggingClient extends http.BaseClient {
       prettyResp = respStr;
     }
 
-    print('\n━━━ RESPONSE (${response.statusCode}) ━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    print(
+        '\n━━━ RESPONSE (${response.statusCode}) ━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     print(prettyResp.length > 3000
         ? '${prettyResp.substring(0, 3000)}\n… (truncated)'
         : prettyResp);
@@ -210,8 +210,7 @@ void main() {
           .addPlacement(key: 'home') // ← no format arg
           .build();
 
-      final placement =
-          (request.toJson()['placements'] as List).first as Map;
+      final placement = (request.toJson()['placements'] as List).first as Map;
       print('\n[§1-format-absent] placement JSON: $placement');
 
       expect(
@@ -227,8 +226,7 @@ void main() {
           .createRequestBuilder()
           .addPlacement(key: 'home', format: Format.native)
           .build();
-      final placement =
-          (request.toJson()['placements'] as List).first as Map;
+      final placement = (request.toJson()['placements'] as List).first as Map;
       print('[§1-native] $placement');
       expect(placement['format'], equals('native'));
     });
@@ -238,8 +236,7 @@ void main() {
           .createRequestBuilder()
           .addPlacement(key: 'home', format: Format.video)
           .build();
-      final placement =
-          (request.toJson()['placements'] as List).first as Map;
+      final placement = (request.toJson()['placements'] as List).first as Map;
       print('[§1-video] $placement');
       expect(placement['format'], equals('video'));
     });
@@ -265,7 +262,8 @@ void main() {
       expect(dest.containsKey('min_confidence'), isTrue,
           reason: 'API requires snake_case "min_confidence"');
       expect(dest.containsKey('minConfidence'), isFalse,
-          reason: 'camelCase "minConfidence" is rejected by the API with HTTP 400');
+          reason:
+              'camelCase "minConfidence" is rejected by the API with HTTP 400');
       expect(dest['min_confidence'], equals(0.5046));
     });
   });
@@ -400,8 +398,7 @@ void main() {
 
           // ── Pre-flight: confirm format is NOT in the outgoing JSON ────────
           final reqJson = request.toJson();
-          final placementJson =
-              (reqJson['placements'] as List).first as Map;
+          final placementJson = (reqJson['placements'] as List).first as Map;
           expect(
             placementJson.containsKey('format'),
             isFalse,
@@ -495,7 +492,11 @@ void main() {
         {List<Map<String, dynamic>>? resources}) {
       return <String, dynamic>{
         'contents': <Map<String, dynamic>>[
-          <String, dynamic>{'key': 'headline', 'value': 'Test Ad', 'type': 'text'}
+          <String, dynamic>{
+            'key': 'headline',
+            'value': 'Test Ad',
+            'type': 'text'
+          }
         ],
         'advertiser': <String, dynamic>{'name': 'ACME'},
         'template': <String, dynamic>{'key': 'wide'},
@@ -555,9 +556,12 @@ void main() {
       final request = sdk
           .createRequestBuilder()
           .addPlacement(key: 'home')
-          .addDestinationTargeting(latitude: 10, longitude: 20, minConfidence: 0.5)
-          .addDestinationTargeting(latitude: 10, longitude: 20, minConfidence: 0.5) // dup
-          .addDestinationTargeting(latitude: 30, longitude: 40, minConfidence: 0.7)
+          .addDestinationTargeting(
+              latitude: 10, longitude: 20, minConfidence: 0.5)
+          .addDestinationTargeting(
+              latitude: 10, longitude: 20, minConfidence: 0.5) // dup
+          .addDestinationTargeting(
+              latitude: 30, longitude: 40, minConfidence: 0.7)
           .build();
       expect(request.targeting?.destination?.length, equals(2));
     });
@@ -577,8 +581,10 @@ void main() {
       final request = sdk
           .createRequestBuilder()
           .addPlacement(key: 'home')
-          .addDestinationTargeting(latitude: 1, longitude: 2, minConfidence: 0.0)
-          .addDestinationTargeting(latitude: 3, longitude: 4, minConfidence: 1.0)
+          .addDestinationTargeting(
+              latitude: 1, longitude: 2, minConfidence: 0.0)
+          .addDestinationTargeting(
+              latitude: 3, longitude: 4, minConfidence: 1.0)
           .build();
       expect(request.targeting?.destination?.length, equals(2));
     });
@@ -600,8 +606,7 @@ void main() {
       final sdk = await sdkWith(() => http.Response('', 401));
       final req =
           (sdk.createRequestBuilder()..addPlacement(key: 'home')).build();
-      expect(() => sdk.requestAds(req),
-          throwsA(isA<UnexpectedStatusError>()));
+      expect(() => sdk.requestAds(req), throwsA(isA<UnexpectedStatusError>()));
     });
 
     test('502 surfaces as ServerError', () async {
