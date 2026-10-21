@@ -15,7 +15,8 @@ void main() {
 
       expect(c.contents, isEmpty);
       expect(c.advertiser.name, isNull);
-      expect(c.template, isNull); // absent/malformed template is null, matching iOS and Android
+      expect(c.template,
+          isNull); // absent/malformed template is null, matching iOS and Android
       expect(c.tracking.impressions, isNull);
       expect(c.metadata, isNull);
       expect(c.vast, isNull);
@@ -37,7 +38,8 @@ void main() {
         });
       }, returnsNormally);
       expect(c.contents, isEmpty);
-      expect(c.template, isNull); // absent/malformed template is null, matching iOS and Android
+      expect(c.template,
+          isNull); // absent/malformed template is null, matching iOS and Android
       expect(c.metadata, isNull);
       expect(c.vast, isNull);
     });

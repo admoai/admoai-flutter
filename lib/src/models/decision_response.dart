@@ -11,8 +11,7 @@ String? _asString(dynamic v) => v is String ? v : null;
 bool? _asBool(dynamic v) => v is bool ? v : null;
 int? _asInt(dynamic v) => v is int ? v : (v is num ? v.toInt() : null);
 double? _asDouble(dynamic v) => v is num ? v.toDouble() : null;
-Map<String, dynamic>? _asMap(dynamic v) =>
-    v is Map<String, dynamic> ? v : null;
+Map<String, dynamic>? _asMap(dynamic v) => v is Map<String, dynamic> ? v : null;
 
 class Decision {
   final String placement;
@@ -101,10 +100,7 @@ class Creative {
     final rawVerifications = json['verificationScriptResources'];
     return Creative(
       contents: rawContents is List
-          ? rawContents
-              .map(Content.tryFromJson)
-              .whereType<Content>()
-              .toList()
+          ? rawContents.map(Content.tryFromJson).whereType<Content>().toList()
           : <Content>[],
       metadata: _asMap(json['metadata']) == null
           ? null
@@ -288,8 +284,7 @@ class Content {
 }
 
 extension ContentListExtension on List<Content> {
-  Content? getContent(String key) =>
-      where((c) => c.key == key).firstOrNull;
+  Content? getContent(String key) => where((c) => c.key == key).firstOrNull;
 
   bool hasContents() => isNotEmpty;
 

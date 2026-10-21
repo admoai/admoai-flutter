@@ -27,7 +27,8 @@ Map<String, dynamic> loadManifest() {
 
 void manifestGroup(E2eReport report) {
   final manifest = loadManifest();
-  final scenarios = (manifest['scenarios'] as List).cast<Map<String, dynamic>>();
+  final scenarios =
+      (manifest['scenarios'] as List).cast<Map<String, dynamic>>();
 
   for (final entry in scenarios) {
     scenario(
@@ -51,7 +52,8 @@ Future<void> _run(Map<String, dynamic> entry, List<String> notes) async {
 
   try {
     final builder = driver.sdk.createRequestBuilder();
-    for (final p in (request['placements'] as List).cast<Map<String, dynamic>>()) {
+    for (final p
+        in (request['placements'] as List).cast<Map<String, dynamic>>()) {
       builder.addPlacement(
         key: p['key'] as String,
         count: p['count'] as int?,
@@ -60,7 +62,8 @@ Future<void> _run(Map<String, dynamic> entry, List<String> notes) async {
         templateId: p['templateId'] as String?,
       );
     }
-    for (final c in ((request['custom'] as List?) ?? []).cast<Map<String, dynamic>>()) {
+    for (final c
+        in ((request['custom'] as List?) ?? []).cast<Map<String, dynamic>>()) {
       builder.addCustomTargeting(key: c['key'] as String, value: c['value']);
     }
     if (request['session'] != null) {
@@ -111,7 +114,8 @@ Future<void> _run(Map<String, dynamic> entry, List<String> notes) async {
         await driver.sdk.requestAds(built);
         check(false, 'the request is rejected (it succeeded instead)');
       } on ArgumentError catch (e) {
-        check(kind == 'local', 'a local SDK error is expected for this scenario (got $e)');
+        check(kind == 'local',
+            'a local SDK error is expected for this scenario (got $e)');
         notes.add('rejected locally as ArgumentError, no network call');
         return;
       } on ValidationError catch (e) {
@@ -121,7 +125,8 @@ Future<void> _run(Map<String, dynamic> entry, List<String> notes) async {
           check(e.errors.any((err) => err.code == code),
               'the engine error code is $code (got ${e.errors.map((x) => x.code).toList()})');
         }
-        notes.add('rejected with ${e.errors.map((x) => '[${x.code}] ${x.message}').join()}');
+        notes.add(
+            'rejected with ${e.errors.map((x) => '[${x.code}] ${x.message}').join()}');
         return;
       }
       return;
@@ -143,7 +148,9 @@ Future<void> _run(Map<String, dynamic> entry, List<String> notes) async {
           .map((p) => p['key'] as String)
           .toSet();
       final returned = decisions.map((d) => d.placement).toSet();
-      check(requested.difference(returned).isEmpty && returned.difference(requested).isEmpty,
+      check(
+          requested.difference(returned).isEmpty &&
+              returned.difference(requested).isEmpty,
           'every requested placement is keyed back: $requested vs $returned');
     }
 
@@ -152,13 +159,15 @@ Future<void> _run(Map<String, dynamic> entry, List<String> notes) async {
     final creatives = decision.creatives ?? <Creative>[];
 
     if (outcome == 'noAd') {
-      check(decision.isNoAd, 'the decision is a clean no-ad (got ${creatives.length} creatives)');
+      check(decision.isNoAd,
+          'the decision is a clean no-ad (got ${creatives.length} creatives)');
       check(!decision.hasCreative, 'hasCreative is false');
       notes.add('no-ad on ${decision.placement}, nothing exposed to fire');
       return;
     }
 
-    check(decision.hasCreative, 'a creative is served on ${decision.placement}');
+    check(
+        decision.hasCreative, 'a creative is served on ${decision.placement}');
 
     final atMost = expect['creativesAtMost'] as int?;
     if (atMost != null) {
@@ -167,8 +176,12 @@ Future<void> _run(Map<String, dynamic> entry, List<String> notes) async {
       notes.add('returned ${creatives.length} creative(s)');
     }
     if (expect['creativesDistinct'] == true && creatives.length > 1) {
-      final ids = creatives.map((c) => c.metadata?.creativeId).whereType<String>().toList();
-      check(ids.toSet().length == ids.length, 'the returned creatives are distinct (got $ids)');
+      final ids = creatives
+          .map((c) => c.metadata?.creativeId)
+          .whereType<String>()
+          .toList();
+      check(ids.toSet().length == ids.length,
+          'the returned creatives are distinct (got $ids)');
     }
 
     final creativeExpect = expect['creative'] as Map<String, dynamic>?;
@@ -177,10 +190,12 @@ Future<void> _run(Map<String, dynamic> entry, List<String> notes) async {
     }
     final pinTracking = entry['pinTracking'] as Map<String, dynamic>?;
     if (pinTracking != null) {
-      await _runPinTracking(pinTracking, driver, creatives.first.matchedPoints, notes,
+      await _runPinTracking(
+          pinTracking, driver, creatives.first.matchedPoints, notes,
           fetchAgain: () async {
         final again = await driver.sdk.requestAds(built);
-        return again.body.data?.firstOrNull?.creatives?.firstOrNull?.matchedPoints ??
+        return again.body.data?.firstOrNull?.creatives?.firstOrNull
+                ?.matchedPoints ??
             const <MatchedPoint>[];
       });
     }
@@ -210,7 +225,8 @@ Future<void> _run(Map<String, dynamic> entry, List<String> notes) async {
 //   `engineAcceptsEveryBeacon`: the engine answered every tracking GET with a status below 400.
 //   Always: the total number of tracking GETs equals the expected total — nothing stray.
 
-Iterable<String> _viewUrls(MatchedPoint p) => (p.tracking?.views ?? const []).map((t) => t.url);
+Iterable<String> _viewUrls(MatchedPoint p) =>
+    (p.tracking?.views ?? const []).map((t) => t.url);
 
 Future<void> _runPinTracking(
   Map<String, dynamic> pinTracking,
@@ -227,16 +243,19 @@ Future<void> _runPinTracking(
 
   MatchedPoint pick(int i) {
     final pins = responses.last;
-    check(i < pins.length, 'the response carries a pin at index $i (got ${pins.length})');
+    check(i < pins.length,
+        'the response carries a pin at index $i (got ${pins.length})');
     return pins[i];
   }
 
-  List<String> tracking() => client.sent.where((u) => u.contains('/v1/tracking')).toList();
+  List<String> tracking() =>
+      client.sent.where((u) => u.contains('/v1/tracking')).toList();
 
   // The decision that served this scenario went through the recorder too; only beacons count.
   client.sent.clear();
   client.answered.clear();
-  for (final step in (pinTracking['steps'] as List).cast<Map<String, dynamic>>()) {
+  for (final step
+      in (pinTracking['steps'] as List).cast<Map<String, dynamic>>()) {
     if (step['newResponse'] == true) {
       final pins = await fetchAgain();
       check(pins.isNotEmpty, 'the new decision response carries pins');
@@ -253,7 +272,8 @@ Future<void> _runPinTracking(
         final range = views as Map<String, dynamic>;
         final from = range['from'] as int;
         final to = range['to'] as int;
-        check(to <= pins.length, 'the response carries $to pins (got ${pins.length})');
+        check(to <= pins.length,
+            'the response carries $to pins (got ${pins.length})');
         slice = pins.sublist(from, to);
       }
       sdk.trackPointViews(slice);
@@ -289,7 +309,8 @@ Future<void> _runPinTracking(
   final expectedTotal = expectedViews.length + interactionTotal;
   check(expectedTotal > 0, 'the steps name at least one beacon to send');
   final deadline = DateTime.now().add(const Duration(seconds: 10));
-  while (tracking().length < expectedTotal && DateTime.now().isBefore(deadline)) {
+  while (
+      tracking().length < expectedTotal && DateTime.now().isBefore(deadline)) {
     await Future<void>.delayed(const Duration(milliseconds: 50));
   }
   await Future<void>.delayed(const Duration(milliseconds: 1500));
@@ -301,12 +322,14 @@ Future<void> _runPinTracking(
   final e = pinTracking['expect'] as Map<String, dynamic>;
 
   if (e['viewsOncePerResponse'] == true) {
-    final everyViewUrl = responses.expand((pins) => pins).expand(_viewUrls).toSet();
+    final everyViewUrl =
+        responses.expand((pins) => pins).expand(_viewUrls).toSet();
     for (final url in expectedViews) {
       check(counts[url] == 1,
           "a shown pin's view beacon is sent exactly once (got ${counts[url] ?? 0})");
     }
-    final unexpected = sent.toSet().intersection(everyViewUrl).difference(expectedViews);
+    final unexpected =
+        sent.toSet().intersection(everyViewUrl).difference(expectedViews);
     check(unexpected.isEmpty,
         'no view beacon is sent for a pin the app never showed (got ${unexpected.length})');
   }
@@ -320,7 +343,8 @@ Future<void> _runPinTracking(
       'exactly $expectedTotal tracking GETs reach the engine, nothing stray (got ${sent.length})');
   if (e['newResponseHasNewViewUrls'] == true) {
     check(responses.length >= 2, 'the steps fetched a second response');
-    final perResponse = responses.map((pins) => pins.expand(_viewUrls).toSet()).toList();
+    final perResponse =
+        responses.map((pins) => pins.expand(_viewUrls).toSet()).toList();
     for (var i = 0; i < perResponse.length; i++) {
       for (var j = i + 1; j < perResponse.length; j++) {
         check(perResponse[i].intersection(perResponse[j]).isEmpty,
@@ -332,16 +356,20 @@ Future<void> _runPinTracking(
     List<(String, int)> answers() =>
         client.answered.where((a) => a.$1.contains('/v1/tracking')).toList();
     final answerDeadline = DateTime.now().add(const Duration(seconds: 10));
-    while (answers().length < sent.length && DateTime.now().isBefore(answerDeadline)) {
+    while (answers().length < sent.length &&
+        DateTime.now().isBefore(answerDeadline)) {
       await Future<void>.delayed(const Duration(milliseconds: 50));
     }
     final all = answers();
     check(all.length == sent.length,
         'the engine answered every beacon (${all.length}/${sent.length})');
-    final rejected = all.where((a) => a.$2 < 200 || a.$2 >= 400).map((a) => a.$2).toList();
-    check(rejected.isEmpty, 'the engine accepts every beacon (rejected: $rejected)');
+    final rejected =
+        all.where((a) => a.$2 < 200 || a.$2 >= 400).map((a) => a.$2).toList();
+    check(rejected.isEmpty,
+        'the engine accepts every beacon (rejected: $rejected)');
   }
-  notes.add('${responses.length} response(s), ${responses.map((p) => p.length).toList()} pins: '
+  notes.add(
+      '${responses.length} response(s), ${responses.map((p) => p.length).toList()} pins: '
       '${expectedViews.length} view GET(s), $interactionTotal tap/click GET(s), '
       '${sent.length} sent in total');
 }
@@ -357,7 +385,8 @@ Format? _format(String? raw) {
   }
 }
 
-void _assertCreative(Creative creative, Map<String, dynamic> e, List<String> notes) {
+void _assertCreative(
+    Creative creative, Map<String, dynamic> e, List<String> notes) {
   if (e['requireMetadata'] == true) {
     final m = creative.metadata;
     check(m != null, 'the creative carries a metadata block');
@@ -379,10 +408,12 @@ void _assertCreative(Creative creative, Map<String, dynamic> e, List<String> not
     check((a.logoUrl ?? '').isNotEmpty, 'advertiser.logoUrl is non-empty');
   }
   if (e['requireTemplate'] == true) {
-    check((creative.template?.key ?? '').isNotEmpty, 'template.key is non-empty');
+    check(
+        (creative.template?.key ?? '').isNotEmpty, 'template.key is non-empty');
   }
   if (e['requireContents'] == true) {
-    check(creative.contents.hasContents(), 'the creative carries content fields');
+    check(
+        creative.contents.hasContents(), 'the creative carries content fields');
     notes.add('${creative.contents.length} content field(s)');
   }
   if (e['journey'] != null) {
@@ -399,7 +430,8 @@ void _assertCreative(Creative creative, Map<String, dynamic> e, List<String> not
   }
   switch (e['impressions']) {
     case 'required':
-      check((creative.tracking.impressions ?? []).isNotEmpty, 'an impression URL is exposed');
+      check((creative.tracking.impressions ?? []).isNotEmpty,
+          'an impression URL is exposed');
       break;
     case 'forbidden':
       check((creative.tracking.impressions ?? []).isEmpty,
@@ -421,7 +453,8 @@ void _assertCreative(Creative creative, Map<String, dynamic> e, List<String> not
         'the creative carries exactly $exactly matched point(s) (got ${points.length})');
   }
   if (e['matchedPointsNone'] == true) {
-    check(points.isEmpty, 'the creative carries NO matched points (got ${points.length})');
+    check(points.isEmpty,
+        'the creative carries NO matched points (got ${points.length})');
   }
   if (e['matchedPointsNearestFirst'] == true) {
     var ordered = true;
@@ -448,10 +481,12 @@ void _assertCreative(Creative creative, Map<String, dynamic> e, List<String> not
       check(t != null, 'point "${p.name}" carries tracking');
       check((t?.views ?? []).isNotEmpty, 'point "${p.name}" has a view beacon');
       check((t?.taps ?? []).isNotEmpty, 'point "${p.name}" has a tap beacon');
-      check((t?.clicks ?? []).isNotEmpty, 'point "${p.name}" has a click beacon');
+      check(
+          (t?.clicks ?? []).isNotEmpty, 'point "${p.name}" has a click beacon');
       // A shared beacon would attribute every shop's numbers to whichever the token names.
       for (final item in (t?.views ?? <TrackingItem>[])) {
-        check(seen.add(item.url), 'point "${p.name}" has its own view beacon, not a shared one');
+        check(seen.add(item.url),
+            'point "${p.name}" has its own view beacon, not a shared one');
       }
     }
   }
@@ -476,20 +511,24 @@ void _assertCreative(Creative creative, Map<String, dynamic> e, List<String> not
   }
   final videoKeys = (e['videoEventKeys'] as List?)?.cast<String>();
   if (videoKeys != null) {
-    final actual = (creative.tracking.videoEvents ?? []).map((v) => v.key).toSet();
+    final actual =
+        (creative.tracking.videoEvents ?? []).map((v) => v.key).toSet();
     check(videoKeys.every(actual.contains),
         'video events include $videoKeys (got ${actual.toList()..sort()})');
   }
   if (e['requireVastTagUrl'] == true) {
-    check((creative.getVastTagUrl() ?? '').isNotEmpty, 'a VAST tag URL is exposed');
-    check(creative.isVastTagDelivery(), 'isVastTagDelivery() agrees with the delivery mode');
+    check((creative.getVastTagUrl() ?? '').isNotEmpty,
+        'a VAST tag URL is exposed');
+    check(creative.isVastTagDelivery(),
+        'isVastTagDelivery() agrees with the delivery mode');
   }
   if (e['requireVastXmlDecodes'] == true) {
     final b64 = creative.getVastXmlBase64();
     check(b64 != null, 'vast.xmlBase64 is present');
     final xml = utf8.decode(base64Decode(b64!));
     check(xml.contains('<VAST'), 'the decoded payload is a VAST document');
-    check(creative.isVastXmlDelivery(), 'isVastXmlDelivery() agrees with the delivery mode');
+    check(creative.isVastXmlDelivery(),
+        'isVastXmlDelivery() agrees with the delivery mode');
   }
   if (e['metadataIsSkippable'] != null) {
     check(creative.metadata?.isSkippable == e['metadataIsSkippable'],
@@ -524,7 +563,8 @@ void _assertCreative(Creative creative, Map<String, dynamic> e, List<String> not
 
 void wireShapeGroup(E2eReport report) {
   scenario(report, 'U1',
-      'the canonical request body uses the engine\'s canonical key names', (notes) async {
+      'the canonical request body uses the engine\'s canonical key names',
+      (notes) async {
     final driver = await newDriver();
     try {
       final request = driver.sdk
@@ -533,14 +573,17 @@ void wireShapeGroup(E2eReport report) {
           .setUserId('u-1')
           .addGeoTargeting(5128581)
           .addLocationTargeting(latitude: 40.7, longitude: -74.0)
-          .addDestinationTargeting(latitude: 41.0, longitude: -73.0, minConfidence: 0.8)
+          .addDestinationTargeting(
+              latitude: 41.0, longitude: -73.0, minConfidence: 0.8)
           .build();
       final body = driver.sdk.getHttpRequest(request).body ?? '';
 
       // `minConfidence` is canonical; `min_confidence` is a back-compat alias the engine keeps
       // only for already-fielded SDKs. A new version must not emit the alias.
-      check(body.contains('"minConfidence"'), 'destination uses the canonical camelCase key');
-      check(!body.contains('min_confidence'), 'the legacy snake_case alias is NOT emitted');
+      check(body.contains('"minConfidence"'),
+          'destination uses the canonical camelCase key');
+      check(!body.contains('min_confidence'),
+          'the legacy snake_case alias is NOT emitted');
       check(body.contains('"placements"'), 'placements are present');
       notes.add('body keys verified against the engine\'s canonical contract');
     } finally {
@@ -548,43 +591,51 @@ void wireShapeGroup(E2eReport report) {
     }
   });
 
-  scenario(report, 'U2', 'decision headers carry version, language and the SDK User-Agent',
+  scenario(report, 'U2',
+      'decision headers carry version, language and the SDK User-Agent',
       (notes) async {
     final driver = await newDriver();
     try {
-      final request = driver.sdk.createRequestBuilder().addPlacement(key: 'home').build();
+      final request =
+          driver.sdk.createRequestBuilder().addPlacement(key: 'home').build();
       final headers = driver.sdk.getHttpRequest(request).headers ?? {};
 
       check(headers['X-Decision-Version'] == e2eApiVersion,
           'X-Decision-Version is $e2eApiVersion (got ${headers['X-Decision-Version']})');
       check((headers['User-Agent'] ?? '').startsWith('AdMoaiSDK/'),
           'a User-Agent identifying the SDK is sent (got ${headers['User-Agent']})');
-      check(headers['Content-Type'] == 'application/json', 'Content-Type is application/json');
+      check(headers['Content-Type'] == 'application/json',
+          'Content-Type is application/json');
       notes.add('headers: ${(headers.keys.toList()..sort()).join(', ')}');
     } finally {
       driver.dispose();
     }
   });
 
-  scenario(report, 'U3', 'omitted optional fields are absent from the body, not sent as null',
+  scenario(report, 'U3',
+      'omitted optional fields are absent from the body, not sent as null',
       (notes) async {
     final driver = await newDriver();
     try {
-      final request = driver.sdk.createRequestBuilder().addPlacement(key: 'home').build();
+      final request =
+          driver.sdk.createRequestBuilder().addPlacement(key: 'home').build();
       final body = driver.sdk.getHttpRequest(request).body ?? '';
 
       // A tolerant engine accepts nulls, but emitting them makes every payload larger and muddies
       // "the publisher did not set this" versus "the publisher cleared this".
-      check(!body.contains('"format"'), 'an unset placement format is omitted entirely');
+      check(!body.contains('"format"'),
+          'an unset placement format is omitted entirely');
       check(!body.contains('"count"'), 'an unset count is omitted entirely');
-      check(!body.contains('null'), 'no explicit nulls are emitted anywhere in the body');
+      check(!body.contains('null'),
+          'no explicit nulls are emitted anywhere in the body');
       notes.add('no nulls, no unset optional keys');
     } finally {
       driver.dispose();
     }
   });
 
-  scenario(report, 'U4', 'disabling app and device collection removes those blocks from the wire',
+  scenario(report, 'U4',
+      'disabling app and device collection removes those blocks from the wire',
       (notes) async {
     final driver = await newDriver();
     try {
@@ -604,7 +655,9 @@ void wireShapeGroup(E2eReport report) {
     }
   });
 
-  scenario(report, 'U5', 'Journey context reaches the wire as top-level camelCase', (notes) async {
+  scenario(
+      report, 'U5', 'Journey context reaches the wire as top-level camelCase',
+      (notes) async {
     final driver = await newDriver();
     try {
       final session = freshSession('u5');
@@ -616,8 +669,10 @@ void wireShapeGroup(E2eReport report) {
           .build();
       final body = driver.sdk.getHttpRequest(request).body ?? '';
 
-      check(body.contains('"sessionId":"$session"'), 'sessionId is top-level camelCase');
-      check(body.contains('"journeyOpt":"in"'), 'journeyOpt serializes to the wire literal "in"');
+      check(body.contains('"sessionId":"$session"'),
+          'sessionId is top-level camelCase');
+      check(body.contains('"journeyOpt":"in"'),
+          'journeyOpt serializes to the wire literal "in"');
       notes.add('journey context verified on the wire');
     } finally {
       driver.dispose();

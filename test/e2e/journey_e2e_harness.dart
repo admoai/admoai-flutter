@@ -24,9 +24,10 @@ import 'package:http/io_client.dart' as http_io;
 import 'package:logging/logging.dart';
 
 /// Base URL of the locally-running decision-engine. No trailing slash.
-final String e2eBaseUrl = (Platform.environment['ADMOAI_JOURNEY_E2E_BASE_URL'] ??
-        'http://127.0.0.1:8080')
-    .replaceAll(RegExp(r'/+$'), '');
+final String e2eBaseUrl =
+    (Platform.environment['ADMOAI_JOURNEY_E2E_BASE_URL'] ??
+            'http://127.0.0.1:8080')
+        .replaceAll(RegExp(r'/+$'), '');
 
 /// The Journey-capable API version. A wrong version is a hard gate: the engine
 /// silently ignores journey fields and serves normal ads.

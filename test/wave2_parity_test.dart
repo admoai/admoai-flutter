@@ -17,7 +17,8 @@ void main() {
   const baseUrl = 'https://mock.api.admoai.com';
 
   group('F6 — tracking failures must not log the URL', () {
-    test('a failed tracking request logs the error type, never the ?e= token', () async {
+    test('a failed tracking request logs the error type, never the ?e= token',
+        () async {
       final records = <LogRecord>[];
       final logger = Logger('F6Test');
       logger.onRecord.listen(records.add);
@@ -30,12 +31,14 @@ void main() {
       });
 
       final sdk = AdMoai.forTesting(
-        config: SDKConfig(baseUrl: baseUrl, apiVersion: '2025-11-01', logger: logger),
+        config: SDKConfig(
+            baseUrl: baseUrl, apiVersion: '2025-11-01', logger: logger),
         httpClient: mockClient,
       );
 
       const secretToken = 'v1.aVerySecretOpaqueServeTimeToken';
-      sdk.fireTracking('https://tracking.example.com/v1/tracking?e=$secretToken');
+      sdk.fireTracking(
+          'https://tracking.example.com/v1/tracking?e=$secretToken');
       await Future.delayed(Duration.zero);
 
       expect(records, isNotEmpty);
@@ -172,7 +175,8 @@ void main() {
       expect(resource!.verificationParameters, equals('anId=123&advId=456'));
     });
 
-    test('an explicit null stays null rather than becoming the string "null"', () {
+    test('an explicit null stays null rather than becoming the string "null"',
+        () {
       // null carries no payload; stringifying it would hand the vendor a fake value.
       final resource = parse(null);
       expect(resource!.verificationParameters, isNull);

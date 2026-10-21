@@ -22,7 +22,8 @@ void main() {
   test('the manifest matches the cross-SDK hash', () {
     final digest = sha256.convert(file.readAsBytesSync()).toString();
     expect(digest, equals(expectedManifestSha256),
-        reason: 'scenarios.json changed. Mirror the edit into admoai-ios and admoai-android, '
+        reason:
+            'scenarios.json changed. Mirror the edit into admoai-ios and admoai-android, '
             'then update expectedManifestSha256 in all three repos.');
   });
 
@@ -30,14 +31,21 @@ void main() {
     final root = jsonDecode(file.readAsStringSync()) as Map<String, dynamic>;
     final scenarios = (root['scenarios'] as List).cast<Map<String, dynamic>>();
 
-    expect(scenarios, isNotEmpty, reason: 'the manifest declares at least one scenario');
-    final ids = scenarios.map((s) => s['id'] as String?).whereType<String>().toList();
-    expect(ids.length, equals(scenarios.length), reason: 'every scenario has an id');
-    expect(ids.toSet().length, equals(ids.length), reason: 'scenario ids are unique');
+    expect(scenarios, isNotEmpty,
+        reason: 'the manifest declares at least one scenario');
+    final ids =
+        scenarios.map((s) => s['id'] as String?).whereType<String>().toList();
+    expect(ids.length, equals(scenarios.length),
+        reason: 'every scenario has an id');
+    expect(ids.toSet().length, equals(ids.length),
+        reason: 'scenario ids are unique');
     for (final s in scenarios) {
-      expect((s['title'] as String?) ?? '', isNotEmpty, reason: '${s['id']} has a title');
-      expect(s['request'], isA<Map<String, dynamic>>(), reason: '${s['id']} has a request block');
-      expect(s['expect'], isA<Map<String, dynamic>>(), reason: '${s['id']} has an expect block');
+      expect((s['title'] as String?) ?? '', isNotEmpty,
+          reason: '${s['id']} has a title');
+      expect(s['request'], isA<Map<String, dynamic>>(),
+          reason: '${s['id']} has a request block');
+      expect(s['expect'], isA<Map<String, dynamic>>(),
+          reason: '${s['id']} has an expect block');
     }
   });
 }

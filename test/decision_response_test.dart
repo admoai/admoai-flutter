@@ -165,7 +165,8 @@ void main() {
           tracking.hasTrackingFor(TrackingType.impression, 'default'), isFalse);
       expect(tracking.hasTrackingFor(TrackingType.click, 'default'), isFalse);
       expect(tracking.hasTrackingFor(TrackingType.custom, 'k'), isFalse);
-      expect(tracking.hasTrackingFor(TrackingType.videoEvent, 'start'), isFalse);
+      expect(
+          tracking.hasTrackingFor(TrackingType.videoEvent, 'start'), isFalse);
     });
 
     test('Tracking with empty object does not throw', () {

@@ -33,11 +33,15 @@ void main() {
   /// Canonical impression + clicks on "default"/"cta_tap" plus [trackers].
   Tracking trackingWith(List<ThirdPartyTracker>? trackers) => Tracking(
         impressions: [
-          TrackingItem(key: 'default', url: 'https://mock.api.admoai.com/v1/t/imp'),
+          TrackingItem(
+              key: 'default', url: 'https://mock.api.admoai.com/v1/t/imp'),
         ],
         clicks: [
-          TrackingItem(key: 'default', url: 'https://mock.api.admoai.com/v1/t/click'),
-          TrackingItem(key: 'cta_tap', url: 'https://mock.api.admoai.com/v1/t/click-cta'),
+          TrackingItem(
+              key: 'default', url: 'https://mock.api.admoai.com/v1/t/click'),
+          TrackingItem(
+              key: 'cta_tap',
+              url: 'https://mock.api.admoai.com/v1/t/click-cta'),
         ],
         thirdPartyTrackers: trackers,
       );
@@ -73,7 +77,8 @@ void main() {
       .toList();
 
   group('§A model / decoding', () {
-    test('A1 A2 - absent or null field decodes to null; helpers unaffected', () {
+    test('A1 A2 - absent or null field decodes to null; helpers unaffected',
+        () {
       final absent = Tracking.fromJson({
         'impressions': [
           {'key': 'default', 'url': 'https://t/imp'}
@@ -86,8 +91,10 @@ void main() {
       expect(explicitNull.thirdPartyTrackers, isNull);
     });
 
-    test('A3 A12 - impression entry decodes verbatim (macros, query order)', () {
-      const rawUrl = 'https://Agency.example/Track?b=2&a=1&cb=%%CACHEBUSTER%%&x=a%20b';
+    test('A3 A12 - impression entry decodes verbatim (macros, query order)',
+        () {
+      const rawUrl =
+          'https://Agency.example/Track?b=2&a=1&cb=%%CACHEBUSTER%%&x=a%20b';
       final tracking = Tracking.fromJson({
         'thirdPartyTrackers': [
           {
@@ -214,7 +221,8 @@ void main() {
 
     test('A9 A10 - unknown types and keyless specific clicks are rejected', () {
       expect(
-        ThirdPartyTrackerDispatcher.rejectionReason(tracker(eventType: 'conversion')),
+        ThirdPartyTrackerDispatcher.rejectionReason(
+            tracker(eventType: 'conversion')),
         isNotNull,
       );
       expect(
@@ -223,7 +231,8 @@ void main() {
         isNotNull,
       );
       expect(
-        ThirdPartyTrackerDispatcher.rejectionReason(tracker(eventType: 'click')),
+        ThirdPartyTrackerDispatcher.rejectionReason(
+            tracker(eventType: 'click')),
         isNotNull,
       );
       expect(
@@ -241,8 +250,8 @@ void main() {
     test('valid shapes pass validation', () {
       expect(ThirdPartyTrackerDispatcher.rejectionReason(tracker()), isNull);
       expect(
-        ThirdPartyTrackerDispatcher.rejectionReason(
-            tracker(eventType: 'click', matchType: 'any', url: 'https://a.example/c')),
+        ThirdPartyTrackerDispatcher.rejectionReason(tracker(
+            eventType: 'click', matchType: 'any', url: 'https://a.example/c')),
         isNull,
       );
       expect(
@@ -292,11 +301,12 @@ void main() {
   });
 
   group('matching', () {
-    test('C18-C20 C22 - event types never cross-match; keys match per matchType',
+    test(
+        'C18-C20 C22 - event types never cross-match; keys match per matchType',
         () {
       final imp = tracker();
-      final anyClick =
-          tracker(eventType: 'click', matchType: 'any', url: 'https://a.example/c');
+      final anyClick = tracker(
+          eventType: 'click', matchType: 'any', url: 'https://a.example/c');
       final specific = tracker(
         eventType: 'click',
         matchType: 'specific',
@@ -305,10 +315,12 @@ void main() {
       );
 
       expect(
-          ThirdPartyTrackerDispatcher.matches(imp, const ThirdPartyImpressionEvent()),
+          ThirdPartyTrackerDispatcher.matches(
+              imp, const ThirdPartyImpressionEvent()),
           isTrue);
       expect(
-          ThirdPartyTrackerDispatcher.matches(imp, const ThirdPartyClickEvent('default')),
+          ThirdPartyTrackerDispatcher.matches(
+              imp, const ThirdPartyClickEvent('default')),
           isFalse);
       expect(
           ThirdPartyTrackerDispatcher.matches(
@@ -486,7 +498,8 @@ void main() {
     test('E28 - tracker requests carry no Admoai identity; canonical does',
         () async {
       final (sdk, captured) = await sdkWithCapture();
-      sdk.fireImpression(trackingWith([tracker(url: 'https://agency.example/imp')]));
+      sdk.fireImpression(
+          trackingWith([tracker(url: 'https://agency.example/imp')]));
       await settle();
 
       final trackerReq =
@@ -495,8 +508,8 @@ void main() {
       expect(trackerReq.headers['X-Tracking-Version'], isNull);
       expect(trackerReq.headers['Accept-Language'], isNull);
       expect(trackerReq.headers['Authorization'], isNull);
-      expect(trackerReq.headers['User-Agent'] ?? '',
-          isNot(contains('AdMoaiSDK')));
+      expect(
+          trackerReq.headers['User-Agent'] ?? '', isNot(contains('AdMoaiSDK')));
 
       final canonicalReq =
           captured.singleWhere((r) => r.url.host == 'mock.api.admoai.com');
@@ -510,7 +523,9 @@ void main() {
         'sibling fires', () async {
       final (sdk, captured) = await sdkWithCapture();
       sdk.fireImpression(trackingWith([
-        tracker(id: 'tpt_macro', url: 'https://agency.example/imp?cb=%%CACHEBUSTER%%'),
+        tracker(
+            id: 'tpt_macro',
+            url: 'https://agency.example/imp?cb=%%CACHEBUSTER%%'),
         tracker(id: 'tpt_ok', url: 'https://agency.example/clean'),
       ]));
       await settle();
@@ -525,8 +540,8 @@ void main() {
         return http.Response('', 200,
             headers: {'set-cookie': 'session=abc123; Path=/'});
       });
-      final dispatcher =
-          ThirdPartyTrackerDispatcher(logger: Logger('test'), httpClient: client);
+      final dispatcher = ThirdPartyTrackerDispatcher(
+          logger: Logger('test'), httpClient: client);
       dispatcher.dispatch([tracker(url: 'https://agency.example/imp')],
           const ThirdPartyImpressionEvent());
       await settle();
@@ -541,7 +556,8 @@ void main() {
 
     test('E32 - tracker requests carry no conditional-cache headers', () async {
       final (sdk, captured) = await sdkWithCapture();
-      sdk.fireImpression(trackingWith([tracker(url: 'https://agency.example/imp')]));
+      sdk.fireImpression(
+          trackingWith([tracker(url: 'https://agency.example/imp')]));
       await settle();
       final trackerReq =
           captured.singleWhere((r) => r.url.host.endsWith('agency.example'));
@@ -560,8 +576,8 @@ void main() {
         captured.add(request.url.toString());
         return http.Response('', 200);
       });
-      final dispatcher =
-          ThirdPartyTrackerDispatcher(logger: Logger('test'), httpClient: client);
+      final dispatcher = ThirdPartyTrackerDispatcher(
+          logger: Logger('test'), httpClient: client);
       dispatcher.dispatch([
         tracker(id: 'tpt_1', url: 'https://agency.example/boom'),
         tracker(id: 'tpt_2', url: 'https://agency.example/ok'),
@@ -582,12 +598,16 @@ void main() {
         httpClient: MockClient((_) async => http.Response('', 200)),
       );
       dispatcher.dispatch(
-        [for (var i = 0; i < 11; i++) tracker(id: 'tpt_$i', url: 'https://agency.example/t$i')],
+        [
+          for (var i = 0; i < 11; i++)
+            tracker(id: 'tpt_$i', url: 'https://agency.example/t$i')
+        ],
         const ThirdPartyImpressionEvent(),
       );
       await settle();
       await sub.cancel();
-      final warns = logged.where((m) => m.contains('exceed the limit')).toList();
+      final warns =
+          logged.where((m) => m.contains('exceed the limit')).toList();
       expect(warns, hasLength(1));
       for (final message in logged) {
         expect(message.contains('agency.example'), isFalse);
@@ -604,10 +624,9 @@ void main() {
           'location': 'https://redirect-target.example/next',
         });
       });
-      final dispatcher =
-          ThirdPartyTrackerDispatcher(logger: Logger('test'), httpClient: client);
-      dispatcher.dispatch(
-          [tracker(url: 'https://agency.example/imp')],
+      final dispatcher = ThirdPartyTrackerDispatcher(
+          logger: Logger('test'), httpClient: client);
+      dispatcher.dispatch([tracker(url: 'https://agency.example/imp')],
           const ThirdPartyImpressionEvent());
       await settle();
       expect(sent, isNotNull);
@@ -616,15 +635,16 @@ void main() {
       dispatcher.close();
     });
 
-    test('E33 E34 - a failing tracker is never retried and never affects siblings',
+    test(
+        'E33 E34 - a failing tracker is never retried and never affects siblings',
         () async {
       final captured = <http.Request>[];
       final client = MockClient((request) async {
         captured.add(request);
         return http.Response('', 500);
       });
-      final dispatcher =
-          ThirdPartyTrackerDispatcher(logger: Logger('test'), httpClient: client);
+      final dispatcher = ThirdPartyTrackerDispatcher(
+          logger: Logger('test'), httpClient: client);
       dispatcher.dispatch([
         tracker(id: 'tpt_1', url: 'https://agency.example/a'),
         tracker(id: 'tpt_2', url: 'https://agency.example/b'),
@@ -634,7 +654,8 @@ void main() {
       dispatcher.close();
     });
 
-    test('F36 - discard logs reference trackerId only, never the URL', () async {
+    test('F36 - discard logs reference trackerId only, never the URL',
+        () async {
       final logged = <String>[];
       hierarchicalLoggingEnabled = true;
       final logger = Logger('tpt-test-sink')..level = Level.ALL;
@@ -644,7 +665,10 @@ void main() {
         httpClient: MockClient((_) async => http.Response('', 200)),
       );
       dispatcher.dispatch(
-        [tracker(id: 'tpt_bad', url: 'http://insecure.example/secret?campaign=X')],
+        [
+          tracker(
+              id: 'tpt_bad', url: 'http://insecure.example/secret?campaign=X')
+        ],
         const ThirdPartyImpressionEvent(),
       );
       await settle();
