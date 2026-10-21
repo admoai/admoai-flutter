@@ -30,7 +30,8 @@ void main() {
   group('Journey request context — serialization', () {
     test('backward compatible: no Journey fields in body', () async {
       final sdk = await newSdk();
-      final request = sdk.createRequestBuilder().addPlacement(key: 'home').build();
+      final request =
+          sdk.createRequestBuilder().addPlacement(key: 'home').build();
       final json = request.toJson();
 
       expect(json.containsKey('sessionId'), isFalse);
@@ -39,7 +40,8 @@ void main() {
       expect(request.journeyOpt, isNull);
     });
 
-    test('sessionId and journeyOpt are top-level and correctly cased', () async {
+    test('sessionId and journeyOpt are top-level and correctly cased',
+        () async {
       final sdk = await newSdk();
       final request = sdk
           .createRequestBuilder()
@@ -124,8 +126,7 @@ void main() {
       sdk.setSessionId(secret);
       sdk.setSessionId('   ');
 
-      final warnings =
-          records.where((r) => r.level >= Level.WARNING).toList();
+      final warnings = records.where((r) => r.level >= Level.WARNING).toList();
       expect(warnings.length, equals(2));
       expect(warnings[0].message, contains('exceeds_256_bytes'));
       expect(warnings[1].message, contains('blank_after_trim'));
@@ -151,7 +152,8 @@ void main() {
 
     test('journeySessionIdRejectionReason classifies by UTF-8 bytes', () {
       expect(journeySessionIdRejectionReason('ok'), isNull);
-      expect(journeySessionIdRejectionReason('   '), equals('blank_after_trim'));
+      expect(
+          journeySessionIdRejectionReason('   '), equals('blank_after_trim'));
       expect(journeySessionIdRejectionReason('x' * 256), isNull);
       expect(journeySessionIdRejectionReason('x' * 257),
           equals('exceeds_256_bytes'));
@@ -191,8 +193,7 @@ void main() {
 
     test('initialize(sessionId:) seeds the sticky default', () async {
       final sdk = await newSdk(sessionId: 'sess_init');
-      final request =
-          sdk.createRequestBuilder().addPlacement(key: 'p').build();
+      final request = sdk.createRequestBuilder().addPlacement(key: 'p').build();
       expect(request.toJson()['sessionId'], equals('sess_init'));
     });
   });
@@ -226,15 +227,15 @@ void main() {
     test('sticky setSessionId(blank) disables session consistently', () async {
       final sdk = await newSdk(sessionId: 'sess_1');
       sdk.setSessionId('   ');
-      final request =
-          sdk.createRequestBuilder().addPlacement(key: 'p').build();
+      final request = sdk.createRequestBuilder().addPlacement(key: 'p').build();
       expect(request.sessionId, isNull);
       expect(request.toJson().containsKey('sessionId'), isFalse);
     });
   });
 
   group('clearAll Journey semantics', () {
-    test('clearAll clears per-request journeyOpt but preserves sticky sessionId',
+    test(
+        'clearAll clears per-request journeyOpt but preserves sticky sessionId',
         () async {
       final sdk = await newSdk(sessionId: 'sess_sticky');
       final builder = sdk.createRequestBuilder()
@@ -269,8 +270,8 @@ void main() {
           .setJourneyOpt(JourneyOpt.optIn)
           .build();
 
-      final encoded = jsonDecode(jsonEncode(request.toJson()))
-          as Map<String, dynamic>;
+      final encoded =
+          jsonDecode(jsonEncode(request.toJson())) as Map<String, dynamic>;
       expect(encoded['sessionId'], equals('sess_123'));
       expect(encoded['journeyOpt'], equals('in'));
       expect((encoded['placements'] as List).first['key'],

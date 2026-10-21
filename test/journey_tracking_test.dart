@@ -38,8 +38,8 @@ void main() {
       expect(tracking.completions, isNotNull);
       expect(tracking.getCompletionUrl(key: 'purchase'),
           equals('https://t.example/v1/tracking?e=cmp'));
-      expect(tracking.hasTrackingFor(TrackingType.completion, 'purchase'),
-          isTrue);
+      expect(
+          tracking.hasTrackingFor(TrackingType.completion, 'purchase'), isTrue);
       expect(tracking.getTrackingUrl(TrackingType.completion, 'purchase'),
           equals('https://t.example/v1/tracking?e=cmp'));
     });
@@ -66,7 +66,8 @@ void main() {
       }, returnsNormally);
 
       expect(tracking.completions!.length, equals(1));
-      expect(tracking.getCompletionUrl(key: 'purchase'), equals('https://t/ok'));
+      expect(
+          tracking.getCompletionUrl(key: 'purchase'), equals('https://t/ok'));
     });
 
     test('completions as wrong type (not a list) → null, no throw', () {
@@ -164,7 +165,8 @@ void main() {
         ..onRecord.listen(records.add);
       final fired = <String>[];
       final sdk = AdMoai.forTesting(
-        config: SDKConfig(baseUrl: baseUrl, apiVersion: '2025-11-01', logger: logger),
+        config: SDKConfig(
+            baseUrl: baseUrl, apiVersion: '2025-11-01', logger: logger),
         httpClient: MockClient((r) async {
           fired.add(r.url.toString());
           return http.Response('', 200);
@@ -179,8 +181,8 @@ void main() {
 
       expect(fired, isEmpty);
       expect(
-        records.where((r) =>
-            r.level >= Level.WARNING && r.message.contains('wrong_key')),
+        records.where(
+            (r) => r.level >= Level.WARNING && r.message.contains('wrong_key')),
         isNotEmpty,
       );
     });
@@ -192,7 +194,8 @@ void main() {
         ..onRecord.listen(records.add);
       final fired = <String>[];
       final sdk = AdMoai.forTesting(
-        config: SDKConfig(baseUrl: baseUrl, apiVersion: '2025-11-01', logger: logger),
+        config: SDKConfig(
+            baseUrl: baseUrl, apiVersion: '2025-11-01', logger: logger),
         httpClient: MockClient((r) async {
           fired.add(r.url.toString());
           return http.Response('', 200);

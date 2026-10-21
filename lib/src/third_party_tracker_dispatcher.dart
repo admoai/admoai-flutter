@@ -87,7 +87,8 @@ class ThirdPartyTrackerDispatcher {
   /// invalid entries individually; the defensive limit then applies to the
   /// count of VALID entries; matching and per-invocation exact-URL dedupe
   /// decide what actually fires.
-  void dispatch(List<ThirdPartyTracker> trackers, ThirdPartyTrackerEvent event) {
+  void dispatch(
+      List<ThirdPartyTracker> trackers, ThirdPartyTrackerEvent event) {
     final valid = <ThirdPartyTracker>[];
     for (final tracker in trackers) {
       final reason = rejectionReason(tracker);
@@ -130,8 +131,7 @@ class ThirdPartyTrackerDispatcher {
           // is not aborted — the tracker may still count server-side. That
           // keeps the ≤1-attempt-per-invocation guarantee intact (we never
           // re-fire), which is the property agency reconciliation needs.
-          final response =
-              await _client.send(request).timeout(requestTimeout);
+          final response = await _client.send(request).timeout(requestTimeout);
           // Drain the body so the connection is released immediately instead
           // of pinning a socket until the idle timeout.
           await response.stream.drain<void>();

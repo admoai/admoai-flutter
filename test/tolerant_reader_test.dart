@@ -38,7 +38,8 @@ void main() {
 
   group('Forward compatibility (Tolerant Reader) — full envelope', () {
     Future<APIResponse<DecisionResponse>> parseBody(String body) async {
-      final mockClient = MockClient((request) async => http.Response(body, 200));
+      final mockClient =
+          MockClient((request) async => http.Response(body, 200));
       final sdk = AdMoai.forTesting(
         config: SDKConfig(baseUrl: baseUrl, apiVersion: '2025-11-01'),
         httpClient: mockClient,
@@ -93,13 +94,15 @@ void main() {
         Map<String, String> headers, Logger logger) async {
       final mockClient = MockClient((request) async {
         return http.Response(
-          jsonEncode({'success': true, 'data': [], 'errors': [], 'warnings': []}),
+          jsonEncode(
+              {'success': true, 'data': [], 'errors': [], 'warnings': []}),
           200,
           headers: headers,
         );
       });
       return AdMoai.forTesting(
-        config: SDKConfig(baseUrl: baseUrl, apiVersion: '2025-11-01', logger: logger),
+        config: SDKConfig(
+            baseUrl: baseUrl, apiVersion: '2025-11-01', logger: logger),
         httpClient: mockClient,
       );
     }

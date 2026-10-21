@@ -62,7 +62,8 @@ class AdMoaiClient {
             success: jsonBody['success'] == true,
             data: decisions as T,
             errors: _messageList(jsonBody['errors'], AdMoaiError.tryFromJson),
-            warnings: _messageList(jsonBody['warnings'], AdMoaiWarning.tryFromJson),
+            warnings:
+                _messageList(jsonBody['warnings'], AdMoaiWarning.tryFromJson),
           );
 
           return APIResponse<T>(
