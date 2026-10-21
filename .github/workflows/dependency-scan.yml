@@ -1,10 +1,9 @@
 # Known-vulnerability scan of the resolved dependency graph, on every PR, on main and
-# weekly (new advisories appear against unchanged lockfiles). CodeQL has no Dart support,
+# weekly (new advisories appear against unchanged constraints). CodeQL has no Dart support,
 # so this is the Flutter counterpart of the CodeQL job on the iOS/Android SDKs.
 #
-# example/pubspec.lock is the lockfile scanned: the package itself does not commit one
-# (it is a library), and the example resolves the SDK through a path dependency, so its
-# lockfile holds the SDK's full transitive graph as an integrator would resolve it.
+# The package does not commit a lockfile (it is a library), so the job resolves one — the
+# graph an integrator gets today from these constraints — and scans that.
 name: Dependency scan
 
 on:
@@ -26,8 +25,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Scan example/pubspec.lock
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Resolve the dependency graph
+        run: flutter pub get
+
+      - name: Scan pubspec.lock
         uses: google/osv-scanner-action/osv-scanner-action@v2.7.0
         with:
           scan-args: |-
-            --lockfile=example/pubspec.lock
+            --lockfile=pubspec.lock

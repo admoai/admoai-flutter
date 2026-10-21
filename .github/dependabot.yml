@@ -11,14 +11,6 @@ updates:
     groups:
       pub-minor-patch:
         update-types: [minor, patch]
-  - package-ecosystem: pub
-    directory: /example
-    schedule:
-      interval: weekly
-    labels: [dependencies]
-    groups:
-      pub-example-minor-patch:
-        update-types: [minor, patch]
   - package-ecosystem: github-actions
     directory: /
     schedule:

@@ -1,5 +1,4 @@
-# Runs on every PR and on pushes to main: static analysis + tests for the SDK,
-# and static analysis of the example app so the sample stays valid against HEAD.
+# Runs on every PR and on pushes to main: static analysis + tests for the SDK.
 name: CI
 
 on:
@@ -48,26 +47,3 @@ jobs:
       # worse, pass while asserting nothing).
       - name: Test (deterministic unit + mock suites)
         run: flutter test --exclude-tags "live || e2e"
-
-  example:
-    name: Analyze (example app)
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          cache: true
-
-      # The example consumes the SDK via a local path dependency, so this
-      # analysis catches API drift between the SDK and the sample.
-      - name: Install dependencies
-        working-directory: example
-        run: flutter pub get
-
-      - name: Analyze
-        working-directory: example
-        run: flutter analyze --no-fatal-infos

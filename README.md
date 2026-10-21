@@ -1442,7 +1442,15 @@ We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.
 
 ## Example App
 
-For a complete example implementation, check out the [example app](example/).
+The example app was removed on 2026-10-21: it had fallen behind the SDK's features. This README
+is the reference integration, and [`example/example.md`](example/example.md) (pub.dev's
+*Example* tab) shows the smallest complete one. The app's last version is kept under the git tag
+`sample-app-archive`; to bring it back:
+
+```bash
+git fetch origin tag sample-app-archive
+git checkout sample-app-archive -- example
+```
 
 ## Documentation
 
