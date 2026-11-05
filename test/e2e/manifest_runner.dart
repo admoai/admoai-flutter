@@ -19,6 +19,9 @@ import 'journey_e2e_harness.dart';
 /// Scope: declarative scenarios only. Anything procedural (log capture, concurrency, retry, TTL
 /// sleeps) stays hand-written, because that genuinely differs per platform.
 
+/// The one manifest `schemaVersion` this runner executes.
+const supportedSchemaVersion = 2;
+
 Map<String, dynamic> loadManifest() {
   // Resolved relative to the test file so it works under `flutter test` from any cwd.
   final file = File('test/e2e/scenarios.json');
@@ -27,6 +30,17 @@ Map<String, dynamic> loadManifest() {
 
 void manifestGroup(E2eReport report) {
   final manifest = loadManifest();
+  // The live runner executes `scenarios` only. Version 2 added `fixtureScenarios` (offline,
+  // golden decision-wire files): they run as unit tests, and a runner that read a newer
+  // manifest as if it were version 1 would silently skip half of it.
+  final schemaVersion = manifest['schemaVersion'];
+  if (schemaVersion != supportedSchemaVersion) {
+    throw StateError(
+      'scenarios.json is schemaVersion $schemaVersion; this runner knows schemaVersion '
+      '$supportedSchemaVersion; fixtureScenarios run as unit tests in '
+      'test/fixture_scenarios_test.dart',
+    );
+  }
   final scenarios =
       (manifest['scenarios'] as List).cast<Map<String, dynamic>>();
 
