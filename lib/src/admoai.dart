@@ -10,7 +10,7 @@ import 'api_client.dart';
 import 'models/decision_request.dart';
 import 'models/decision_response.dart';
 import 'models/decision_request_builder.dart';
-import 'point_view_ledger.dart';
+import 'view_beacon_ledger.dart';
 import 'third_party_tracker_dispatcher.dart';
 import 'version.dart';
 
@@ -36,7 +36,11 @@ class AdMoai {
   String? _sessionId;
 
   /// Sponsored Pin view URLs already fired — see [trackPointView].
-  final PointViewLedger _pointViews = PointViewLedger();
+  final ViewBeaconLedger _pinViews = ViewBeaconLedger();
+
+  /// Carousel slide view URLs already fired — see [trackSlideView]. Its own
+  /// instance so slide capacity never competes with pins'.
+  final ViewBeaconLedger _slideViews = ViewBeaconLedger();
 
   factory AdMoai._({
     required SDKConfig config,
@@ -374,7 +378,7 @@ class AdMoai {
   /// the next render. Taps and clicks are never de-duplicated.
   void trackPointView(MatchedPoint point) {
     for (final item in point.tracking?.views ?? const <TrackingItem>[]) {
-      if (_pointViews.claim(item.url)) fireTracking(item.url);
+      if (_pinViews.claim(item.url)) fireTracking(item.url);
     }
   }
 
@@ -423,11 +427,15 @@ class AdMoai {
   ///
   /// Trackers stay attached to their slide: pass the [Slide] you rendered, never the
   /// creative. A slide served without tracking is a no-op.
-  void trackSlideView(Slide slide) {}
+  void trackSlideView(Slide slide) {
+    for (final item in slide.tracking?.views ?? const <TrackingItem>[]) {
+      if (_slideViews.claim(item.url)) fireTracking(item.url);
+    }
+  }
 
   /// Reports several slides becoming visible at once — the bulk form of [trackSlideView],
   /// with the same once-per-response rule.
-  void trackSlideViews(List<Slide> slides) {}
+  void trackSlideViews(List<Slide> slides) => slides.forEach(trackSlideView);
 
   /// Reports that the user **activated a slide** (`click`). Billable.
   ///
@@ -437,7 +445,22 @@ class AdMoai {
   ///
   /// **Do not route a slide tap through [fireClick]**: a Carousel has no creative-level
   /// click, so that sends nothing.
-  void trackSlideClick(Slide slide, Creative creative) {}
+  void trackSlideClick(Slide slide, Creative creative) {
+    // A tap proves the slide was on screen, so its view counts (once) even when the slide
+    // carries no click tracker; a click the slide cannot record sends no click and no fan-out.
+    trackSlideView(slide);
+    final clicks = slide.tracking?.clicks;
+    if (clicks == null || clicks.isEmpty) return;
+    for (final item in clicks) {
+      fireTracking(item.url);
+    }
+    // One fan-out per click, whatever number of click beacons the slide carries, and only
+    // when a canonical click beacon was actually valid (same rule as [fireClick]).
+    final valid = clicks.where((c) => _isAbsoluteHttpUrl(c.url));
+    if (valid.isEmpty) return;
+    _fireThirdPartyTrackers(
+        creative.tracking, ThirdPartyClickEvent(valid.first.key));
+  }
 
   // ---- Standard format custom events ----
 

@@ -1,14 +1,14 @@
 import 'dart:io';
 
 import 'package:admoai/admoai.dart';
-import 'package:admoai/src/point_view_ledger.dart';
+import 'package:admoai/src/view_beacon_ledger.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
 /// Pin views are reported once per decision response — the scenarios of
-/// `lib/src/point_view_ledger.feature`, one test per scenario, named after it.
-/// Mirrors the iOS suite (`PointViewLedgerTests.swift`).
+/// `lib/src/view_beacon_ledger.feature`, one test per scenario, named after it.
+/// Mirrors the iOS suite (`ViewBeaconLedgerTests.swift`).
 ///
 /// There is no Gherkin runner in this package, so `every scenario has a test`
 /// holds the binding instead: a scenario added to the feature without a test
@@ -93,7 +93,7 @@ void main() {
       captured.map((r) => r.url.toString()).toList();
 
   test('every scenario has a test', () {
-    final titles = File('lib/src/point_view_ledger.feature')
+    final titles = File('lib/src/view_beacon_ledger.feature')
         .readAsLinesSync()
         .map((l) => l.trim())
         .where((l) => l.startsWith('Scenario:'))
@@ -159,7 +159,7 @@ void main() {
   });
 
   scenario('memory is bounded', () async {
-    final ledger = PointViewLedger();
+    final ledger = ViewBeaconLedger();
     expect(ledger.capacity, 500);
 
     for (var response = 0; response < 100; response++) {
@@ -181,7 +181,7 @@ void main() {
   /// A pin re-rendered keeps its place: the next eviction takes the pin nobody
   /// has shown for longest, not the one the user is looking at.
   test('a rendered pin is not the next evicted', () {
-    final ledger = PointViewLedger(capacity: 2)
+    final ledger = ViewBeaconLedger(capacity: 2)
       ..claim('a')
       ..claim('b')
       ..claim('a')

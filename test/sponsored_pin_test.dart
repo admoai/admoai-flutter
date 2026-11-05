@@ -542,7 +542,7 @@ void main() {
     });
 
     // A second render of the same response is not a second view. The full rule
-    // lives in point_view_ledger_test.dart, scenario by scenario.
+    // lives in view_beacon_ledger_test.dart, scenario by scenario.
     test('AC8b - bulk deduplicates across invocations of the same response',
         () async {
       final (sdk, captured) = await sdkWithCapture();

@@ -6,6 +6,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
+import 'support/dispatch_recording_client.dart';
+
 // Shared fixture scenarios (@admoai/sdk-scenarios schemaVersion 2, admoai/adhub#4734)
 //
 // Feature: A publisher's app reads the standard native formats from a decision response
@@ -88,22 +90,6 @@ Future<void> _run(_Json scenario) async {
 
 // MARK: - Slide tracking (`slideTracking`, package 1.3.0)
 
-/// Records every request in the order the SDK hands it to its HTTP client — [send] runs
-/// synchronously inside the SDK's call, before any await, so the log is dispatch order, not
-/// the order a mock handler happens to run in.
-class _DispatchRecordingClient extends http.BaseClient {
-  final http.Client _inner;
-  final List<String> dispatched = [];
-
-  _DispatchRecordingClient(this._inner);
-
-  @override
-  Future<http.StreamedResponse> send(http.BaseRequest request) {
-    dispatched.add(request.url.toString());
-    return _inner.send(request);
-  }
-}
-
 /// Decodes [wire] as response [response] would arrive: for N > 1 every first-party tracker URL
 /// (an object with both `key` and `url`; third-party trackers carry `trackerId`/`eventKey`) is
 /// suffixed `&response=N`, because a new decision response carries new signed URLs.
@@ -141,7 +127,7 @@ Future<void> _runSlideTracking(String id, _Json wire, _Json block) async {
   final thirdPartyUrls = thirdPartyTrackers.map((t) => t.url).toSet();
 
   final received = <String>[];
-  final client = _DispatchRecordingClient(
+  final client = DispatchRecordingClient(
     MockClient((request) async {
       received.add(request.url.toString());
       return http.Response('', 200);

@@ -25,10 +25,13 @@ AdMoai.config  field: SDKConfig (read)
 AdMoai.createRequestBuilder  method() -> DecisionRequestBuilder
 AdMoai.deviceConfig  field: DeviceConfig (read/write)
 AdMoai.dispose  method() -> void
+AdMoai.fireAssetTap  method(Tracking tracking) -> void
 AdMoai.fireClick  method(Tracking tracking, {String key}) -> void
+AdMoai.fireClose  method(Tracking tracking) -> void
 AdMoai.fireCompletion  method(Tracking tracking, {required String key}) -> void
 AdMoai.fireCustom  method(Tracking tracking, String key) -> void [deprecated]
 AdMoai.fireCustomEvent  method(Tracking tracking, String key) -> void
+AdMoai.fireExpand  method(Tracking tracking) -> void
 AdMoai.fireImpression  method(Tracking tracking, {String key}) -> void
 AdMoai.fireTracking  method(String url) -> void
 AdMoai.fireVideoEvent  method(Tracking tracking, String key) -> void
@@ -46,6 +49,9 @@ AdMoai.trackPointClick  method(MatchedPoint point) -> void
 AdMoai.trackPointTap  method(MatchedPoint point) -> void
 AdMoai.trackPointView  method(MatchedPoint point) -> void
 AdMoai.trackPointViews  method(List<MatchedPoint> points) -> void
+AdMoai.trackSlideClick  method(Slide slide, Creative creative) -> void
+AdMoai.trackSlideView  method(Slide slide) -> void
+AdMoai.trackSlideViews  method(List<Slide> slides) -> void
 AdMoai.userConfig  field: UserConfig (read/write)
 AdMoaiClient  type
 AdMoaiClient.apiVersion  field: String? (read)

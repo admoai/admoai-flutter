@@ -1,9 +1,11 @@
 import 'dart:collection';
 
-/// Remembers which Sponsored Pin view URLs this SDK instance has already fired,
-/// so a map re-rendering the same decision response does not fire them again.
+/// Remembers which view URLs (Sponsored Pin views, Carousel slide views) an
+/// instance of it has already fired, so a re-render of the same decision
+/// response does not fire them again. The SDK keeps one instance per kind of
+/// view, so one kind's volume never evicts the other's entries.
 ///
-/// Keyed on the view URL itself, never on the point id. The engine mints every
+/// Keyed on the view URL itself, never on the point or slide id. The engine mints every
 /// view URL with its own event id, one per `(request, creative, location)`, so
 /// "this URL was fired" is exactly "this pin was reported for this decision
 /// response" — the key E10 dedups `pin_view` on server-side. A pin id repeats
@@ -18,7 +20,7 @@ import 'dart:collection';
 /// No lock: an isolate runs one piece of Dart at a time and [claim] never
 /// awaits, so the check and the record cannot interleave. Each isolate that
 /// builds its own `AdMoai` has its own ledger, as it has its own everything.
-class PointViewLedger {
+class ViewBeaconLedger {
   /// Ten full decision responses at the engine's 50-point ceiling, one view URL
   /// per point on the standard template.
   static const defaultCapacity = 500;
@@ -28,7 +30,7 @@ class PointViewLedger {
   /// Iterates least → most recently claimed.
   final LinkedHashSet<String> _urls = LinkedHashSet<String>();
 
-  PointViewLedger({int capacity = defaultCapacity})
+  ViewBeaconLedger({int capacity = defaultCapacity})
       : capacity = capacity < 1 ? 1 : capacity;
 
   /// Records [url] as fired and returns `true` the first time it is seen.
