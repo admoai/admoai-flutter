@@ -32,4 +32,40 @@ void main() {
           reason: '${s['id']} has an expect block');
     }
   });
+
+  /// `schemaVersion` 2 added `fixtureScenarios`; the live runner refuses any other version and
+  /// fixture_scenarios_test.dart interprets them, so both are pinned here against the vendored copy.
+  test('the fixture scenarios are structurally valid', () {
+    final root = jsonDecode(file.readAsStringSync()) as Map<String, dynamic>;
+    expect(root['schemaVersion'], equals(2),
+        reason: 'this SDK vendors a schemaVersion 2 manifest');
+
+    final fixtureScenarios =
+        (root['fixtureScenarios'] as List).cast<Map<String, dynamic>>();
+    expect(fixtureScenarios, isNotEmpty,
+        reason: 'the manifest declares fixture scenarios');
+    final ids = fixtureScenarios
+        .map((s) => s['id'] as String?)
+        .whereType<String>()
+        .toList();
+    expect(ids.length, equals(fixtureScenarios.length),
+        reason: 'every fixture scenario has an id');
+    expect(ids.toSet().length, equals(ids.length),
+        reason: 'fixture scenario ids are unique');
+    for (final s in fixtureScenarios) {
+      final id = s['id'];
+      expect((s['title'] as String?) ?? '', isNotEmpty,
+          reason: '$id has a title');
+      final golden = (s['fixture'] as Map<String, dynamic>?)?['golden'];
+      expect(golden is String && golden.isNotEmpty, isTrue,
+          reason: '$id names a golden file');
+      if (golden is String) {
+        expect(File('test/e2e/fixtures/golden-wire/$golden.json').existsSync(),
+            isTrue,
+            reason: '$id: $golden.json is vendored');
+      }
+      expect(s['expect'], isA<Map<String, dynamic>>(),
+          reason: '$id has an expect block');
+    }
+  });
 }
