@@ -13,6 +13,14 @@ int? _asInt(dynamic v) => v is int ? v : (v is num ? v.toInt() : null);
 double? _asDouble(dynamic v) => v is num ? v.toDouble() : null;
 Map<String, dynamic>? _asMap(dynamic v) => v is Map<String, dynamic> ? v : null;
 
+/// An integer as JSON writes it: `1`, or `1.0` (Dart decodes the latter as a double). A
+/// fractional number or any other type is `null`, never truncated.
+int? _asWholeNumber(dynamic v) {
+  if (v is int) return v;
+  if (v is double && v.isFinite && v == v.truncateToDouble()) return v.toInt();
+  return null;
+}
+
 class Decision {
   final String placement;
   final List<Creative>? creatives;
@@ -139,9 +147,29 @@ class Creative {
       journey: _asMap(json['journey']) == null
           ? null
           : CreativeJourney.fromJson(_asMap(json['journey'])!),
+      slides: _slidesFrom(rawContents),
     );
   }
+
+  /// Straight off the wire, like [CreativeMatchedPoints.matchedPoints]: server order kept
+  /// (never sorted by `position`). A slide that lacks a usable id or position is dropped on its
+  /// own, and a malformed entry inside a slide is dropped on its own; neither can fail the
+  /// creative. The `slides` entry also stays in [contents], exactly as before.
+  static List<Slide> _slidesFrom(dynamic rawContents) {
+    if (rawContents is! List) return const <Slide>[];
+    for (final entry in rawContents) {
+      final map = _asMap(entry);
+      if (map == null || map['key'] != slidesContentKey) continue;
+      final raw = map['value'];
+      if (raw is! List) return const <Slide>[];
+      return raw.map(Slide.tryFromJson).whereType<Slide>().toList();
+    }
+    return const <Slide>[];
+  }
 }
+
+/// The `contents` key the engine puts a Carousel's slides under.
+const String slidesContentKey = 'slides';
 
 /// One slide of a Carousel creative. See [Creative.slides].
 class Slide {
@@ -163,6 +191,27 @@ class Slide {
     required this.contents,
     this.tracking,
   });
+
+  /// Tolerant Reader variant: returns `null` when the entry is not an object or lacks a usable
+  /// `slideId` or `position`. Those two are structurally required: a slide without them cannot
+  /// be told apart or ordered by a publisher, so the list level drops it. Everything inside a
+  /// slide is tolerant: contents drop malformed entries, a malformed `tracking` becomes `null`.
+  static Slide? tryFromJson(dynamic json) {
+    final map = _asMap(json);
+    if (map == null) return null;
+    final slideId = _asString(map['slideId']);
+    final position = _asWholeNumber(map['position']);
+    if (slideId == null || position == null) return null;
+    final rawContents = map['contents'];
+    return Slide(
+      slideId: slideId,
+      position: position,
+      contents: rawContents is List
+          ? rawContents.map(Content.tryFromJson).whereType<Content>().toList()
+          : <Content>[],
+      tracking: SlideTracking.tryFromJson(map['tracking']),
+    );
+  }
 }
 
 /// One slide's beacon lists: the slide view and the slide click.
@@ -171,6 +220,17 @@ class SlideTracking {
   final List<TrackingItem>? clicks;
 
   SlideTracking({this.views, this.clicks});
+
+  /// Tolerant Reader variant: `null` when the block is not an object; a list that is missing
+  /// or not a list is `null`, and a malformed entry inside one is dropped on its own.
+  static SlideTracking? tryFromJson(dynamic json) {
+    final map = _asMap(json);
+    if (map == null) return null;
+    return SlideTracking(
+      views: MatchedPointTracking._list(map['views']),
+      clicks: MatchedPointTracking._list(map['clicks']),
+    );
+  }
 }
 
 /// Read-only Journey Takeover Ads metadata attached to a Journey-served
@@ -445,6 +505,12 @@ class Metadata {
       endCardMode: _asString(json['endCardMode']),
       format: _asString(json['format']),
       style: _asString(json['style']),
+      // Open-set strings, absent when the engine does not send them (it omits all three while
+      // the standard formats are off). A wrong type is `null`, never a throw.
+      effectiveStandardFormatKey: _asString(json['effectiveStandardFormatKey']),
+      effectiveStandardFormatVersion:
+          _asWholeNumber(json['effectiveStandardFormatVersion']),
+      templateSource: _asString(json['templateSource']),
     );
   }
 }
