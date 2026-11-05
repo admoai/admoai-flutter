@@ -79,6 +79,177 @@ Future<void> _run(_Json scenario) async {
   for (final entry in expected.entries) {
     _check(id, entry.key, entry.value, creative);
   }
+
+  final slideTracking = scenario['slideTracking'];
+  if (slideTracking != null) {
+    await _runSlideTracking(id, wire, slideTracking as _Json);
+  }
+}
+
+// MARK: - Slide tracking (`slideTracking`, package 1.3.0)
+
+/// Records every request in the order the SDK hands it to its HTTP client — [send] runs
+/// synchronously inside the SDK's call, before any await, so the log is dispatch order, not
+/// the order a mock handler happens to run in.
+class _DispatchRecordingClient extends http.BaseClient {
+  final http.Client _inner;
+  final List<String> dispatched = [];
+
+  _DispatchRecordingClient(this._inner);
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) {
+    dispatched.add(request.url.toString());
+    return _inner.send(request);
+  }
+}
+
+/// Decodes [wire] as response [response] would arrive: for N > 1 every first-party tracker URL
+/// (an object with both `key` and `url`; third-party trackers carry `trackerId`/`eventKey`) is
+/// suffixed `&response=N`, because a new decision response carries new signed URLs.
+Future<Creative> _decodeResponse(String id, _Json wire, int response) {
+  dynamic suffixed(dynamic value) {
+    if (value is Map) {
+      final copy = <String, dynamic>{
+        for (final e in value.entries) e.key as String: suffixed(e.value),
+      };
+      if (response > 1 && copy.containsKey('key') && copy['url'] is String) {
+        copy['url'] = '${copy['url']}&response=$response';
+      }
+      return copy;
+    }
+    if (value is List) return value.map(suffixed).toList();
+    return value;
+  }
+
+  return _decode(id, suffixed(wire) as _Json);
+}
+
+/// One SDK instance, the steps in order, then the beacons it dispatched: first-party in exact
+/// dispatch order, third-party as a multiset.
+Future<void> _runSlideTracking(String id, _Json wire, _Json block) async {
+  final steps = (block['steps'] as List).cast<_Json>();
+  final expected = block['expect'] as _Json;
+
+  final creatives = <int, Creative>{1: await _decodeResponse(id, wire, 1)};
+  var current = 1;
+  Future<Creative> creativeOf(int response) async =>
+      creatives[response] ??= await _decodeResponse(id, wire, response);
+
+  final thirdPartyTrackers =
+      creatives[1]!.tracking.thirdPartyTrackers ?? const [];
+  final thirdPartyUrls = thirdPartyTrackers.map((t) => t.url).toSet();
+
+  final received = <String>[];
+  final client = _DispatchRecordingClient(
+    MockClient((request) async {
+      received.add(request.url.toString());
+      return http.Response('', 200);
+    }),
+  );
+  final sdk = AdMoai.forTesting(
+    config: SDKConfig(
+      baseUrl: 'https://mock.api.admoai.com',
+      apiVersion: '2025-11-01',
+    ),
+    httpClient: client,
+  );
+
+  for (final step in steps) {
+    final live = await creativeOf(current);
+    if (step['slideView'] is int) {
+      sdk.trackSlideView(live.slides[(step['slideView'] as int) - 1]);
+    } else if (step['slideClick'] is int) {
+      sdk.trackSlideClick(live.slides[(step['slideClick'] as int) - 1], live);
+    } else if (step.containsKey('newResponse')) {
+      current += 1;
+      await creativeOf(current);
+    } else if (step.containsKey('fireClick')) {
+      final key = step['fireClick'];
+      if (key is String) {
+        sdk.fireClick(live.tracking, key: key);
+      } else {
+        sdk.fireClick(live.tracking);
+      }
+    } else if (step['custom'] is String) {
+      sdk.fireCustomEvent(live.tracking, step['custom'] as String);
+    } else {
+      fail('$id: unknown slideTracking step $step');
+    }
+    await _settle();
+  }
+
+  for (final key in expected.keys.where(
+    (k) => k != 'beacons' && k != 'thirdPartyBeacons',
+  )) {
+    fail('$id: unknown slideTracking expect key $key');
+  }
+  final firstParty = <String>[];
+  for (final beacon
+      in (expected['beacons'] as List? ?? const []).cast<_Json>()) {
+    final target = await creativeOf(beacon['response'] as int? ?? 1);
+    final url = _resolveBeacon(beacon, target);
+    if (url == null) {
+      fail('$id: beacon $beacon names no tracker of the creative');
+    }
+    firstParty.add(url);
+  }
+  final thirdParty = <String>[];
+  for (final trackerId in _strings(expected['thirdPartyBeacons'])) {
+    final tracker =
+        thirdPartyTrackers.where((t) => t.trackerId == trackerId).firstOrNull;
+    if (tracker == null) {
+      fail('$id: thirdPartyBeacons names unknown tracker $trackerId');
+    }
+    thirdParty.add(tracker.url);
+  }
+
+  expect(
+    client.dispatched.where((u) => !thirdPartyUrls.contains(u)).toList(),
+    equals(firstParty),
+    reason: '$id: first-party beacons, in dispatch order',
+  );
+  expect(
+    received.where((u) => !thirdPartyUrls.contains(u)).toList()..sort(),
+    equals([...firstParty]..sort()),
+    reason: '$id: first-party beacons sent',
+  );
+  expect(
+    client.dispatched.where(thirdPartyUrls.contains).toList()..sort(),
+    equals([...thirdParty]..sort()),
+    reason: '$id: third-party beacons',
+  );
+}
+
+/// Fire-and-forget gives nothing to await between steps: let the event loop drain.
+Future<void> _settle() async {
+  for (var i = 0; i < 10; i++) {
+    await Future<void>.delayed(Duration.zero);
+  }
+}
+
+String? _resolveBeacon(_Json beacon, Creative creative) {
+  final slide = beacon['slide'];
+  if (slide is int) {
+    if (slide < 1 || slide > creative.slides.length) return null;
+    final tracking = creative.slides[slide - 1].tracking;
+    final view = beacon['view'];
+    if (view is String) {
+      return tracking?.views?.where((t) => t.key == view).firstOrNull?.url;
+    }
+    final click = beacon['click'];
+    if (click is String) {
+      return tracking?.clicks?.where((t) => t.key == click).firstOrNull?.url;
+    }
+    return null;
+  }
+  if (beacon['click'] is String) {
+    return creative.tracking.getClickUrl(key: beacon['click'] as String);
+  }
+  if (beacon['custom'] is String) {
+    return creative.tracking.getCustomUrl(key: beacon['custom'] as String);
+  }
+  return null;
 }
 
 // MARK: - Decoding
@@ -106,7 +277,7 @@ Future<Creative> _decode(String id, _Json wire) async {
 // MARK: - Edits
 
 /// Applies `fixture.edits` in order. `at` names which object(s) of the decision wire change:
-/// the response root, the first creative, its `metadata`, every element of its `contents`, or
+/// the response root, the first creative, its `metadata`, its `tracking`, every element of its `contents`, or
 /// every element of the `value` array of the content entry keyed `slides`.
 void _applyEdits(String id, List<_Json> edits, _Json root) {
   for (final edit in edits) {
@@ -125,6 +296,11 @@ void _applyEdits(String id, List<_Json> edits, _Json root) {
             (creative['metadata'] as _Json?) ?? <String, dynamic>{};
         change(metadata);
         creative['metadata'] = metadata;
+      case 'tracking':
+        final tracking =
+            (creative['tracking'] as _Json?) ?? <String, dynamic>{};
+        change(tracking);
+        creative['tracking'] = tracking;
       case 'content':
         for (final entry in (creative['contents'] as List? ?? const [])) {
           change(entry as _Json);

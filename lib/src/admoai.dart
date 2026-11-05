@@ -408,6 +408,51 @@ class AdMoai {
   void trackPointViews(List<MatchedPoint> points) =>
       points.forEach(trackPointView);
 
+  // ---- Carousel slide tracking ----
+
+  /// Reports that one slide became **visible to the user** (`slide_view`). Free.
+  ///
+  /// **Returning a slide is not showing it.** You decide when a slide counts as viewed — the
+  /// platform's rule is 50 % of it visible for one continuous second — and call this then.
+  /// The SDK draws nothing and never fires on its own.
+  ///
+  /// **Once per served instance.** A slide is reported the first time it is shown for the
+  /// decision response that returned it; scrolling back to it or re-rendering sends nothing.
+  /// A new response carries new signed view URLs and is reported again. A view is never
+  /// retried.
+  ///
+  /// Trackers stay attached to their slide: pass the [Slide] you rendered, never the
+  /// creative. A slide served without tracking is a no-op.
+  void trackSlideView(Slide slide) {}
+
+  /// Reports several slides becoming visible at once — the bulk form of [trackSlideView],
+  /// with the same once-per-response rule.
+  void trackSlideViews(List<Slide> slides) {}
+
+  /// Reports that the user **activated a slide** (`click`). Billable.
+  ///
+  /// A tap on a slide that was not reported as viewed yet sends the slide's view first, then
+  /// the click. Every click then also fans out the creative's applicable third-party click
+  /// trackers once.
+  ///
+  /// **Do not route a slide tap through [fireClick]**: a Carousel has no creative-level
+  /// click, so that sends nothing.
+  void trackSlideClick(Slide slide, Creative creative) {}
+
+  // ---- Standard format custom events ----
+
+  /// Reports that a Tap-to-expand creative actually expanded (custom event `expand`). Not a
+  /// click: no click is sent and no third-party click tracker fires.
+  void fireExpand(Tracking tracking) => fireCustomEvent(tracking, 'expand');
+
+  /// Reports that an expanded creative was closed (custom event `close`). Not a click.
+  void fireClose(Tracking tracking) => fireCustomEvent(tracking, 'close');
+
+  /// Reports that the user tapped a Branded Assets asset (custom event `asset_tap`). Not a
+  /// click: use [fireClick] for the creative's destination.
+  void fireAssetTap(Tracking tracking) =>
+      fireCustomEvent(tracking, 'asset_tap');
+
   void _fireAll(List<TrackingItem>? items) {
     if (items == null) return;
     for (final item in items) {
