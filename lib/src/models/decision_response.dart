@@ -455,7 +455,8 @@ class Metadata {
   /// unknown value verbatim.
   final String? effectiveStandardFormatKey;
 
-  /// The version of that standard format. Absent when not sent or not a number.
+  /// The version of that standard format. Absent when not sent or not a whole number (a
+  /// fractional value is not a version, so it is `null`, never truncated).
   final int? effectiveStandardFormatVersion;
 
   /// Where the creative's template comes from: `admoai_standard` (the standard itself) or
