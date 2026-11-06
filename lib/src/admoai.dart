@@ -10,7 +10,7 @@ import 'api_client.dart';
 import 'models/decision_request.dart';
 import 'models/decision_response.dart';
 import 'models/decision_request_builder.dart';
-import 'point_view_ledger.dart';
+import 'view_beacon_ledger.dart';
 import 'third_party_tracker_dispatcher.dart';
 import 'version.dart';
 
@@ -36,7 +36,11 @@ class AdMoai {
   String? _sessionId;
 
   /// Sponsored Pin view URLs already fired — see [trackPointView].
-  final PointViewLedger _pointViews = PointViewLedger();
+  final ViewBeaconLedger _pinViews = ViewBeaconLedger();
+
+  /// Carousel slide view URLs already fired — see [trackSlideView]. Its own
+  /// instance so slide capacity never competes with pins'.
+  final ViewBeaconLedger _slideViews = ViewBeaconLedger();
 
   factory AdMoai._({
     required SDKConfig config,
@@ -374,7 +378,7 @@ class AdMoai {
   /// the next render. Taps and clicks are never de-duplicated.
   void trackPointView(MatchedPoint point) {
     for (final item in point.tracking?.views ?? const <TrackingItem>[]) {
-      if (_pointViews.claim(item.url)) fireTracking(item.url);
+      if (_pinViews.claim(item.url)) fireTracking(item.url);
     }
   }
 
@@ -407,6 +411,70 @@ class AdMoai {
   /// plural form could only report something that did not happen — and for clicks, bill for it.
   void trackPointViews(List<MatchedPoint> points) =>
       points.forEach(trackPointView);
+
+  // ---- Carousel slide tracking ----
+
+  /// Reports that one slide became **visible to the user** (`slide_view`). Free.
+  ///
+  /// **Returning a slide is not showing it.** You decide when a slide counts as viewed — the
+  /// platform's rule is 50 % of it visible for one continuous second — and call this then.
+  /// The SDK draws nothing and never fires on its own.
+  ///
+  /// **Once per served instance.** A slide is reported the first time it is shown for the
+  /// decision response that returned it; scrolling back to it or re-rendering sends nothing.
+  /// A new response carries new signed view URLs and is reported again. A view is never
+  /// retried.
+  ///
+  /// Trackers stay attached to their slide: pass the [Slide] you rendered, never the
+  /// creative. A slide served without tracking is a no-op.
+  void trackSlideView(Slide slide) {
+    for (final item in slide.tracking?.views ?? const <TrackingItem>[]) {
+      if (_slideViews.claim(item.url)) fireTracking(item.url);
+    }
+  }
+
+  /// Reports several slides becoming visible at once — the bulk form of [trackSlideView],
+  /// with the same once-per-response rule.
+  void trackSlideViews(List<Slide> slides) => slides.forEach(trackSlideView);
+
+  /// Reports that the user **activated a slide** (`click`). Billable.
+  ///
+  /// A tap on a slide that was not reported as viewed yet sends the slide's view first, then
+  /// the click. Every click then also fans out the creative's applicable third-party click
+  /// trackers once.
+  ///
+  /// **Do not route a slide tap through [fireClick]**: a Carousel has no creative-level
+  /// click, so that sends nothing.
+  void trackSlideClick(Slide slide, Creative creative) {
+    // A tap proves the slide was on screen, so its view counts (once) even when the slide
+    // carries no click tracker; a click the slide cannot record sends no click and no fan-out.
+    trackSlideView(slide);
+    final clicks = slide.tracking?.clicks;
+    if (clicks == null || clicks.isEmpty) return;
+    for (final item in clicks) {
+      fireTracking(item.url);
+    }
+    // One fan-out per click, whatever number of click beacons the slide carries, and only
+    // when a canonical click beacon was actually valid (same rule as [fireClick]).
+    final valid = clicks.where((c) => _isAbsoluteHttpUrl(c.url));
+    if (valid.isEmpty) return;
+    _fireThirdPartyTrackers(
+        creative.tracking, ThirdPartyClickEvent(valid.first.key));
+  }
+
+  // ---- Standard format custom events ----
+
+  /// Reports that a Tap-to-expand creative actually expanded (custom event `expand`). Not a
+  /// click: no click is sent and no third-party click tracker fires.
+  void fireExpand(Tracking tracking) => fireCustomEvent(tracking, 'expand');
+
+  /// Reports that an expanded creative was closed (custom event `close`). Not a click.
+  void fireClose(Tracking tracking) => fireCustomEvent(tracking, 'close');
+
+  /// Reports that the user tapped a Branded Assets asset (custom event `asset_tap`). Not a
+  /// click: use [fireClick] for the creative's destination.
+  void fireAssetTap(Tracking tracking) =>
+      fireCustomEvent(tracking, 'asset_tap');
 
   void _fireAll(List<TrackingItem>? items) {
     if (items == null) return;

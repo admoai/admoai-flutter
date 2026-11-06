@@ -20,7 +20,7 @@ import 'journey_e2e_harness.dart';
 /// sleeps) stays hand-written, because that genuinely differs per platform.
 
 /// The one manifest `schemaVersion` this runner executes.
-const supportedSchemaVersion = 2;
+const supportedSchemaVersion = 3;
 
 Map<String, dynamic> loadManifest() {
   // Resolved relative to the test file so it works under `flutter test` from any cwd.
@@ -37,7 +37,7 @@ void manifestGroup(E2eReport report) {
   if (schemaVersion != supportedSchemaVersion) {
     throw StateError(
       'scenarios.json is schemaVersion $schemaVersion; this runner knows schemaVersion '
-      '$supportedSchemaVersion; fixtureScenarios run as unit tests in '
+      '$supportedSchemaVersion; fixtureScenarios and their slideTracking run as unit tests in '
       'test/fixture_scenarios_test.dart',
     );
   }
