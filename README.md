@@ -141,6 +141,7 @@ sdk.clearAppConfig();
 | `baseUrl` | String | Required | Decision Engine API endpoint |
 | `apiVersion` | String? | `null` | Engine API version. `"2025-11-01"` gates Journey Ads, video ads, POI / destination targeting, mid-flight campaign changes, Open Measurement and the `format` placement filter |
 | `defaultLanguage` | String? | `null` | Sent as `Accept-Language` on every request |
+| `playgroundToken` | String? | `null` | Playground token from the Integration page. Set it to talk to a playground; leave it unset for live |
 | `requestTimeout` | Duration | 10s | Per-request timeout |
 | `connectTimeout` | Duration | 10s | Connection timeout (default HTTP client only) |
 | `receiveTimeout` | Duration | 10s | Idle timeout (default HTTP client only) |
@@ -149,6 +150,27 @@ sdk.clearAppConfig();
 `AdMoai.initialize` additionally accepts `sessionId` (the sticky Journey session —
 see [Journey Ads](#journey-ads)) and `httpClient` (a custom
 `http.Client`).
+
+### Playground
+
+Set `playgroundToken` to talk to a playground; leave it unset for live.
+
+```dart
+final sdk = await AdMoai.initialize(
+  config: SDKConfig(
+    baseUrl: 'https://api.admoai.com',
+    apiVersion: '2025-11-01',
+    playgroundToken: 'pg_...',
+  ),
+);
+```
+
+With a token, decision requests go to `/v1/playground/decision` with an
+`X-Playground-Token` header; `baseUrl`, the version headers and the request body
+do not change, and neither does tracking. A token that cannot serve (unknown,
+revoked) gets a normal no-ad response, and the SDK logs the engine's
+`X-Playground-Reason` as a warning. Unset or empty, the request is exactly the
+live one.
 
 ---
 

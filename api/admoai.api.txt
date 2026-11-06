@@ -60,7 +60,8 @@ AdMoaiClient.defaultLanguage  field: String? (read)
 AdMoaiClient.dispose  method() -> void
 AdMoaiClient.getDecisionRequest  method(DecisionRequest request) -> HTTPRequest
 AdMoaiClient.logger  field: Logger (read)
-AdMoaiClient.new  constructor({required String baseUrl, String? apiVersion, String? defaultLanguage, Duration requestTimeout, required Logger logger, Client? httpClient})
+AdMoaiClient.new  constructor({required String baseUrl, String? apiVersion, String? defaultLanguage, String? playgroundToken, Duration requestTimeout, required Logger logger, Client? httpClient})
+AdMoaiClient.playgroundToken  field: String? (read)
 AdMoaiClient.requestDecision  method(DecisionRequest request) -> Future<APIResponse<List<Decision>>>
 AdMoaiClient.requestTimeout  field: Duration (read)
 AdMoaiClient.send  method<T>(HTTPRequest request) -> Future<APIResponse<T>>
@@ -392,7 +393,8 @@ SDKConfig.baseUrl  field: String (read)
 SDKConfig.connectTimeout  field: Duration (read)
 SDKConfig.defaultLanguage  field: String? (read)
 SDKConfig.logger  field: Logger (read)
-SDKConfig.new  constructor({required String baseUrl, String? apiVersion, String? defaultLanguage, Duration requestTimeout, Duration connectTimeout, Duration receiveTimeout, Logger? logger})
+SDKConfig.new  constructor({required String baseUrl, String? apiVersion, String? defaultLanguage, String? playgroundToken, Duration requestTimeout, Duration connectTimeout, Duration receiveTimeout, Logger? logger})
+SDKConfig.playgroundToken  field: String? (read)
 SDKConfig.receiveTimeout  field: Duration (read)
 SDKConfig.requestTimeout  field: Duration (read)
 ServerError  type : APIError, Exception
