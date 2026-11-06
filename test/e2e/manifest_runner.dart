@@ -60,9 +60,13 @@ Future<void> _run(Map<String, dynamic> entry, List<String> notes) async {
 
   // 'none' means: no apiVersion at all, so no version header is sent.
   final rawVersion = request['apiVersion'] as String?;
+  final playgroundToken = request['playgroundToken'] as String?;
   final driver = await (rawVersion == null
-      ? newDriver()
-      : newDriver(apiVersion: rawVersion == 'none' ? null : rawVersion));
+      ? newDriver(playgroundToken: playgroundToken)
+      : newDriver(
+          apiVersion: rawVersion == 'none' ? null : rawVersion,
+          playgroundToken: playgroundToken,
+        ));
 
   try {
     final builder = driver.sdk.createRequestBuilder();

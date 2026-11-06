@@ -10,6 +10,9 @@ class AdMoaiClient {
   final String baseUrl;
   final String? apiVersion;
   final String? defaultLanguage;
+
+  /// When non-empty, decisions go to the playground endpoint with this token.
+  final String? playgroundToken;
   final Duration requestTimeout;
   final Logger logger;
   final http.Client _client;
@@ -18,6 +21,7 @@ class AdMoaiClient {
     required this.baseUrl,
     this.apiVersion,
     this.defaultLanguage,
+    this.playgroundToken,
     this.requestTimeout = const Duration(seconds: 10),
     required this.logger,
     http.Client? httpClient,
@@ -36,6 +40,7 @@ class AdMoaiClient {
           .timeout(requestTimeout);
 
       _warnIfDeprecated(response);
+      _logPlaygroundReason(response);
 
       final rawBody = utf8.decode(response.bodyBytes);
 
@@ -134,6 +139,14 @@ class AdMoaiClient {
     }
   }
 
+  /// A playground that cannot serve answers 200 no-ad and says why in this header.
+  void _logPlaygroundReason(http.Response response) {
+    final reason = response.headers['x-playground-reason'];
+    if (reason != null) {
+      logger.warning('AdMoai playground served no ad: $reason');
+    }
+  }
+
   HTTPRequest getDecisionRequest(DecisionRequest request) {
     final headers = {
       'Content-Type': 'application/json',
@@ -149,8 +162,14 @@ class AdMoaiClient {
       headers['Accept-Language'] = defaultLanguage!;
     }
 
+    final token = playgroundToken;
+    final playground = token != null && token.isNotEmpty;
+    if (playground) {
+      headers['X-Playground-Token'] = token;
+    }
+
     return HTTPRequest(
-      path: '/v1/decision',
+      path: playground ? '/v1/playground/decision' : '/v1/decision',
       method: HTTPMethod.post,
       headers: headers,
       body: jsonEncode(request.toJson()),

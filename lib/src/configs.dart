@@ -11,6 +11,9 @@ class SDKConfig {
   final String baseUrl;
   final String? apiVersion;
   final String? defaultLanguage;
+
+  /// Set to talk to a playground; leave unset (or empty) for live.
+  final String? playgroundToken;
   final Duration requestTimeout;
   final Duration connectTimeout;
   final Duration receiveTimeout;
@@ -20,6 +23,7 @@ class SDKConfig {
     required this.baseUrl,
     this.apiVersion,
     this.defaultLanguage,
+    this.playgroundToken,
     this.requestTimeout = const Duration(seconds: 10),
     this.connectTimeout = const Duration(seconds: 10),
     this.receiveTimeout = const Duration(seconds: 10),
