@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:admoai/admoai.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -120,5 +121,20 @@ void main() {
     );
     expect(mistyped.metadata?.templateSource, isNull);
     expect(mistyped.metadata?.effectiveStandardFormatKey, isNull);
+  });
+
+  test('asset context decodes from Branded Assets and is absent on Card', () {
+    Metadata metadataOf(String golden) {
+      final wire = jsonDecode(File('test/e2e/fixtures/golden-wire/$golden.json')
+          .readAsStringSync()) as Map<String, dynamic>;
+      final first = ((wire['data'] as List).first as Map)['creatives'] as List;
+      return Creative.fromJson(first.first as Map<String, dynamic>).metadata!;
+    }
+
+    expect(metadataOf('branded_assets.full').assetContext, 'vehicle_marker');
+    expect(metadataOf('branded_assets.minimal').assetContext, 'vehicle_marker');
+    expect(metadataOf('card.full').assetContext, isNull);
+    final mistyped = creative(contents: '[]', metadata: '{"assetContext": 3}');
+    expect(mistyped.metadata?.assetContext, isNull);
   });
 }

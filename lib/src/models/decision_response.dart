@@ -464,6 +464,11 @@ class Metadata {
   /// kept verbatim, and absent is `null`.
   final String? templateSource;
 
+  /// What the creative's asset is for, when its standard format names one (Branded Assets:
+  /// `vehicle_marker`). Open-set: an unknown value is kept verbatim. Absent when the engine does
+  /// not send it (every other format), never an empty string.
+  final String? assetContext;
+
   Metadata({
     required this.adId,
     required this.creativeId,
@@ -483,6 +488,7 @@ class Metadata {
     this.effectiveStandardFormatKey,
     this.effectiveStandardFormatVersion,
     this.templateSource,
+    this.assetContext,
   });
 
   /// Tolerant Reader parse: never throws. Currently-required id fields default
@@ -512,6 +518,7 @@ class Metadata {
       effectiveStandardFormatVersion:
           _asWholeNumber(json['effectiveStandardFormatVersion']),
       templateSource: _asString(json['templateSource']),
+      assetContext: _asString(json['assetContext']),
     );
   }
 }
