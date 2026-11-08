@@ -6,9 +6,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
+import 'support/creative_expectations.dart';
 import 'support/dispatch_recording_client.dart';
 
-// Shared fixture scenarios (@admoai/sdk-scenarios schemaVersion 3, admoai/adhub#4734)
+// Shared fixture scenarios (@admoai/sdk-scenarios schemaVersion 4, admoai/adhub#4734)
 //
 // Feature: A publisher's app reads the standard native formats from a decision response
 //   As a publisher's tech team
@@ -24,12 +25,6 @@ import 'support/dispatch_recording_client.dart';
 const _e2eDirectory = 'test/e2e';
 
 typedef _Json = Map<String, dynamic>;
-
-const _metadataKeys = [
-  'effectiveStandardFormatKey',
-  'effectiveStandardFormatVersion',
-  'templateSource',
-];
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -335,16 +330,11 @@ void _check(String id, String key, dynamic value, Creative creative) {
     case 'decodes':
       expect(value, isTrue, reason: '$id: decodes is true');
     case 'metadata':
-      _checkMetadata(id, value, creative.metadata);
+      checkMetadataExpectation(id, value, creative.metadata);
     case 'templateKey':
-      expect(creative.template?.key, equals(value), reason: '$id: templateKey');
+      checkTemplateKey(id, value, creative);
     case 'contentKeys':
-      final plain = creative.contents
-          .map((c) => c.key)
-          .toSet()
-          .difference({'slides', matchedPointsContentKey});
-      expect(plain, equals(_strings(value).toSet()),
-          reason: '$id: contentKeys, got ${plain.toList()..sort()}');
+      checkContentKeys(id, value, creative);
     case 'contentKeysAbsent':
       for (final absent in _strings(value)) {
         expect(creative.contents.getContent(absent), isNull,
@@ -373,38 +363,6 @@ void _check(String id, String key, dynamic value, Creative creative) {
           reason: '$id: matchedPoints count');
     default:
       fail('$id: unknown expect key $key');
-  }
-}
-
-void _checkMetadata(String id, dynamic expected, Metadata? metadata) {
-  if (expected is! Map) {
-    fail('$id: metadata expectation is not an object');
-  }
-  for (final entry in expected.entries) {
-    switch (entry.key) {
-      case 'effectiveStandardFormatKey':
-        _expectOptional(
-            id, entry.key, metadata?.effectiveStandardFormatKey, entry.value);
-      case 'effectiveStandardFormatVersion':
-        _expectOptional(id, entry.key, metadata?.effectiveStandardFormatVersion,
-            entry.value);
-      case 'templateSource':
-        _expectOptional(id, entry.key, metadata?.templateSource, entry.value);
-      default:
-        fail(
-            '$id: unknown metadata expect key ${entry.key} (known: $_metadataKeys)');
-    }
-  }
-}
-
-/// JSON null expects the property to be `null`; anything else must equal it.
-void _expectOptional<T>(String id, String key, T? actual, dynamic expected) {
-  if (expected == null) {
-    expect(actual, isNull, reason: '$id: metadata.$key is absent, got $actual');
-  } else if (expected is T) {
-    expect(actual, equals(expected), reason: '$id: metadata.$key, got $actual');
-  } else {
-    fail('$id: metadata.$key expectation $expected has the wrong type');
   }
 }
 

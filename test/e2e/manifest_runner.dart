@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:admoai/admoai.dart';
 
+import '../support/creative_expectations.dart';
 import 'journey_e2e_harness.dart';
 
 /// Shared cross-SDK manifest interpreter.
@@ -20,7 +21,7 @@ import 'journey_e2e_harness.dart';
 /// sleeps) stays hand-written, because that genuinely differs per platform.
 
 /// The one manifest `schemaVersion` this runner executes.
-const supportedSchemaVersion = 3;
+const supportedSchemaVersion = 4;
 
 Map<String, dynamic> loadManifest() {
   // Resolved relative to the test file so it works under `flutter test` from any cwd.
@@ -37,7 +38,8 @@ void manifestGroup(E2eReport report) {
   if (schemaVersion != supportedSchemaVersion) {
     throw StateError(
       'scenarios.json is schemaVersion $schemaVersion; this runner knows schemaVersion '
-      '$supportedSchemaVersion; fixtureScenarios and their slideTracking run as unit tests in '
+      '$supportedSchemaVersion (the live expect.creative keys metadata, templateKey, contentKeys, '
+      'styleIn and journeyStageKey); fixtureScenarios and their slideTracking run as unit tests in '
       'test/fixture_scenarios_test.dart',
     );
   }
@@ -399,8 +401,72 @@ Format? _format(String? raw) {
   }
 }
 
+/// Every `expect.creative` key this interpreter executes. A key outside this set FAILS the
+/// scenario: a manifest newer than this runner must never pass by being silently ignored.
+const knownCreativeExpectKeys = {
+  'requireMetadata',
+  'priorityIn',
+  'requireAdvertiser',
+  'requireTemplate',
+  'requireContents',
+  'journey',
+  'formatEquals',
+  'deliveryEquals',
+  'impressions',
+  'matchedPointsAtLeast',
+  'matchedPointsEquals',
+  'matchedPointsNone',
+  'matchedPointsNearestFirst',
+  'matchedPointsWellFormed',
+  'matchedPointsHaveBeacons',
+  'matchedPointsHaveClickUrl',
+  'clicksAtLeast',
+  'videoEventCount',
+  'videoEventKeys',
+  'requireVastTagUrl',
+  'requireVastXmlDecodes',
+  'metadataIsSkippable',
+  'skipOffsetSecondsEquals',
+  'helperIsSkippable',
+  'helperSkipOffsetEquals',
+  'endCardModeEquals',
+  // schemaVersion 4, shared with the fixture scenarios (test/support/creative_expectations.dart)
+  'metadata',
+  'templateKey',
+  'contentKeys',
+  'styleIn',
+  'journeyStageKey',
+};
+
+/// Public seam for the offline unit test of the interpreter.
+void assertCreative(
+        Creative creative, Map<String, dynamic> e, List<String> notes) =>
+    _assertCreative(creative, e, notes);
+
 void _assertCreative(
     Creative creative, Map<String, dynamic> e, List<String> notes) {
+  final unknown =
+      e.keys.where((k) => !knownCreativeExpectKeys.contains(k)).toList();
+  check(unknown.isEmpty,
+      'every expect.creative key is one this runner executes (unknown: $unknown)');
+  if (e.containsKey('metadata')) {
+    checkMetadataExpectation(
+        'expect.creative', e['metadata'], creative.metadata);
+  }
+  if (e.containsKey('templateKey')) {
+    checkTemplateKey('expect.creative', e['templateKey'], creative);
+  }
+  if (e.containsKey('contentKeys')) {
+    checkContentKeys('expect.creative', e['contentKeys'], creative);
+  }
+  if (e.containsKey('styleIn')) {
+    checkStyleIn('expect.creative', e['styleIn'], creative);
+  }
+  if (e.containsKey('journeyStageKey')) {
+    check(e['journey'] == true,
+        'journeyStageKey is only valid with "journey": true');
+    checkJourneyStageKey('expect.creative', e['journeyStageKey'], creative);
+  }
   if (e['requireMetadata'] == true) {
     final m = creative.metadata;
     check(m != null, 'the creative carries a metadata block');
