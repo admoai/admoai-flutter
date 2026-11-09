@@ -414,6 +414,9 @@ class AdMoai {
 
   // ---- Carousel slide tracking ----
 
+  static const _slideViewKey = 'slide_view';
+  static const _slideClickKey = 'default';
+
   /// Reports that one slide became **visible to the user** (`slide_view`). Free.
   ///
   /// **Returning a slide is not showing it.** You decide when a slide counts as viewed — the
@@ -427,8 +430,12 @@ class AdMoai {
   ///
   /// Trackers stay attached to their slide: pass the [Slide] you rendered, never the
   /// creative. A slide served without tracking is a no-op.
+  ///
+  /// Sends **only** the view keyed `slide_view`. A template may file further events in the
+  /// slide's `tracking.views`; those are not a view and are never sent from here.
   void trackSlideView(Slide slide) {
     for (final item in slide.tracking?.views ?? const <TrackingItem>[]) {
+      if (item.key != _slideViewKey) continue;
       if (_slideViews.claim(item.url)) fireTracking(item.url);
     }
   }
@@ -439,9 +446,13 @@ class AdMoai {
 
   /// Reports that the user **activated a slide** (`click`). Billable.
   ///
-  /// A tap on a slide that was not reported as viewed yet sends the slide's view first, then
-  /// the click. Every click then also fans out the creative's applicable third-party click
-  /// trackers once.
+  /// A tap on a slide that was not reported as viewed yet sends the slide's `slide_view`
+  /// first, then the slide's `default` click. Every click then also fans out the creative's
+  /// applicable third-party click trackers once, keyed `default`.
+  ///
+  /// Only the click keyed `default` is a slide tap. A template may add other clicks to
+  /// `tracking.clicks`; they are never sent from here, so a slide with no `default` click
+  /// counts its view, sends no click and fans out nothing.
   ///
   /// **Do not route a slide tap through [fireClick]**: a Carousel has no creative-level
   /// click, so that sends nothing.
@@ -449,17 +460,17 @@ class AdMoai {
     // A tap proves the slide was on screen, so its view counts (once) even when the slide
     // carries no click tracker; a click the slide cannot record sends no click and no fan-out.
     trackSlideView(slide);
-    final clicks = slide.tracking?.clicks;
-    if (clicks == null || clicks.isEmpty) return;
-    for (final item in clicks) {
+    final defaults = (slide.tracking?.clicks ?? const <TrackingItem>[])
+        .where((c) => c.key == _slideClickKey);
+    if (defaults.isEmpty) return;
+    for (final item in defaults) {
       fireTracking(item.url);
     }
-    // One fan-out per click, whatever number of click beacons the slide carries, and only
-    // when a canonical click beacon was actually valid (same rule as [fireClick]).
-    final valid = clicks.where((c) => _isAbsoluteHttpUrl(c.url));
-    if (valid.isEmpty) return;
+    // One fan-out per click, whatever number of `default` beacons the slide carries, and
+    // only when one was actually valid (same rule as [fireClick]).
+    if (!defaults.any((c) => _isAbsoluteHttpUrl(c.url))) return;
     _fireThirdPartyTrackers(
-        creative.tracking, ThirdPartyClickEvent(valid.first.key));
+        creative.tracking, const ThirdPartyClickEvent(_slideClickKey));
   }
 
   // ---- Standard format custom events ----
