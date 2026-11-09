@@ -18,8 +18,11 @@ import 'support/dispatch_recording_client.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  Map<String, dynamic> slideJson(int n,
-      {bool views = true, bool clicks = true}) {
+  Map<String, dynamic> slideJson(
+    int n, {
+    bool views = true,
+    bool clicks = true,
+  }) {
     return {
       'slideId': 'slide_$n',
       'position': n,
@@ -27,11 +30,11 @@ void main() {
       'tracking': {
         if (views)
           'views': [
-            {'key': 'slide_view', 'url': 'https://t/slide$n/view'}
+            {'key': 'slide_view', 'url': 'https://t/slide$n/view'},
           ],
         if (clicks)
           'clicks': [
-            {'key': 'default', 'url': 'https://t/slide$n/click'}
+            {'key': 'default', 'url': 'https://t/slide$n/click'},
           ],
       },
     };
@@ -39,7 +42,7 @@ void main() {
 
   Creative creative(List<Map<String, dynamic>> slides) => Creative.fromJson({
         'contents': [
-          {'key': 'slides', 'type': 'slides', 'value': slides}
+          {'key': 'slides', 'type': 'slides', 'value': slides},
         ],
         'advertiser': {'name': 'Acme'},
         'tracking': {
@@ -48,26 +51,26 @@ void main() {
               'trackerId': 'any',
               'eventType': 'click',
               'matchType': 'any',
-              'url': 'https://agency.example/any'
+              'url': 'https://agency.example/any',
             },
             {
               'trackerId': 'default',
               'eventType': 'click',
               'matchType': 'specific',
               'eventKey': 'default',
-              'url': 'https://agency.example/default'
+              'url': 'https://agency.example/default',
             },
             {
               'trackerId': 'other',
               'eventType': 'click',
               'matchType': 'specific',
               'eventKey': 'save',
-              'url': 'https://agency.example/other'
+              'url': 'https://agency.example/other',
             },
             {
               'trackerId': 'imp',
               'eventType': 'impression',
-              'url': 'https://agency.example/imp'
+              'url': 'https://agency.example/imp',
             },
           ],
         },
@@ -75,10 +78,12 @@ void main() {
 
   (AdMoai, DispatchRecordingClient, List<String>) sdkWithCapture() {
     final received = <String>[];
-    final client = DispatchRecordingClient(MockClient((request) async {
-      received.add(request.url.toString());
-      return http.Response('', 200);
-    }));
+    final client = DispatchRecordingClient(
+      MockClient((request) async {
+        received.add(request.url.toString());
+        return http.Response('', 200);
+      }),
+    );
     final sdk = AdMoai.forTesting(
       config: SDKConfig(
         baseUrl: 'https://mock.api.admoai.com',
@@ -131,8 +136,10 @@ void main() {
     await settle();
 
     // Dispatch order is the contract; arrival order at the mock is the client's.
-    expect(client.dispatched.where((u) => u.startsWith('https://t/')),
-        ['https://t/slide1/view', 'https://t/slide1/click']);
+    expect(client.dispatched.where((u) => u.startsWith('https://t/')), [
+      'https://t/slide1/view',
+      'https://t/slide1/click',
+    ]);
     expect(client.dispatched, hasLength(4), reason: 'view, click, 2 fan-out');
   });
 
@@ -147,46 +154,57 @@ void main() {
     sdk.trackSlideClick(c.slides[0], c);
     await settle();
 
-    expect(client.dispatched.where((u) => u.startsWith('https://t/')),
-        ['https://t/slide1/click']);
+    expect(client.dispatched.where((u) => u.startsWith('https://t/')), [
+      'https://t/slide1/click',
+    ]);
     expect(client.dispatched, hasLength(3), reason: 'click + 2 fan-out');
   });
 
-  test('a tap on a slide without a click tracker still counts its view',
-      () async {
-    final c = creative([slideJson(1, clicks: false)]);
-    final (sdk, client, _) = sdkWithCapture();
+  test(
+    'a tap on a slide without a click tracker still counts its view',
+    () async {
+      final c = creative([slideJson(1, clicks: false)]);
+      final (sdk, client, _) = sdkWithCapture();
 
-    sdk.trackSlideClick(c.slides[0], c);
-    sdk.trackSlideClick(c.slides[0], c);
-    await settle();
+      sdk.trackSlideClick(c.slides[0], c);
+      sdk.trackSlideClick(c.slides[0], c);
+      await settle();
 
-    expect(client.dispatched, ['https://t/slide1/view'],
-        reason: 'the tap proves the slide was seen; no click, no fan-out');
-  });
+      expect(
+        client.dispatched,
+        ['https://t/slide1/view'],
+        reason: 'the tap proves the slide was seen; no click, no fan-out',
+      );
+    },
+  );
 
-  test('every click fans out the applicable third-party trackers once',
-      () async {
-    final c = creative([slideJson(1)]);
-    final (sdk, client, _) = sdkWithCapture();
+  test(
+    'every click fans out the applicable third-party trackers once',
+    () async {
+      final c = creative([slideJson(1)]);
+      final (sdk, client, _) = sdkWithCapture();
 
-    sdk.trackSlideClick(c.slides[0], c);
-    sdk.trackSlideClick(c.slides[0], c);
-    await settle();
+      sdk.trackSlideClick(c.slides[0], c);
+      sdk.trackSlideClick(c.slides[0], c);
+      await settle();
 
-    expect(client.dispatched, hasLength(7),
-        reason: 'view, 2 clicks, 4 fan-out');
-    final thirdParty = client.dispatched
-        .where((u) => u.startsWith('https://agency.example/'))
-        .toList()
-      ..sort();
-    expect(thirdParty, [
-      'https://agency.example/any',
-      'https://agency.example/any',
-      'https://agency.example/default',
-      'https://agency.example/default',
-    ]);
-  });
+      expect(
+        client.dispatched,
+        hasLength(7),
+        reason: 'view, 2 clicks, 4 fan-out',
+      );
+      final thirdParty = client.dispatched
+          .where((u) => u.startsWith('https://agency.example/'))
+          .toList()
+        ..sort();
+      expect(thirdParty, [
+        'https://agency.example/any',
+        'https://agency.example/any',
+        'https://agency.example/default',
+        'https://agency.example/default',
+      ]);
+    },
+  );
 
   test('a slide view never fans out third-party trackers', () async {
     final c = creative([slideJson(1), slideJson(2)]);
@@ -211,8 +229,11 @@ void main() {
     sdk.trackSlideClick(c.slides[1], c);
     await settle();
 
-    expect(client.dispatched, isEmpty,
-        reason: 'no tracker at all: nothing to send, and no fan-out');
+    expect(
+      client.dispatched,
+      isEmpty,
+      reason: 'no tracker at all: nothing to send, and no fan-out',
+    );
   });
 
   test('slide and pin views keep independent ledgers', () async {
@@ -230,10 +251,10 @@ void main() {
               'contents': <dynamic>[],
               'tracking': {
                 'views': [
-                  {'key': 'slide_view', 'url': 'https://t/shared'}
+                  {'key': 'slide_view', 'url': 'https://t/shared'},
                 ],
               },
-            }
+            },
           ],
         },
         {
@@ -248,10 +269,10 @@ void main() {
               'distance': 1,
               'tracking': {
                 'views': [
-                  {'key': 'default', 'url': 'https://t/shared'}
+                  {'key': 'default', 'url': 'https://t/shared'},
                 ],
               },
-            }
+            },
           ],
         },
       ],
@@ -266,7 +287,12 @@ void main() {
     sdk.trackSlideView(c.slides[0]);
     await settle();
 
-    expect(client.dispatched, ['https://t/shared', 'https://t/shared'],
+    expect(
+        client.dispatched,
+        [
+          'https://t/shared',
+          'https://t/shared',
+        ],
         reason: 'once as a pin, once as a slide');
   });
 
@@ -281,4 +307,68 @@ void main() {
 
     expect(client.dispatched, isEmpty);
   });
+
+  Map<String, dynamic> richSlide({bool withDefault = true}) => {
+        'slideId': 'slide_rich',
+        'position': 1,
+        'contents': <dynamic>[],
+        'tracking': {
+          'views': [
+            {'key': 'slide_view', 'url': 'https://t/rich/view'},
+            {'key': 'slide_shown_custom', 'url': 'https://t/rich/shown'},
+          ],
+          'clicks': [
+            {'key': 'save_offer', 'url': 'https://t/rich/save'},
+            if (withDefault) {'key': 'default', 'url': 'https://t/rich/click'},
+          ],
+        },
+      };
+
+  test(
+    'a slide view sends only its slide_view, never a template-added view',
+    () async {
+      final c = creative([richSlide()]);
+      final (sdk, client, _) = sdkWithCapture();
+
+      sdk.trackSlideView(c.slides[0]);
+      await settle();
+
+      expect(client.dispatched, ['https://t/rich/view']);
+    },
+  );
+
+  test(
+      'a tap sends the pending slide_view then only the default click, '
+      'and fans out only default and any trackers', () async {
+    final c = creative([richSlide()]);
+    final (sdk, client, _) = sdkWithCapture();
+
+    sdk.trackSlideClick(c.slides[0], c);
+    await settle();
+
+    expect(client.dispatched.take(2).toList(), [
+      'https://t/rich/view',
+      'https://t/rich/click',
+    ]);
+    expect(client.dispatched, isNot(contains('https://t/rich/save')));
+    expect(client.dispatched, isNot(contains('https://t/rich/shown')));
+    expect(client.dispatched.skip(2).toSet(), {
+      'https://agency.example/any',
+      'https://agency.example/default',
+    });
+    expect(client.dispatched, hasLength(4));
+  });
+
+  test(
+    'a slide whose only click is a template one counts the view alone',
+    () async {
+      final c = creative([richSlide(withDefault: false)]);
+      final (sdk, client, _) = sdkWithCapture();
+
+      sdk.trackSlideClick(c.slides[0], c);
+      await settle();
+
+      expect(client.dispatched, ['https://t/rich/view']);
+    },
+  );
 }
