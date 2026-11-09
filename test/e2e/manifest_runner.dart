@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:admoai/admoai.dart';
 
+import '../support/creative_expectations.dart';
 import 'journey_e2e_harness.dart';
 
 /// Shared cross-SDK manifest interpreter.
@@ -20,7 +21,7 @@ import 'journey_e2e_harness.dart';
 /// sleeps) stays hand-written, because that genuinely differs per platform.
 
 /// The one manifest `schemaVersion` this runner executes.
-const supportedSchemaVersion = 3;
+const supportedSchemaVersion = 5;
 
 Map<String, dynamic> loadManifest() {
   // Resolved relative to the test file so it works under `flutter test` from any cwd.
@@ -37,7 +38,8 @@ void manifestGroup(E2eReport report) {
   if (schemaVersion != supportedSchemaVersion) {
     throw StateError(
       'scenarios.json is schemaVersion $schemaVersion; this runner knows schemaVersion '
-      '$supportedSchemaVersion; fixtureScenarios and their slideTracking run as unit tests in '
+      '$supportedSchemaVersion (the live expect.creative keys metadata, templateKey, contentKeys, '
+      'styleIn, journeyStageKey, slides and clickKeys, and slideTracking on a live scenario); fixtureScenarios and their slideTracking run as unit tests in '
       'test/fixture_scenarios_test.dart',
     );
   }
@@ -57,6 +59,10 @@ void manifestGroup(E2eReport report) {
 Future<void> _run(Map<String, dynamic> entry, List<String> notes) async {
   final request = entry['request'] as Map<String, dynamic>;
   final expect = entry['expect'] as Map<String, dynamic>;
+  final unknownKeys =
+      entry.keys.where((k) => !knownScenarioKeys.contains(k)).toList();
+  check(unknownKeys.isEmpty,
+      'every scenario key is one this runner executes (unknown: $unknownKeys)');
 
   // 'none' means: no apiVersion at all, so no version header is sent.
   final rawVersion = request['apiVersion'] as String?;
@@ -201,6 +207,13 @@ Future<void> _run(Map<String, dynamic> entry, List<String> notes) async {
     final creativeExpect = expect['creative'] as Map<String, dynamic>?;
     if (creativeExpect != null) {
       _assertCreative(creatives.first, creativeExpect, notes);
+    }
+    final slideTracking = entry['slideTracking'] as Map<String, dynamic>?;
+    if (slideTracking != null) {
+      check(creativeExpect?.containsKey('slides') == true,
+          'slideTracking requires expect.creative.slides');
+      await runSlideTracking(
+          slideTracking, driver.sdk, driver.client, creatives.first, notes);
     }
     final pinTracking = entry['pinTracking'] as Map<String, dynamic>?;
     if (pinTracking != null) {
@@ -388,6 +401,129 @@ Future<void> _runPinTracking(
       '${sent.length} sent in total');
 }
 
+// ---- Carousel slide tracking (schemaVersion 5) ----
+//
+// A live `slideTracking` replays what an app does with a served Carousel through the SDK's public
+// slide helpers, on the creative decoded from the live response: `slideView: n` ->
+// `trackSlideView(slides[n-1])`, `slideClick: n` -> `trackSlideClick(slides[n-1], creative)`,
+// `fireClick: null|key` -> `fireClick`. `expect.beacons` is the exact ordered list of first-party
+// beacons dispatched, each URL mapped back to `{slide, view|click}` by matching the creative's
+// slide tracker URLs. `engineAcceptsEveryBeacon` is the pinTracking definition: the engine
+// answered every tracking GET and none with a status of 400 or more.
+
+/// Maps a dispatched URL to the beacon the manifest would name for it, or null when it matches no
+/// tracker of the creative.
+Map<String, dynamic>? describeBeacon(Creative creative, String url) {
+  for (final slide in creative.slides) {
+    for (final t in slide.tracking?.views ?? const <TrackingItem>[]) {
+      if (t.url == url) return {'slide': slide.position, 'view': t.key};
+    }
+    for (final t in slide.tracking?.clicks ?? const <TrackingItem>[]) {
+      if (t.url == url) return {'slide': slide.position, 'click': t.key};
+    }
+  }
+  for (final t in creative.tracking.clicks ?? const <TrackingItem>[]) {
+    if (t.url == url) return {'click': t.key};
+  }
+  return null;
+}
+
+Future<void> runSlideTracking(
+  Map<String, dynamic> block,
+  AdMoai sdk,
+  RecordingClient client,
+  Creative creative,
+  List<String> notes, {
+  Duration quietPeriod = const Duration(milliseconds: 1500),
+  Duration deadline = const Duration(seconds: 10),
+}) async {
+  final unknownKeys =
+      block.keys.where((k) => k != 'steps' && k != 'expect').toList();
+  check(unknownKeys.isEmpty,
+      'every slideTracking key is one this runner executes (unknown: $unknownKeys)');
+  final e = block['expect'] as Map<String, dynamic>;
+  final unknownExpect = e.keys
+      .where((k) => k != 'beacons' && k != 'engineAcceptsEveryBeacon')
+      .toList();
+  check(unknownExpect.isEmpty,
+      'every slideTracking expect key is one this runner executes (unknown: $unknownExpect)');
+
+  // The decision that served this scenario went through the recorder too; only beacons count.
+  client.sent.clear();
+  client.answered.clear();
+  for (final step in (block['steps'] as List).cast<Map<String, dynamic>>()) {
+    if (step['slideView'] is int) {
+      final n = step['slideView'] as int;
+      check(n >= 1 && n <= creative.slides.length,
+          'the creative has a slide $n (got ${creative.slides.length})');
+      sdk.trackSlideView(creative.slides[n - 1]);
+    } else if (step['slideClick'] is int) {
+      final n = step['slideClick'] as int;
+      check(n >= 1 && n <= creative.slides.length,
+          'the creative has a slide $n (got ${creative.slides.length})');
+      sdk.trackSlideClick(creative.slides[n - 1], creative);
+    } else if (step.containsKey('fireClick')) {
+      final key = step['fireClick'];
+      if (key is String) {
+        sdk.fireClick(creative.tracking, key: key);
+      } else {
+        sdk.fireClick(creative.tracking);
+      }
+    } else {
+      check(false, 'a slideTracking step this runner executes (got $step)');
+    }
+  }
+
+  final expectedBeacons =
+      (e['beacons'] as List? ?? const []).cast<Map<String, dynamic>>();
+  final waitUntil = DateTime.now().add(deadline);
+  while (client.sent.length < expectedBeacons.length &&
+      DateTime.now().isBefore(waitUntil)) {
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+  }
+  // So a stray or duplicate beacon arriving late is still caught.
+  await Future<void>.delayed(quietPeriod);
+
+  final sent = List<String>.of(client.sent);
+  final dispatched = <Map<String, dynamic>>[];
+  for (final url in sent) {
+    final beacon = describeBeacon(creative, url);
+    check(beacon != null,
+        'every dispatched beacon is a tracker of the creative (got $url)');
+    dispatched.add(beacon!);
+  }
+  final want = [for (final b in expectedBeacons) _beaconShape(b)];
+  final got = [for (final b in dispatched) _beaconShape(b)];
+  check(want.length == got.length && _sameOrder(want, got),
+      'the first-party beacons, in dispatch order, are $want (got $got)');
+
+  if (e['engineAcceptsEveryBeacon'] == true) {
+    final waitAnswers = DateTime.now().add(deadline);
+    while (client.answered.length < sent.length &&
+        DateTime.now().isBefore(waitAnswers)) {
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+    }
+    final all = List<(String, int)>.of(client.answered);
+    check(all.length == sent.length,
+        'the engine answered every beacon (${all.length}/${sent.length})');
+    final rejected =
+        all.where((a) => a.$2 < 200 || a.$2 >= 400).map((a) => a.$2).toList();
+    check(rejected.isEmpty,
+        'the engine accepts every beacon (rejected: $rejected)');
+  }
+  notes.add('${sent.length} slide beacon(s): $got');
+}
+
+String _beaconShape(Map<String, dynamic> b) =>
+    '${b['slide'] ?? '-'}/${b['view'] != null ? 'view:${b['view']}' : 'click:${b['click']}'}';
+
+bool _sameOrder(List<String> a, List<String> b) {
+  for (var i = 0; i < a.length; i++) {
+    if (a[i] != b[i]) return false;
+  }
+  return true;
+}
+
 Format? _format(String? raw) {
   switch (raw) {
     case 'native':
@@ -399,8 +535,92 @@ Format? _format(String? raw) {
   }
 }
 
+/// Every `expect.creative` key this interpreter executes. A key outside this set FAILS the
+/// scenario: a manifest newer than this runner must never pass by being silently ignored.
+const knownCreativeExpectKeys = {
+  'requireMetadata',
+  'priorityIn',
+  'requireAdvertiser',
+  'requireTemplate',
+  'requireContents',
+  'journey',
+  'formatEquals',
+  'deliveryEquals',
+  'impressions',
+  'matchedPointsAtLeast',
+  'matchedPointsEquals',
+  'matchedPointsNone',
+  'matchedPointsNearestFirst',
+  'matchedPointsWellFormed',
+  'matchedPointsHaveBeacons',
+  'matchedPointsHaveClickUrl',
+  'clicksAtLeast',
+  'videoEventCount',
+  'videoEventKeys',
+  'requireVastTagUrl',
+  'requireVastXmlDecodes',
+  'metadataIsSkippable',
+  'skipOffsetSecondsEquals',
+  'helperIsSkippable',
+  'helperSkipOffsetEquals',
+  'endCardModeEquals',
+  // schemaVersion 4, shared with the fixture scenarios (test/support/creative_expectations.dart)
+  'metadata',
+  'templateKey',
+  'contentKeys',
+  'styleIn',
+  'journeyStageKey',
+  // schemaVersion 5 (Carousel), shared with the fixture scenarios too
+  'slides',
+  'clickKeys',
+};
+
+/// Every key of a live scenario this interpreter executes; one outside it FAILS the scenario.
+const knownScenarioKeys = {
+  'id',
+  'title',
+  'comment', // documentation for readers, never executed
+  'request',
+  'expect',
+  'pinTracking',
+  'slideTracking',
+};
+
+/// Public seam for the offline unit test of the interpreter.
+void assertCreative(
+        Creative creative, Map<String, dynamic> e, List<String> notes) =>
+    _assertCreative(creative, e, notes);
+
 void _assertCreative(
     Creative creative, Map<String, dynamic> e, List<String> notes) {
+  final unknown =
+      e.keys.where((k) => !knownCreativeExpectKeys.contains(k)).toList();
+  check(unknown.isEmpty,
+      'every expect.creative key is one this runner executes (unknown: $unknown)');
+  if (e.containsKey('metadata')) {
+    checkMetadataExpectation(
+        'expect.creative', e['metadata'], creative.metadata);
+  }
+  if (e.containsKey('templateKey')) {
+    checkTemplateKey('expect.creative', e['templateKey'], creative);
+  }
+  if (e.containsKey('contentKeys')) {
+    checkContentKeys('expect.creative', e['contentKeys'], creative);
+  }
+  if (e.containsKey('styleIn')) {
+    checkStyleIn('expect.creative', e['styleIn'], creative);
+  }
+  if (e.containsKey('journeyStageKey')) {
+    check(e['journey'] == true,
+        'journeyStageKey is only valid with "journey": true');
+    checkJourneyStageKey('expect.creative', e['journeyStageKey'], creative);
+  }
+  if (e.containsKey('slides')) {
+    checkSlides('expect.creative', e['slides'], creative);
+  }
+  if (e.containsKey('clickKeys')) {
+    checkClickKeys('expect.creative', e['clickKeys'], creative);
+  }
   if (e['requireMetadata'] == true) {
     final m = creative.metadata;
     check(m != null, 'the creative carries a metadata block');
