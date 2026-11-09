@@ -33,12 +33,12 @@ void main() {
     }
   });
 
-  /// `schemaVersion` 2 added `fixtureScenarios` (3 added their `slideTracking`, 4 the live standard-format keys); the live runner refuses any other version and
+  /// `schemaVersion` 2 added `fixtureScenarios` (3 added their `slideTracking`, 4 the live standard-format keys, 5 the live Carousel keys); the live runner refuses any other version and
   /// fixture_scenarios_test.dart interprets them, so both are pinned here against the vendored copy.
   test('the fixture scenarios are structurally valid', () {
     final root = jsonDecode(file.readAsStringSync()) as Map<String, dynamic>;
-    expect(root['schemaVersion'], equals(4),
-        reason: 'this SDK vendors a schemaVersion 4 manifest');
+    expect(root['schemaVersion'], equals(5),
+        reason: 'this SDK vendors a schemaVersion 5 manifest');
 
     final fixtureScenarios =
         (root['fixtureScenarios'] as List).cast<Map<String, dynamic>>();

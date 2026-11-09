@@ -106,3 +106,62 @@ List<String> stringList(dynamic value) {
   }
   return value.cast<String>();
 }
+
+/// `clickKeys`: the exact set of creative-level click tracker keys (a Carousel has none).
+void checkClickKeys(String id, dynamic expected, Creative creative) {
+  final served = trackerKeys(creative.tracking.clicks).toSet();
+  expect(
+    served,
+    equals(stringList(expected).toSet()),
+    reason: '$id: clickKeys, got ${served.toList()..sort()}',
+  );
+}
+
+const _slideKeys = [
+  'slideId',
+  'position',
+  'contentKeys',
+  'viewKeys',
+  'clickKeys',
+];
+
+/// `slides`: the ordered, exact list of the served creative's slides. Each element names exactly
+/// `slideId`, `position`, `contentKeys`, `viewKeys` and `clickKeys`; the three key lists are exact
+/// sets (order not asserted).
+void checkSlides(String id, dynamic expected, Creative creative) {
+  final want = (expected as List?)?.cast<Map<String, dynamic>>() ?? const [];
+  final slides = creative.slides;
+  expect(
+    slides.length,
+    equals(want.length),
+    reason: '$id: slide count, got ${slides.length}',
+  );
+  for (var i = 0; i < want.length && i < slides.length; i++) {
+    final w = want[i];
+    final slide = slides[i];
+    final label = '$id: slide ${i + 1}';
+    for (final key in w.keys.where((k) => !_slideKeys.contains(k))) {
+      fail('$label: unknown slide expect key $key');
+    }
+    expect(slide.slideId, equals(w['slideId']), reason: '$label slideId');
+    expect(slide.position, equals(w['position']), reason: '$label position');
+    expect(
+      slide.contents.map((c) => c.key).toSet(),
+      equals(stringList(w['contentKeys']).toSet()),
+      reason: '$label contentKeys',
+    );
+    expect(
+      trackerKeys(slide.tracking?.views).toSet(),
+      equals(stringList(w['viewKeys']).toSet()),
+      reason: '$label viewKeys',
+    );
+    expect(
+      trackerKeys(slide.tracking?.clicks).toSet(),
+      equals(stringList(w['clickKeys']).toSet()),
+      reason: '$label clickKeys',
+    );
+  }
+}
+
+List<String> trackerKeys(List<TrackingItem>? items) =>
+    (items ?? const <TrackingItem>[]).map((t) => t.key).toList();

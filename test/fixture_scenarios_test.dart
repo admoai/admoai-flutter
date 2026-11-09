@@ -341,8 +341,7 @@ void _check(String id, String key, dynamic value, Creative creative) {
             reason: '$id: $absent is absent');
       }
     case 'clickKeys':
-      expect(_keys(creative.tracking.clicks), equals(_strings(value)),
-          reason: '$id: clickKeys');
+      checkClickKeys(id, value, creative);
     case 'customKeys':
       expect(_keys(creative.tracking.custom), equals(_strings(value)),
           reason: '$id: customKeys');
@@ -350,8 +349,7 @@ void _check(String id, String key, dynamic value, Creative creative) {
       expect(_keys(creative.tracking.videoEvents), equals(_strings(value)),
           reason: '$id: videoEventKeys');
     case 'slides':
-      _checkSlides(
-          id, (value as List?)?.cast<_Json>() ?? const [], creative.slides);
+      checkSlides(id, value, creative);
     case 'noSkippableSetting':
       expect(value, isTrue, reason: '$id: noSkippableSetting is true');
       expect(creative.metadata?.isSkippable, isNull,
@@ -363,38 +361,6 @@ void _check(String id, String key, dynamic value, Creative creative) {
           reason: '$id: matchedPoints count');
     default:
       fail('$id: unknown expect key $key');
-  }
-}
-
-const _slideKeys = [
-  'slideId',
-  'position',
-  'contentKeys',
-  'viewKeys',
-  'clickKeys'
-];
-
-void _checkSlides(String id, List<_Json> expected, List<Slide> slides) {
-  expect(slides.length, equals(expected.length),
-      reason: '$id: slide count, got ${slides.length}');
-  for (var i = 0; i < expected.length && i < slides.length; i++) {
-    final want = expected[i];
-    final slide = slides[i];
-    final label = '$id: slide ${i + 1}';
-    for (final key in want.keys.where((k) => !_slideKeys.contains(k))) {
-      fail('$label: unknown slide expect key $key');
-    }
-    expect(slide.slideId, equals(want['slideId']), reason: '$label slideId');
-    expect(slide.position, equals(want['position']), reason: '$label position');
-    expect(slide.contents.map((c) => c.key).toSet(),
-        equals(_strings(want['contentKeys']).toSet()),
-        reason: '$label contentKeys');
-    expect(_keys(slide.tracking?.views).toSet(),
-        equals(_strings(want['viewKeys']).toSet()),
-        reason: '$label viewKeys');
-    expect(_keys(slide.tracking?.clicks).toSet(),
-        equals(_strings(want['clickKeys']).toSet()),
-        reason: '$label clickKeys');
   }
 }
 
