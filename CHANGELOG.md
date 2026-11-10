@@ -1,3 +1,20 @@
+## 0.7.0 - 2026-11-10
+
+### Added
+
+- **Standard formats.** `creative.metadata` exposes `effectiveStandardFormatKey`,
+  `effectiveStandardFormatVersion`, `templateSource` and `assetContext`
+  (`"vehicle_marker"` on Branded Assets), all `null` when the engine does not
+  send them. (#93, #98)
+- **Carousel slides.** `creative.slides` lists a Carousel's slides in order,
+  each with its id, position, contents and trackers. `trackSlideView` /
+  `trackSlideViews` send a slide's `slide_view` once per decision response;
+  `trackSlideClick` sends that view first if it is still pending, then the
+  slide's `default` click, and fires the creative's third-party click trackers
+  once. A Carousel has no creative-level click: use `trackSlideClick`, not
+  `fireClick`. (#95, #99)
+- **Custom events.** `fireExpand`, `fireClose` and `fireAssetTap`. (#95)
+
 ## 0.6.1 - 2026-10-20
 
 ### Fixed
