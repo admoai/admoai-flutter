@@ -8,8 +8,9 @@
   send them. (#93, #98)
 - **Carousel slides.** `creative.slides` lists a Carousel's slides in order,
   each with its id, position, contents and trackers. `trackSlideView` /
-  `trackSlideViews` send a slide's `slide_view` once per decision response;
-  `trackSlideClick` sends that view first if it is still pending, then the
+  `trackSlideViews` send a slide's `slide_view` once per decision response,
+  among the last 500 slide-view URLs the SDK fired (the same bound as pin
+  views); `trackSlideClick` sends that view first if it is still pending, then the
   slide's `default` click, and fires the creative's third-party click trackers
   once. A Carousel has no creative-level click: use `trackSlideClick`, not
   `fireClick`. (#95, #99)
