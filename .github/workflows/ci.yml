@@ -26,8 +26,62 @@ env:
   DART_APITOOL_VERSION: 0.23.2
 
 jobs:
+  # A pull request that changes only documentation skips the `sdk` job below.
+  # A job skipped by its `if:` reports as skipped, which a ruleset reads as passing, so the
+  # required check names never wait. Only pull requests are planned: on push to main and
+  # workflow_dispatch this job is skipped, and a skipped planner means every job runs. The
+  # Scenario manifest job and the OSV dependency scan are never filtered. The file list comes from the
+  # compare API, which lists at most 300 files; at the cap, on an empty or unreadable list,
+  # or when this job fails, every job runs.
+  changes:
+    name: Plan the CI jobs
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      code: ${{ steps.plan.outputs.code }}
+    steps:
+      - name: Does the change touch anything but documentation?
+        id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          run_all() { echo "code=true" >> "$GITHUB_OUTPUT"; echo "$1: every job runs"; exit 0; }
+          # A rename lists its old path too, so moving code into a docs path still runs the jobs.
+          compare="$(gh api "repos/${GITHUB_REPOSITORY}/compare/${BASE}...${HEAD}" \
+            --jq '{n: (.files|length), f: [.files[] | .filename, (.previous_filename // empty)]}')" \
+            || run_all "compare API failed"
+          n="$(jq -er '.n' <<<"$compare")" || run_all "unreadable compare"
+          [ "$n" -gt 0 ] || run_all "empty file list"
+          [ "$n" -lt 300 ] || run_all "300+ files changed"
+          files="$(jq -er '.f[]' <<<"$compare")" || run_all "unreadable file list"
+          is_doc() {
+            case "$1" in
+            # The SDK job checks CHANGELOG.md has a section for pubspec.yaml's version.
+            CHANGELOG.md) return 1 ;;
+            # Markdown at the root and the listed files only (in a case pattern `*` also matches
+            # `/`, so deeper Markdown, e.g. under lib/ or tool/, is matched first and counts as code).
+            example/example.md|test/e2e/README.md|test/e2e/FINDINGS.md|test/e2e/fixtures/README.md|LICENSE) return 0 ;;
+            */*.md) return 1 ;;
+            *.md) return 0 ;;
+            *) return 1 ;;
+            esac
+          }
+          code=false
+          while IFS= read -r f; do
+            [ -n "$f" ] || continue
+            if is_doc "$f"; then echo "  docs: $f"; else echo "  code: $f"; code=true; fi
+          done <<<"$files"
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          if [ "$code" = true ]; then echo "code changed: every job runs"; else echo "documentation only: build and test jobs skipped"; fi
+
   sdk:
     name: Analyze & test (SDK)
+    needs: changes
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.code == 'true') }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
