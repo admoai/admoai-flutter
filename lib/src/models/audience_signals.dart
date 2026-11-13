@@ -72,9 +72,9 @@ enum AccountTenure {
 /// The wire value is always a string, including `"0"`.
 enum TripFrequency30d {
   zero('0'),
-  oneToTwo('1_2'),
-  threeToNine('3_9'),
-  tenPlus('10_plus');
+  trips1To2('1_2'),
+  trips3To9('3_9'),
+  trips10Plus('10_plus');
 
   /// The string sent on the wire.
   final String value;

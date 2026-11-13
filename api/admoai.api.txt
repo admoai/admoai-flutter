@@ -236,21 +236,21 @@ DecisionRequestBuilder.clearUser  method() -> DecisionRequestBuilder
 DecisionRequestBuilder.disableAppCollection  method() -> DecisionRequestBuilder
 DecisionRequestBuilder.disableDeviceCollection  method() -> DecisionRequestBuilder
 DecisionRequestBuilder.new  constructor({required AppConfig appConfig, required DeviceConfig deviceConfig, required UserConfig userConfig, String? sessionId, Logger? logger})
-DecisionRequestBuilder.setAccountTenure  method(AccountTenure value) -> DecisionRequestBuilder
-DecisionRequestBuilder.setAccountType  method(AccountType value) -> DecisionRequestBuilder
-DecisionRequestBuilder.setAgeGroup  method(AgeGroup value) -> DecisionRequestBuilder
+DecisionRequestBuilder.setAccountTenure  method(AccountTenure? value) -> DecisionRequestBuilder
+DecisionRequestBuilder.setAccountType  method(AccountType? value) -> DecisionRequestBuilder
+DecisionRequestBuilder.setAgeGroup  method(AgeGroup? value) -> DecisionRequestBuilder
 DecisionRequestBuilder.setCustomTargeting  method(List<CustomKeyValue>? custom) -> DecisionRequestBuilder
 DecisionRequestBuilder.setDestinationTargeting  method(List<Destination>? destinations) -> DecisionRequestBuilder
 DecisionRequestBuilder.setDistanceTargeting  method(Distance distance) -> DecisionRequestBuilder
-DecisionRequestBuilder.setGender  method(Gender value) -> DecisionRequestBuilder
+DecisionRequestBuilder.setGender  method(Gender? value) -> DecisionRequestBuilder
 DecisionRequestBuilder.setGeoTargeting  method(List<int>? geoNameIds) -> DecisionRequestBuilder
 DecisionRequestBuilder.setJourneyOpt  method(JourneyOpt opt) -> DecisionRequestBuilder
-DecisionRequestBuilder.setLastTripRecency  method(LastTripRecency value) -> DecisionRequestBuilder
+DecisionRequestBuilder.setLastTripRecency  method(LastTripRecency? value) -> DecisionRequestBuilder
 DecisionRequestBuilder.setLocationTargeting  method(List<Location> locations) -> DecisionRequestBuilder
-DecisionRequestBuilder.setPublisherSegments  method(List<String> codes) -> DecisionRequestBuilder
+DecisionRequestBuilder.setPublisherSegments  method(List<String>? codes) -> DecisionRequestBuilder
 DecisionRequestBuilder.setSessionId  method(String sessionId) -> DecisionRequestBuilder
-DecisionRequestBuilder.setSubscriptionStatus  method(SubscriptionStatus value) -> DecisionRequestBuilder
-DecisionRequestBuilder.setTripFrequency30d  method(TripFrequency30d value) -> DecisionRequestBuilder
+DecisionRequestBuilder.setSubscriptionStatus  method(SubscriptionStatus? value) -> DecisionRequestBuilder
+DecisionRequestBuilder.setTripFrequency30d  method(TripFrequency30d? value) -> DecisionRequestBuilder
 DecisionRequestBuilder.setUserConsent  method(Consent? consent) -> DecisionRequestBuilder
 DecisionRequestBuilder.setUserId  method(String? id) -> DecisionRequestBuilder
 DecisionRequestBuilder.setUserIp  method(String? ip) -> DecisionRequestBuilder
@@ -540,9 +540,9 @@ TrackingType.value  field: String (read)
 TrackingType.values  static field: List<TrackingType> (read)
 TrackingType.videoEvent  static field: TrackingType (read)
 TripFrequency30d  type : Enum
-TripFrequency30d.oneToTwo  static field: TripFrequency30d (read)
-TripFrequency30d.tenPlus  static field: TripFrequency30d (read)
-TripFrequency30d.threeToNine  static field: TripFrequency30d (read)
+TripFrequency30d.trips10Plus  static field: TripFrequency30d (read)
+TripFrequency30d.trips1To2  static field: TripFrequency30d (read)
+TripFrequency30d.trips3To9  static field: TripFrequency30d (read)
 TripFrequency30d.value  field: String (read)
 TripFrequency30d.values  static field: List<TripFrequency30d> (read)
 TripFrequency30d.zero  static field: TripFrequency30d (read)

@@ -215,6 +215,94 @@ void main() {
     });
   });
 
+  group('null removes a key', () {
+    final removers = <String,
+        (
+      String,
+      DecisionRequestBuilder Function(DecisionRequestBuilder),
+      DecisionRequestBuilder Function(DecisionRequestBuilder)
+    )>{
+      'setAgeGroup': (
+        'age_group',
+        (b) => b.setAgeGroup(AgeGroup.age25To34),
+        (b) => b.setAgeGroup(null)
+      ),
+      'setGender': (
+        'gender',
+        (b) => b.setGender(Gender.male),
+        (b) => b.setGender(null)
+      ),
+      'setAccountType': (
+        'account_type',
+        (b) => b.setAccountType(AccountType.business),
+        (b) => b.setAccountType(null)
+      ),
+      'setSubscriptionStatus': (
+        'subscription_status',
+        (b) => b.setSubscriptionStatus(SubscriptionStatus.active),
+        (b) => b.setSubscriptionStatus(null)
+      ),
+      'setAccountTenure': (
+        'account_tenure',
+        (b) => b.setAccountTenure(AccountTenure.days0To30),
+        (b) => b.setAccountTenure(null)
+      ),
+      'setTripFrequency30d': (
+        'trip_frequency_30d',
+        (b) => b.setTripFrequency30d(TripFrequency30d.trips3To9),
+        (b) => b.setTripFrequency30d(null)
+      ),
+      'setLastTripRecency': (
+        'last_trip_recency',
+        (b) => b.setLastTripRecency(LastTripRecency.days0To7),
+        (b) => b.setLastTripRecency(null)
+      ),
+      'setPublisherSegments': (
+        'publisher_segments',
+        (b) => b.setPublisherSegments(['a', 'b']),
+        (b) => b.setPublisherSegments(null)
+      ),
+    };
+
+    removers.forEach((name, r) {
+      final (key, set, clear) = r;
+
+      test('$name(null) removes only its own key, keeping the others in order',
+          () {
+        final b = _builder().addCustomTargeting(key: 'a', value: 1);
+        set(b);
+        b.addCustomTargeting(key: 'z', value: 2);
+        clear(b);
+        expect(_custom(b).map((e) => e['key']).toList(), ['a', 'z']);
+        expect(_valueOf(b, 'a'), 1);
+        expect(_valueOf(b, 'z'), 2);
+      });
+
+      test('$name(null) after the only entry restores the untargeted wire', () {
+        final b = clear(set(_builder()));
+        expect(_json(b), _json(_builder()));
+      });
+
+      test('$name(null) keeps other targeting axes without "custom"', () {
+        final b = clear(set(_builder().addGeoTargeting(2643743)));
+        final targeting = _json(b)['targeting'] as Map<String, dynamic>;
+        expect(targeting.containsKey('custom'), isFalse);
+        expect(targeting['geo'], [2643743]);
+      });
+
+      test('$name(null) on a fresh builder equals an untargeted builder', () {
+        expect(_json(clear(_builder())), _json(_builder()));
+      });
+
+      test('$name(null) when the key is absent leaves other entries alone', () {
+        final b = clear(_builder().addCustomTargeting(key: 'a', value: 1));
+        expect(_custom(b), [
+          {'key': 'a', 'value': 1}
+        ]);
+      });
+    });
+  });
+
   group('last write wins per key', () {
     test('typed then generic', () {
       final b = _builder()

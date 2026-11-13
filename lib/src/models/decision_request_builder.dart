@@ -269,26 +269,59 @@ class DecisionRequestBuilder {
     return setCustomTargeting(current);
   }
 
-  DecisionRequestBuilder setAgeGroup(AgeGroup value) =>
-      _setSignal(AudienceSignalKey.ageGroup, value.value);
+  // Removes one audience key's entry. Remaining custom entries keep their
+  // order; if none remain there is no `"custom"` key, and if nothing else is
+  // targeted there is no `"targeting"` key, so the wire equals an untargeted
+  // builder's. Removing a key that is not there is a no-op.
+  DecisionRequestBuilder _removeSignal(String key) {
+    final current = _targeting?.custom;
+    if (current == null) return this;
+    final remaining = current.where((kv) => kv.key != key).toList();
+    if (remaining.isNotEmpty) return setCustomTargeting(remaining);
+    // Removing the only custom entry must put the wire back where it was: no `"custom": []`,
+    // and no empty `"targeting": {}` when nothing else was targeted.
+    final t = _targeting!;
+    final nothingElse = t.geo == null &&
+        t.location == null &&
+        t.destination == null &&
+        t.distance == null;
+    if (nothingElse) {
+      _targeting = null;
+      return this;
+    }
+    return clearCustomTargeting();
+  }
 
-  DecisionRequestBuilder setGender(Gender value) =>
-      _setSignal(AudienceSignalKey.gender, value.value);
+  DecisionRequestBuilder _setOrRemoveSignal(String key, String? value) =>
+      value == null ? _removeSignal(key) : _setSignal(key, value);
 
-  DecisionRequestBuilder setAccountType(AccountType value) =>
-      _setSignal(AudienceSignalKey.accountType, value.value);
+  /// Sets the viewer's age bracket; `null` removes it.
+  DecisionRequestBuilder setAgeGroup(AgeGroup? value) =>
+      _setOrRemoveSignal(AudienceSignalKey.ageGroup, value?.value);
 
-  DecisionRequestBuilder setSubscriptionStatus(SubscriptionStatus value) =>
-      _setSignal(AudienceSignalKey.subscriptionStatus, value.value);
+  /// Sets the viewer's gender; `null` removes it.
+  DecisionRequestBuilder setGender(Gender? value) =>
+      _setOrRemoveSignal(AudienceSignalKey.gender, value?.value);
 
-  DecisionRequestBuilder setAccountTenure(AccountTenure value) =>
-      _setSignal(AudienceSignalKey.accountTenure, value.value);
+  /// Sets the viewer's account type; `null` removes it.
+  DecisionRequestBuilder setAccountType(AccountType? value) =>
+      _setOrRemoveSignal(AudienceSignalKey.accountType, value?.value);
 
-  DecisionRequestBuilder setTripFrequency30d(TripFrequency30d value) =>
-      _setSignal(AudienceSignalKey.tripFrequency30d, value.value);
+  /// Sets the viewer's subscription status; `null` removes it.
+  DecisionRequestBuilder setSubscriptionStatus(SubscriptionStatus? value) =>
+      _setOrRemoveSignal(AudienceSignalKey.subscriptionStatus, value?.value);
 
-  DecisionRequestBuilder setLastTripRecency(LastTripRecency value) =>
-      _setSignal(AudienceSignalKey.lastTripRecency, value.value);
+  /// Sets the account tenure; `null` removes it.
+  DecisionRequestBuilder setAccountTenure(AccountTenure? value) =>
+      _setOrRemoveSignal(AudienceSignalKey.accountTenure, value?.value);
+
+  /// Sets the trips taken in the last 30 days; `null` removes it.
+  DecisionRequestBuilder setTripFrequency30d(TripFrequency30d? value) =>
+      _setOrRemoveSignal(AudienceSignalKey.tripFrequency30d, value?.value);
+
+  /// Sets the time since the last trip; `null` removes it.
+  DecisionRequestBuilder setLastTripRecency(LastTripRecency? value) =>
+      _setOrRemoveSignal(AudienceSignalKey.lastTripRecency, value?.value);
 
   static final RegExp _segmentCode = RegExp(r'^[a-zA-Z0-9_]+$');
 
@@ -297,8 +330,11 @@ class DecisionRequestBuilder {
   /// Every code must match `^[a-zA-Z0-9_]+$`, otherwise an [ArgumentError]
   /// naming the offending code is thrown and the builder is left unchanged.
   /// Duplicates are dropped keeping first-seen order; codes are otherwise sent
-  /// as given. An empty list removes any earlier segments.
-  DecisionRequestBuilder setPublisherSegments(List<String> codes) {
+  /// as given. An empty list or `null` removes any earlier segments.
+  DecisionRequestBuilder setPublisherSegments(List<String>? codes) {
+    if (codes == null) {
+      return _removeSignal(AudienceSignalKey.publisherSegments);
+    }
     for (final code in codes) {
       if (!_segmentCode.hasMatch(code)) {
         throw ArgumentError.value(
@@ -311,24 +347,7 @@ class DecisionRequestBuilder {
     }
     final unique = LinkedHashSet<String>.from(codes).toList(growable: false);
     if (unique.isEmpty) {
-      final current = _targeting?.custom;
-      if (current == null) return this;
-      final remaining = current
-          .where((kv) => kv.key != AudienceSignalKey.publisherSegments)
-          .toList();
-      if (remaining.isNotEmpty) return setCustomTargeting(remaining);
-      // Removing the only custom entry must put the wire back where it was: no `"custom": []`,
-      // and no empty `"targeting": {}` when nothing else was targeted.
-      final t = _targeting!;
-      final nothingElse = t.geo == null &&
-          t.location == null &&
-          t.destination == null &&
-          t.distance == null;
-      if (nothingElse) {
-        _targeting = null;
-        return this;
-      }
-      return clearCustomTargeting();
+      return _removeSignal(AudienceSignalKey.publisherSegments);
     }
     return _setSignal(
       AudienceSignalKey.publisherSegments,
