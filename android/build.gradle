@@ -30,7 +30,11 @@ apply plugin: 'kotlin-android'
 android {
     namespace 'com.admoai.flutter'
 
-    compileSdk 34
+    // 35, not device_info_plus's 34: flutter_timezone 4.1.x (already a dependency of this package)
+    // declares minCompileSdk 35 in its AAR metadata, so every module that depends on it must compile
+    // against 35. compileSdk is not a runtime floor: minSdk stays 19, and host apps already need 35
+    // because of flutter_timezone.
+    compileSdk 35
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
