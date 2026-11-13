@@ -63,6 +63,8 @@ Future<void> _run(Map<String, dynamic> entry, List<String> notes) async {
       entry.keys.where((k) => !knownScenarioKeys.contains(k)).toList();
   check(unknownKeys.isEmpty,
       'every scenario key is one this runner executes (unknown: $unknownKeys)');
+  final shapeProblems = validateScenarioShape(entry);
+  check(shapeProblems.isEmpty, shapeProblems.join('; '));
 
   // 'none' means: no apiVersion at all, so no version header is sent.
   final rawVersion = request['apiVersion'] as String?;
@@ -71,6 +73,7 @@ Future<void> _run(Map<String, dynamic> entry, List<String> notes) async {
       : newDriver(apiVersion: rawVersion == 'none' ? null : rawVersion));
 
   try {
+    applyScenarioDevice(driver.sdk, request['device']);
     final builder = driver.sdk.createRequestBuilder();
     for (final p
         in (request['placements'] as List).cast<Map<String, dynamic>>()) {
@@ -585,6 +588,143 @@ const knownScenarioKeys = {
   'pinTracking',
   'slideTracking',
 };
+
+/// Keys of `request` this interpreter executes; one outside it FAILS the scenario.
+const knownRequestKeys = {
+  'apiVersion',
+  'placements',
+  'custom',
+  'session',
+  'journeyOpt',
+  'distance',
+  'device',
+};
+
+const knownPlacementKeys = {
+  'key',
+  'count',
+  'format',
+  'advertiserId',
+  'templateId',
+};
+const knownCustomKeys = {'key', 'value'};
+const knownDistanceKeys = {
+  'latitude',
+  'longitude',
+  'radius',
+  'limit',
+  'bounds',
+};
+const knownBoundsKeys = {'north', 'south', 'east', 'west'};
+const knownDeviceKeys = {'carrier', 'category'};
+
+/// Top-level `expect` keys this interpreter executes.
+const knownExpectKeys = {
+  'outcome',
+  'error',
+  'decisions',
+  'decisionsMatchRequest',
+  'creativesAtMost',
+  'creativesDistinct',
+  'creative',
+};
+
+/// Offline validation of the parts of a scenario this runner reads. Returns one message per
+/// problem; empty means the runner can execute the entry faithfully. A manifest newer than the
+/// runner must fail rather than pass by being silently ignored.
+List<String> validateScenarioShape(Map<String, dynamic> entry) {
+  final problems = <String>[];
+  List<String> unknownIn(Object? m, Set<String> known) => m is Map
+      ? (m.keys.cast<String>().where((k) => !known.contains(k)).toList()
+        ..sort())
+      : const [];
+
+  final request = entry['request'];
+  if (request is! Map) return ['every scenario has a request object'];
+  final unknownRequest = unknownIn(request, knownRequestKeys);
+  if (unknownRequest.isNotEmpty) {
+    problems.add(
+        'every request key is one this runner executes (unknown: $unknownRequest)');
+  }
+  final placements = request['placements'];
+  if (placements is List) {
+    for (final p in placements) {
+      final u = unknownIn(p, knownPlacementKeys);
+      if (u.isNotEmpty) {
+        problems.add(
+            'every placement key is one this runner executes (unknown: $u)');
+      }
+    }
+  }
+  final custom = request['custom'];
+  if (custom is List) {
+    for (final c in custom) {
+      final u = unknownIn(c, knownCustomKeys);
+      if (u.isNotEmpty) {
+        problems.add(
+            'every custom entry key is one this runner executes (unknown: $u)');
+      }
+      final v = c is Map ? c['value'] : null;
+      final ok = v is String || (v is List && v.every((e) => e is String));
+      if (!ok) {
+        problems.add(
+            'request.custom[].value is a string or a list of strings (got $v)');
+      }
+    }
+  }
+  final distance = request['distance'];
+  if (distance is Map) {
+    final u = unknownIn(distance, knownDistanceKeys);
+    if (u.isNotEmpty) {
+      problems
+          .add('every distance key is one this runner executes (unknown: $u)');
+    }
+    final ub = unknownIn(distance['bounds'], knownBoundsKeys);
+    if (ub.isNotEmpty) {
+      problems.add(
+          'every distance.bounds key is one this runner executes (unknown: $ub)');
+    }
+  }
+  if (request.containsKey('device')) {
+    final device = request['device'];
+    if (device is! Map) {
+      problems.add('request.device is an object (got $device)');
+    } else {
+      final u = unknownIn(device, knownDeviceKeys);
+      if (u.isNotEmpty) {
+        problems.add(
+            'every request.device key is one this runner executes (unknown: $u)');
+      }
+      if (device.containsKey('carrier') && device['carrier'] is! String) {
+        problems.add(
+            'request.device.carrier is a string (got ${device['carrier']})');
+      }
+      if (device.containsKey('category') &&
+          (device['category'] is! String ||
+              DeviceCategory.fromWire(device['category'] as String) == null)) {
+        problems.add(
+            'request.device.category is "phone", "tablet" or "other" (got ${device['category']})');
+      }
+    }
+  }
+  final unknownExpect = unknownIn(entry['expect'], knownExpectKeys);
+  if (unknownExpect.isNotEmpty) {
+    problems.add(
+        'every expect key is one this runner executes (unknown: $unknownExpect)');
+  }
+  return problems;
+}
+
+/// Applies a scenario's `request.device` as the app's MANUAL device config, through the SDK's own
+/// `setDeviceConfig`, so its carrier normalisation runs. The shape is validated first.
+void applyScenarioDevice(AdMoai sdk, Object? device) {
+  if (device == null) return;
+  final d = device as Map<String, dynamic>;
+  sdk.setDeviceConfig(
+    carrier: d['carrier'] as String?,
+    category: DeviceCategory.fromWire(d['category'] as String?),
+  );
+}
 
 /// Public seam for the offline unit test of the interpreter.
 void assertCreative(
