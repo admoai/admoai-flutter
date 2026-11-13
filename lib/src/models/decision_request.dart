@@ -394,6 +394,9 @@ class Device {
   final String? osVersion;
   final String? timezone;
   final String? language;
+
+  /// Normalized with the same rule as [DeviceConfig]: trimmed; empty, `--`, `unknown`, `wifi`
+  /// and `wi-fi` (case-insensitive) are absent.
   final String? carrier;
   final DeviceCategory? category;
 
@@ -405,9 +408,9 @@ class Device {
     this.osVersion,
     this.timezone,
     this.language,
-    this.carrier,
+    String? carrier,
     this.category,
-  });
+  }) : carrier = normalizeCarrier(carrier);
 
   Map<String, dynamic> toJson() {
     return {

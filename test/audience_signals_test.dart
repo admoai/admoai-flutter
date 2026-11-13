@@ -363,6 +363,12 @@ void main() {
       expect(normalizeCarrier('Unknown Telecom'), 'Unknown Telecom');
     });
 
+    test('Device normalizes carrier when built directly', () {
+      expect(Device(carrier: 'wifi').toJson().containsKey('carrier'), isFalse);
+      expect(Device(carrier: ' Example Mobile ').toJson()['carrier'],
+          'Example Mobile');
+    });
+
     test('DeviceConfig normalizes carrier', () {
       expect(DeviceConfig(carrier: '  X  ').carrier, 'X');
       expect(DeviceConfig(carrier: 'WiFi').carrier, isNull);
