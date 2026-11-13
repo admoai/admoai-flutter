@@ -1448,7 +1448,7 @@ adds two coarse fields:
 | Field | Meaning |
 |-------|---------|
 | `carrier` | The registered mobile operator of the default data subscription. Never the Wi-Fi provider. |
-| `category` | `DeviceCategory.phone`, `.tablet` or `.other` (a positively identified different class: TV, watch, car, desktop). |
+| `category` | `DeviceCategory.phone`, `.tablet` or `.other` (a positively identified different class: TV, watch, automotive hardware, desktop). |
 
 ```dart
 // Override the automatic values.
@@ -1463,7 +1463,7 @@ sdk.setDeviceConfig(carrier: 'Example Mobile', category: DeviceCategory.tablet);
 
 | Platform | `carrier` | `category` |
 |----------|-----------|------------|
-| Android | Registered operator of the default data subscription. Android 7+ (API 24+), no new permission. | TV, watch, automotive or PC devices are `other`; otherwise the smallest width of the full display decides: under 600 dp is `phone`, 600 dp or more is `tablet`. It is the device, not the app window, so rotation does not change it. |
+| Android | Registered operator of the default data subscription. Android 7+ (API 24+), no new permission. | TV, watch, automotive or PC hardware, or a TV or watch UI mode, is `other`; a phone or tablet docked in car or desk mode keeps its class. Otherwise the smallest width of the full display decides: under 600 dp is `phone`, 600 dp or more is `tablet`. It is the device, not the app window, so rotation and split-screen do not change it. If the display cannot be read, `category` is absent. |
 | iOS | Never sent: Apple returns static placeholder values since iOS 16.4. | From the device idiom. An iPhone-only app running on an iPad reports `phone`; Mac, Catalyst and Vision report `other`. |
 | Other hosts | Absent | Absent |
 
@@ -1564,8 +1564,11 @@ throwaway host app, not tracked, in `build/host_app`:
 ```bash
 tool/host_app.sh [dir]      # default: build/host_app; an existing dir is recreated
 cd build/host_app
-flutter run --dart-define=ADMOAI_BASE_URL=https://api.admoai.com
+flutter run --dart-define=ADMOAI_BASE_URL=<your decision engine URL>
 ```
+
+Without the define, the app uses `http://10.0.2.2:8080`, the Android emulator's loopback to the
+host machine.
 
 Before pushing, run what CI runs:
 
