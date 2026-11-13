@@ -7,6 +7,7 @@ import 'package:http/io_client.dart' as http_io;
 
 import 'configs.dart';
 import 'api_client.dart';
+import 'models/audience_signals.dart';
 import 'models/decision_request.dart';
 import 'models/decision_response.dart';
 import 'models/decision_request_builder.dart';
@@ -159,6 +160,8 @@ class AdMoai {
     String? osVersion,
     String? timezone,
     String? language,
+    String? carrier,
+    DeviceCategory? category,
   }) {
     deviceConfig = DeviceConfig(
       id: id ?? deviceConfig.id,
@@ -168,6 +171,8 @@ class AdMoai {
       osVersion: osVersion ?? deviceConfig.osVersion,
       timezone: timezone ?? deviceConfig.timezone,
       language: language ?? deviceConfig.language,
+      carrier: carrier ?? deviceConfig.carrier,
+      category: category ?? deviceConfig.category,
     );
   }
 

@@ -2,6 +2,7 @@ import 'dart:collection';
 
 import 'package:logging/logging.dart';
 
+import 'audience_signals.dart';
 import 'decision_request.dart';
 import '../configs.dart';
 
@@ -41,6 +42,8 @@ class DecisionRequestBuilder {
       osVersion: deviceConfig.osVersion,
       timezone: deviceConfig.timezone,
       language: deviceConfig.language,
+      carrier: deviceConfig.carrier,
+      category: deviceConfig.category,
     );
 
     _user = User(
@@ -255,6 +258,69 @@ class DecisionRequestBuilder {
     final currentCustom = List<CustomKeyValue>.from(_targeting?.custom ?? []);
     currentCustom.add(CustomKeyValue(key: key, value: value));
     return setCustomTargeting(currentCustom);
+  }
+
+  // Audience signals. Each helper upserts one custom-targeting key through
+  // [setCustomTargeting], so last write wins per key, shared with
+  // [addCustomTargeting]. Audience dimensions require apiVersion '2025-11-01'.
+  DecisionRequestBuilder _setSignal(String key, Object value) {
+    final current = List<CustomKeyValue>.from(_targeting?.custom ?? []);
+    current.add(CustomKeyValue(key: key, value: value));
+    return setCustomTargeting(current);
+  }
+
+  DecisionRequestBuilder setAgeGroup(AgeGroup value) =>
+      _setSignal(AudienceSignalKey.ageGroup, value.value);
+
+  DecisionRequestBuilder setGender(Gender value) =>
+      _setSignal(AudienceSignalKey.gender, value.value);
+
+  DecisionRequestBuilder setAccountType(AccountType value) =>
+      _setSignal(AudienceSignalKey.accountType, value.value);
+
+  DecisionRequestBuilder setSubscriptionStatus(SubscriptionStatus value) =>
+      _setSignal(AudienceSignalKey.subscriptionStatus, value.value);
+
+  DecisionRequestBuilder setAccountTenure(AccountTenure value) =>
+      _setSignal(AudienceSignalKey.accountTenure, value.value);
+
+  DecisionRequestBuilder setTripFrequency30d(TripFrequency30d value) =>
+      _setSignal(AudienceSignalKey.tripFrequency30d, value.value);
+
+  DecisionRequestBuilder setLastTripRecency(LastTripRecency value) =>
+      _setSignal(AudienceSignalKey.lastTripRecency, value.value);
+
+  static final RegExp _segmentCode = RegExp(r'^[a-zA-Z0-9_]+$');
+
+  /// Sets the publisher segment codes (always sent as an array).
+  ///
+  /// Every code must match `^[a-zA-Z0-9_]+$`, otherwise an [ArgumentError]
+  /// naming the offending code is thrown and the builder is left unchanged.
+  /// Duplicates are dropped keeping first-seen order; codes are otherwise sent
+  /// as given. An empty list removes any earlier segments.
+  DecisionRequestBuilder setPublisherSegments(List<String> codes) {
+    for (final code in codes) {
+      if (!_segmentCode.hasMatch(code)) {
+        throw ArgumentError.value(
+          codes,
+          'codes',
+          'invalid segment code "$code": codes may only contain letters, '
+              'digits and underscores',
+        );
+      }
+    }
+    final unique = LinkedHashSet<String>.from(codes).toList(growable: false);
+    if (unique.isEmpty) {
+      final current = _targeting?.custom;
+      if (current == null) return this;
+      return setCustomTargeting(current
+          .where((kv) => kv.key != AudienceSignalKey.publisherSegments)
+          .toList());
+    }
+    return _setSignal(
+      AudienceSignalKey.publisherSegments,
+      List<String>.unmodifiable(unique),
+    );
   }
 
   /// Asks for the campaign's pins near a point (Sponsored Pin Locations).
