@@ -1,7 +1,9 @@
 package com.admoai.flutter
 
 import android.content.Context
+import android.app.UiModeManager
 import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.hardware.display.DisplayManager
 import android.os.Build
 import android.telephony.SubscriptionManager
@@ -20,9 +22,12 @@ import io.flutter.plugin.common.MethodChannel
  * iOS plugin):
  *  - carrier: default-data subscription only; API >= 24; telephony feature
  *    required; anything else -> absent.
- *  - category: leanback / watch / automotive / pc -> "other"; otherwise
- *    smallest full-display width < 600 dp -> "phone", >= 600 dp -> "tablet";
- *    unreadable width -> absent.
+ *  - category: leanback / watch / automotive / pc feature, or a TELEVISION or
+ *    WATCH UI mode -> "other" (never for CAR or DESK: a docked phone or
+ *    tablet keeps its class); otherwise smallest full-display width < 600 dp
+ *    -> "phone", >= 600 dp -> "tablet"; unreadable width -> absent. An
+ *    unreadable UI mode is unknown, never "other". Identical to the native
+ *    Android SDK.
  *  - iOS (for reference): carrier never; isiOSAppOnMac / Catalyst -> "other";
  *    idiom phone / pad / tv / carPlay / mac / vision.
  */
@@ -38,8 +43,14 @@ internal object DeviceSignalRules {
         "android.hardware.type.pc",
     )
 
-    fun classify(features: Set<String>, smallestWidthDp: Float?): String? {
+    val OTHER_UI_MODES = setOf(
+        Configuration.UI_MODE_TYPE_TELEVISION,
+        Configuration.UI_MODE_TYPE_WATCH,
+    )
+
+    fun classify(features: Set<String>, uiModeType: Int?, smallestWidthDp: Float?): String? {
         if (features.any { it in OTHER_FEATURES }) return "other"
+        if (uiModeType != null && uiModeType in OTHER_UI_MODES) return "other"
         val sw = smallestWidthDp ?: return null
         return if (sw >= TABLET_MIN_WIDTH_DP) "tablet" else "phone"
     }
@@ -107,7 +118,16 @@ class AdmoaiPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
         return try {
             val pm = ctx.packageManager
             val features = DeviceSignalRules.OTHER_FEATURES.filter { pm.hasSystemFeature(it) }.toSet()
-            DeviceSignalRules.classify(features, fullDisplaySmallestWidthDp(ctx))
+            DeviceSignalRules.classify(features, readUiModeType(ctx), fullDisplaySmallestWidthDp(ctx))
+        } catch (_: Throwable) {
+            null
+        }
+    }
+
+    /** Current UI mode type, or null when it cannot be read (unknown, not "other"). */
+    private fun readUiModeType(ctx: Context): Int? {
+        return try {
+            (ctx.getSystemService(Context.UI_MODE_SERVICE) as? UiModeManager)?.currentModeType
         } catch (_: Throwable) {
             null
         }

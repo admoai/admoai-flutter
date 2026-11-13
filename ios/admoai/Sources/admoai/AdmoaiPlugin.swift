@@ -9,8 +9,9 @@ import UIKit
 ///  - category: isiOSAppOnMac / Mac Catalyst -> "other"; idiom phone ->
 ///    "phone", pad -> "tablet", tv / carPlay / mac / vision -> "other".
 ///  - Android (for reference): carrier from the default-data subscription only
-///    (API >= 24, telephony required); leanback / watch / automotive / pc ->
-///    "other"; smallest full-display width < 600 dp phone, >= 600 dp tablet.
+///    (API >= 24, telephony required); leanback / watch / automotive / pc
+///    feature or TELEVISION / WATCH UI mode -> "other" (never CAR or DESK);
+///    otherwise smallest full-display width < 600 dp phone, >= 600 dp tablet.
 public class AdmoaiPlugin: NSObject, FlutterPlugin {
   public static func register(with registrar: FlutterPluginRegistrar) {
     let channel = FlutterMethodChannel(

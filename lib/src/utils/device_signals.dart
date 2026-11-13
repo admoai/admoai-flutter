@@ -15,9 +15,10 @@ const MethodChannel _channel = MethodChannel('admoai/device_signals');
 /// Android
 ///  - carrier: only the default-data subscription's network operator name; API
 ///    >= 24 and a telephony feature are required, otherwise absent.
-///  - category: leanback / watch / automotive / pc feature -> `other`;
-///    otherwise the smallest full-display width: < 600 dp -> `phone`,
-///    >= 600 dp -> `tablet`.
+///  - category: leanback / watch / automotive / pc feature, or a TELEVISION or
+///    WATCH UI mode -> `other` (never CAR or DESK: a docked phone or tablet
+///    keeps its class); otherwise the smallest full-display width: < 600 dp
+///    -> `phone`, >= 600 dp -> `tablet`. Display unreadable -> absent.
 ///
 /// iOS
 ///  - carrier: never provided (no CoreTelephony).
