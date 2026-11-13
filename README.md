@@ -1377,6 +1377,103 @@ reset. Call `clearSessionId()` to drop it explicitly.
 
 ---
 
+## Audience signals
+
+Audience signals are eight standard attributes you already know about your user (age bracket,
+subscription state, how often they ride, ...). The SDK sends them through `targeting.custom`, and
+the engine matches them against Ads that were authored with **Standard presets** in the Ad
+Manager. You compute the values; the SDK never derives or infers them.
+
+> **Requires `apiVersion: '2025-11-01'`** in `SDKConfig` for the audience to be recorded as
+> dimensions in reporting and tracking. On the default route the values are validated and matched,
+> but they are **not** recorded as audience dimensions.
+
+| Wire key | Dart setter | Enum | Wire values |
+|----------|-------------|------|-------------|
+| `age_group` | `setAgeGroup` | `AgeGroup` | `under18` = `under_18`, `age18To24` = `18_24`, `age25To34` = `25_34`, `age35To44` = `35_44`, `age45To54` = `45_54`, `age55To64` = `55_64`, `age65Plus` = `65_plus` |
+| `gender` | `setGender` | `Gender` | `female`, `male`, `other`, `preferNotToSay` = `prefer_not_to_say` |
+| `account_type` | `setAccountType` | `AccountType` | `personal`, `business`, `family`, `student`, `other` |
+| `subscription_status` | `setSubscriptionStatus` | `SubscriptionStatus` | `none`, `trial`, `active`, `paused`, `expired` |
+| `account_tenure` | `setAccountTenure` | `AccountTenure` | `days0To30` = `0_30d`, `days31To90` = `31_90d`, `days91To365` = `91_365d`, `days366Plus` = `366d_plus` |
+| `trip_frequency_30d` | `setTripFrequency30d` | `TripFrequency30d` | `zero` = `"0"`, `trips1To2` = `1_2`, `trips3To9` = `3_9`, `trips10Plus` = `10_plus` |
+| `last_trip_recency` | `setLastTripRecency` | `LastTripRecency` | `never`, `days0To7` = `0_7d`, `days8To30` = `8_30d`, `days31To90` = `31_90d`, `days91Plus` = `91d_plus` |
+| `publisher_segments` | `setPublisherSegments` | `List<String>` | your own segment codes (see below) |
+
+```dart
+final request = sdk
+    .createRequestBuilder()
+    .addPlacement(key: 'home')
+    .setAgeGroup(AgeGroup.age25To34)
+    .setTripFrequency30d(TripFrequency30d.zero)
+    .setPublisherSegments(['airport_commuter', 'high_value'])
+    .build();
+
+final response = await sdk.requestAds(request);
+```
+
+This sends `{"key": "age_group", "value": "25_34"}`, `{"key": "trip_frequency_30d", "value": "0"}`
+and `{"key": "publisher_segments", "value": ["airport_commuter", "high_value"]}`. Audience
+signals mix freely with your existing custom keys (`addCustomTargeting(key: 'category',
+value: 'news')`). No aliases are translated: `25-34` is not `25_34`, and the engine rejects it.
+
+### Rules
+
+- **`"0"` is a string.** Every value is a string on the wire, including `TripFrequency30d.zero`.
+- **The last setter wins per key.** Typed setters and `addCustomTargeting` share the same entry,
+  so setting the same key twice leaves one value.
+- **`null` removes a key**: `setAgeGroup(null)` drops `age_group`. A missing key means "no
+  assertion"; the SDK never invents a value.
+- **Segments are always an array**, even for a single code. Duplicates are dropped keeping the
+  first-seen order; codes are not trimmed or case-folded. An empty list or `null` removes the key.
+- **Segment codes must fully match `^[a-zA-Z0-9_]+$`.** Anything else throws `ArgumentError` and
+  the builder is left unchanged.
+- **The server decides whether a code exists.** An unknown code gets a validation error from the
+  API; an archived code keeps matching.
+
+### Your responsibilities
+
+- Compute the buckets from your own data with the documented windows: elapsed-day buckets use
+  completed 24-hour periods between UTC instants; trip frequency counts completed trips in the
+  trailing 30 x 24 hours. Send `TripFrequency30d.zero` only when zero completed trips is known,
+  and `LastTripRecency.never` only when no completed trip is known to exist.
+- Choose the account context (the selected profile, the relevant subscription). If you cannot
+  pick one reliably, omit the field or use publisher segments.
+- Register every segment code in the Ad Manager before sending it.
+
+## Device
+
+By default the SDK collects a `device` object (id, model, manufacturer, OS, timezone, language) and
+adds two coarse fields:
+
+| Field | Meaning |
+|-------|---------|
+| `carrier` | The registered mobile operator of the default data subscription. Never the Wi-Fi provider. |
+| `category` | `DeviceCategory.phone`, `.tablet` or `.other` (a positively identified different class: TV, watch, car, desktop). |
+
+```dart
+// Override the automatic values.
+sdk.setDeviceConfig(carrier: 'Example Mobile', category: DeviceCategory.tablet);
+```
+
+- Manual `setDeviceConfig(carrier:, category:)` values override the automatic ones.
+- Carriers are normalised: trimmed, and empty, `--`, `unknown`, `wifi` and `wi-fi`
+  (case-insensitive) are treated as absent.
+- `disableDeviceCollection()` on a builder omits the whole device object, manual values included.
+- `sdk.clearDeviceConfig()` stops automatic collection; `await sdk.resetDeviceConfig()` resumes it.
+
+| Platform | `carrier` | `category` |
+|----------|-----------|------------|
+| Android | Registered operator of the default data subscription. Android 7+ (API 24+), no new permission. | TV, watch, automotive or PC devices are `other`; otherwise the smallest width of the full display decides: under 600 dp is `phone`, 600 dp or more is `tablet`. It is the device, not the app window, so rotation does not change it. |
+| iOS | Never sent: Apple returns static placeholder values since iOS 16.4. | From the device idiom. An iPhone-only app running on an iPad reports `phone`; Mac, Catalyst and Vision report `other`. |
+| Other hosts | Absent | Absent |
+
+The values are read at initialization and on `resetDeviceConfig()`, and refreshed by `requestAds`
+within 300 ms, falling back to the last value read. `getHttpRequest` uses the value available when
+it builds the request.
+
+The SDK is now a Flutter plugin with native code for Android and iOS. It needs no new permissions
+and raises no minimum versions.
+
 ## Response Structure
 
 ```
@@ -1458,6 +1555,17 @@ We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.
 - Commit message conventions (Conventional Commits)
 - Code style and testing requirements
 - Development workflow
+
+### Running the host app
+
+The package is a plugin with native code, so there is no tracked example app (#85). Generate a
+throwaway host app, not tracked, in `build/host_app`:
+
+```bash
+tool/host_app.sh [dir]      # default: build/host_app; an existing dir is recreated
+cd build/host_app
+flutter run --dart-define=ADMOAI_BASE_URL=https://api.admoai.com
+```
 
 Before pushing, run what CI runs:
 

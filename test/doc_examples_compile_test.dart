@@ -98,6 +98,25 @@ Future<void> readmeExamples() async {
       timezone: 'UTC',
       consent: Consent(gdpr: true));
   sdk.clearUserConfig();
+
+  // Audience signals and Device sections
+  final audience = sdk
+      .createRequestBuilder()
+      .addPlacement(key: 'home')
+      .setAgeGroup(AgeGroup.age25To34)
+      .setGender(Gender.female)
+      .setAccountType(AccountType.personal)
+      .setSubscriptionStatus(SubscriptionStatus.active)
+      .setAccountTenure(AccountTenure.days31To90)
+      .setTripFrequency30d(TripFrequency30d.zero)
+      .setLastTripRecency(LastTripRecency.days0To7)
+      .setPublisherSegments(['airport_commuter', 'high_value'])
+      .addCustomTargeting(key: 'category', value: 'news')
+      .build();
+  await sdk.requestAds(audience);
+  sdk.setDeviceConfig(
+      carrier: 'Example Mobile', category: DeviceCategory.tablet);
+  await sdk.resetDeviceConfig();
   sdk.clearDeviceConfig();
   sdk.clearAppConfig();
 }

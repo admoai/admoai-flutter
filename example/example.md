@@ -33,5 +33,23 @@ Future<void> main() async {
 }
 ```
 
+## Audience signals and device
+
+Audience signals need `apiVersion: '2025-11-01'` (set above) to be recorded in reporting. The
+device `carrier` and `category` are collected automatically; override them if you need to.
+
+```dart
+sdk.setDeviceConfig(carrier: 'Example Mobile', category: DeviceCategory.phone);
+
+final request = sdk
+    .createRequestBuilder()
+    .addPlacement(key: 'home')
+    .setAgeGroup(AgeGroup.age25To34)
+    .setTripFrequency30d(TripFrequency30d.zero)
+    .setPublisherSegments(['airport_commuter', 'high_value'])
+    .build();
+final response = await sdk.requestAds(request);
+```
+
 The full sample app that used to live here was retired on 2026-10-21; its last version is kept
 under the git tag `sample-app-archive` of this repository.
