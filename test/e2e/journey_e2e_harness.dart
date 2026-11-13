@@ -270,6 +270,7 @@ void assertRealNetworkingEnabled() {
 Future<Driver> newDriver({
   String? apiVersion = _defaultVersion,
   String? sessionId,
+  String? playgroundToken,
 }) async {
   final logs = <LogRecord>[];
   final logger = Logger('e2e-${_sessionCounter++}')
@@ -281,6 +282,7 @@ Future<Driver> newDriver({
     config: SDKConfig(
       baseUrl: e2eBaseUrl,
       apiVersion: apiVersion == _defaultVersion ? e2eApiVersion : apiVersion,
+      playgroundToken: playgroundToken,
       logger: logger,
       requestTimeout: const Duration(seconds: 20),
     ),

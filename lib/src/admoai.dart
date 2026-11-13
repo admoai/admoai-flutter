@@ -79,6 +79,7 @@ class AdMoai {
           baseUrl: config.baseUrl,
           apiVersion: config.apiVersion,
           defaultLanguage: config.defaultLanguage,
+          playgroundToken: config.playgroundToken,
           requestTimeout: config.requestTimeout,
           logger: config.logger,
           httpClient: httpClient,

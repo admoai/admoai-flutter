@@ -18,6 +18,15 @@ Future<void> readmeExamples() async {
     sessionId: 'sess_abc123',
   );
 
+  // Playground section
+  final playground = await AdMoai.initialize(
+    config: SDKConfig(
+      baseUrl: 'https://api.admoai.com',
+      apiVersion: '2025-11-01',
+      playgroundToken: 'pg_...',
+    ),
+  );
+
   var request = sdk
       .createRequestBuilder()
       .addPlacement(key: 'in_ride_map_banner')
