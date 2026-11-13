@@ -10,6 +10,7 @@ import 'api_client.dart';
 import 'models/audience_signals.dart';
 import 'models/decision_request.dart';
 import 'models/decision_response.dart';
+import 'utils/device_signals_state.dart';
 import 'models/decision_request_builder.dart';
 import 'view_beacon_ledger.dart';
 import 'third_party_tracker_dispatcher.dart';
@@ -165,16 +166,17 @@ class AdMoai {
     String? carrier,
     DeviceCategory? category,
   }) {
-    deviceConfig = DeviceConfig(
-      id: id ?? deviceConfig.id,
-      model: model ?? deviceConfig.model,
-      manufacturer: manufacturer ?? deviceConfig.manufacturer,
-      os: os ?? deviceConfig.os,
-      osVersion: osVersion ?? deviceConfig.osVersion,
-      timezone: timezone ?? deviceConfig.timezone,
-      language: language ?? deviceConfig.language,
-      carrier: carrier ?? deviceConfig.carrier,
-      category: category ?? deviceConfig.category,
+    deviceConfig = applyManualDeviceConfig(
+      deviceConfig,
+      id: id,
+      model: model,
+      manufacturer: manufacturer,
+      os: os,
+      osVersion: osVersion,
+      timezone: timezone,
+      language: language,
+      carrier: carrier,
+      category: category,
     );
   }
 
@@ -244,9 +246,51 @@ class AdMoai {
   Future<APIResponse<DecisionResponse>> requestAds(
       DecisionRequest request) async {
     _warnIfJourneyWithoutApiVersion(request);
-    return _client.requestDecision(request);
+    var toSend = request;
+    final state = autoStateOf(deviceConfig);
+    if (state.auto) {
+      // Awaits a fresh native read for at most 300 ms; on failure or timeout the
+      // last snapshot is kept. The snapshot is updated for later requests too.
+      deviceConfig = await refreshAutoSignals(
+        deviceConfig,
+        timeout: const Duration(milliseconds: 300),
+      );
+      final device = request.device;
+      if (device != null) {
+        final fresh = autoStateOf(deviceConfig);
+        toSend = _withDevice(
+          request,
+          Device(
+            id: device.id,
+            model: device.model,
+            manufacturer: device.manufacturer,
+            os: device.os,
+            osVersion: device.osVersion,
+            timezone: device.timezone,
+            language: device.language,
+            carrier:
+                fresh.manualCarrier ? device.carrier : deviceConfig.carrier,
+            category:
+                fresh.manualCategory ? device.category : deviceConfig.category,
+          ),
+        );
+      }
+    }
+    return _client.requestDecision(toSend);
   }
 
+  static DecisionRequest _withDevice(DecisionRequest r, Device device) =>
+      DecisionRequest(
+        placements: r.placements,
+        targeting: r.targeting,
+        user: r.user,
+        device: device,
+        app: r.app,
+        sessionId: r.sessionId,
+        journeyOpt: r.journeyOpt,
+      );
+
+  /// Synchronous: never refreshes native signals; sends the builder's snapshot.
   HTTPRequest getHttpRequest(DecisionRequest request) {
     _warnIfJourneyWithoutApiVersion(request);
     return _client.getDecisionRequest(request);
