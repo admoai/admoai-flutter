@@ -27,7 +27,8 @@ import io.flutter.plugin.common.MethodChannel
  *    tablet keeps its class); otherwise smallest full-display width < 600 dp
  *    -> "phone", >= 600 dp -> "tablet"; unreadable width -> absent. An
  *    unreadable UI mode is unknown, never "other". Identical to the native
- *    Android SDK.
+ *    Android SDK. Hardware class computed once per process; display and
+ *    carrier read per request.
  *  - iOS (for reference): carrier never; isiOSAppOnMac / Catalyst -> "other";
  *    idiom phone / pad / tv / carPlay / mac / vision.
  */
@@ -59,6 +60,37 @@ internal object DeviceSignalRules {
     fun normalizeSubscription(subId: Int, sdkInt: Int, hasTelephony: Boolean): Boolean =
         sdkInt >= MIN_CARRIER_SDK && hasTelephony && subId != INVALID_SUBSCRIPTION_ID
 }
+
+/**
+ * Process-wide cache of the hardware-class answer ("is this a TV, watch,
+ * automotive or PC device?"). Those inputs never change while the process
+ * lives, so the probe runs once. A probe that throws caches nothing (it is
+ * retried on the next read) and counts as "not other" for that call.
+ */
+internal class HardwareClassCache {
+    @Volatile private var cachedIsOther: Boolean? = null
+
+    fun isOther(probe: () -> Boolean): Boolean {
+        cachedIsOther?.let { return it }
+        return try {
+            probe().also { cachedIsOther = it }
+        } catch (_: Throwable) {
+            false
+        }
+    }
+}
+
+/**
+ * Category for one read: the cached hardware class decides "other"; otherwise
+ * the display width is read now (every call) and classified.
+ */
+internal fun readCategoryWith(
+    hardware: HardwareClassCache,
+    hardwareProbe: () -> Boolean,
+    widthProvider: () -> Float?,
+): String? =
+    if (hardware.isOther(hardwareProbe)) "other"
+    else DeviceSignalRules.classify(emptySet(), null, widthProvider())
 
 /**
  * Exposes coarse device signals to the Dart SDK over `admoai/device_signals`.
@@ -116,12 +148,16 @@ class AdmoaiPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
 
     private fun readCategory(ctx: Context): String? {
         return try {
-            val pm = ctx.packageManager
-            val features = DeviceSignalRules.OTHER_FEATURES.filter { pm.hasSystemFeature(it) }.toSet()
-            DeviceSignalRules.classify(features, readUiModeType(ctx), fullDisplaySmallestWidthDp(ctx))
+            readCategoryWith(hardwareClass, { probeHardwareIsOther(ctx) }, { fullDisplaySmallestWidthDp(ctx) })
         } catch (_: Throwable) {
             null
         }
+    }
+
+    private fun probeHardwareIsOther(ctx: Context): Boolean {
+        val pm = ctx.packageManager
+        val features = DeviceSignalRules.OTHER_FEATURES.filter { pm.hasSystemFeature(it) }.toSet()
+        return DeviceSignalRules.classify(features, readUiModeType(ctx), 0f) == "other"
     }
 
     /** Current UI mode type, or null when it cannot be read (unknown, not "other"). */
@@ -153,5 +189,6 @@ class AdmoaiPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
 
     companion object {
         private const val CHANNEL = "admoai/device_signals"
+        private val hardwareClass = HardwareClassCache()
     }
 }

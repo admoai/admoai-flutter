@@ -18,7 +18,9 @@ const MethodChannel _channel = MethodChannel('admoai/device_signals');
 ///  - category: leanback / watch / automotive / pc feature, or a TELEVISION or
 ///    WATCH UI mode -> `other` (never CAR or DESK: a docked phone or tablet
 ///    keeps its class); otherwise the smallest full-display width: < 600 dp
-///    -> `phone`, >= 600 dp -> `tablet`. Display unreadable -> absent.
+///    -> `phone`, >= 600 dp -> `tablet`. Display unreadable -> absent. The
+///    hardware class (features, UI mode) is computed once per process; display
+///    and carrier are read per request.
 ///
 /// iOS
 ///  - carrier: never provided (no CoreTelephony).

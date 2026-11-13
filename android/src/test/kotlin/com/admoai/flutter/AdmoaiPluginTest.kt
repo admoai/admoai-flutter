@@ -70,4 +70,36 @@ class AdmoaiPluginTest {
 
     @Test fun carrierRequiresValidDefaultDataSubscription() =
         assertFalse(DeviceSignalRules.normalizeSubscription(-1, 34, true))
+
+    @Test fun hardwareProbeRunsOncePerProcessWhileWidthRunsPerRead() {
+        val cache = HardwareClassCache()
+        var probes = 0
+        var widths = 0
+        repeat(3) {
+            assertEquals(
+                "phone",
+                readCategoryWith(cache, { probes++; false }, { widths++; 360f }),
+            )
+        }
+        assertEquals(1, probes)
+        assertEquals(3, widths)
+    }
+
+    @Test fun otherHardwareIsCachedAndSkipsWidth() {
+        val cache = HardwareClassCache()
+        var probes = 0
+        repeat(2) {
+            assertEquals("other", readCategoryWith(cache, { probes++; true }, { error("not read") }))
+        }
+        assertEquals(1, probes)
+    }
+
+    @Test fun throwingHardwareProbeIsRetriedOnNextRead() {
+        val cache = HardwareClassCache()
+        var probes = 0
+        val probe = { probes++; if (probes == 1) error("boom") else true }
+        assertEquals("phone", readCategoryWith(cache, probe, { 360f }))
+        assertEquals("other", readCategoryWith(cache, probe, { 360f }))
+        assertEquals(2, probes)
+    }
 }
