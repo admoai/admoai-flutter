@@ -313,9 +313,22 @@ class DecisionRequestBuilder {
     if (unique.isEmpty) {
       final current = _targeting?.custom;
       if (current == null) return this;
-      return setCustomTargeting(current
+      final remaining = current
           .where((kv) => kv.key != AudienceSignalKey.publisherSegments)
-          .toList());
+          .toList();
+      if (remaining.isNotEmpty) return setCustomTargeting(remaining);
+      // Removing the only custom entry must put the wire back where it was: no `"custom": []`,
+      // and no empty `"targeting": {}` when nothing else was targeted.
+      final t = _targeting!;
+      final nothingElse = t.geo == null &&
+          t.location == null &&
+          t.destination == null &&
+          t.distance == null;
+      if (nothingElse) {
+        _targeting = null;
+        return this;
+      }
+      return clearCustomTargeting();
     }
     return _setSignal(
       AudienceSignalKey.publisherSegments,

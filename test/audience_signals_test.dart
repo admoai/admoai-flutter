@@ -168,6 +168,23 @@ void main() {
       ]);
     });
 
+    test('emptying the only custom entry restores the untargeted wire', () {
+      final b = _builder()
+          .setPublisherSegments(['high_value']).setPublisherSegments([]);
+      expect(_json(b), _json(_builder()));
+    });
+
+    test(
+        'emptying the only custom entry keeps other targeting without "custom"',
+        () {
+      final b = _builder()
+          .addGeoTargeting(2643743)
+          .setPublisherSegments(['high_value']).setPublisherSegments([]);
+      final targeting = _json(b)['targeting'] as Map<String, dynamic>;
+      expect(targeting.containsKey('custom'), isFalse);
+      expect(targeting['geo'], [2643743]);
+    });
+
     test('empty list on a fresh builder adds nothing', () {
       final b = _builder().setPublisherSegments([]);
       expect(_json(b).containsKey('targeting'), isFalse);
