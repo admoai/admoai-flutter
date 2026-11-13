@@ -1,6 +1,7 @@
 import 'package:logging/logging.dart';
 import 'utils/app_details.dart';
 import 'utils/device_details.dart';
+import 'utils/device_signals.dart';
 import 'models/audience_signals.dart';
 import 'models/decision_request.dart';
 
@@ -86,6 +87,8 @@ class DeviceConfig implements Clearable {
 
   static Future<DeviceConfig> systemDefault() async {
     final details = await getDeviceDetails();
+    // A failed first read has nothing to fall back to: treat it as empty.
+    final signals = await collectDeviceSignals() ?? DeviceSignals.empty;
     return DeviceConfig(
       id: details.id,
       model: details.model,
@@ -94,6 +97,8 @@ class DeviceConfig implements Clearable {
       osVersion: details.osVersion,
       timezone: details.timezone,
       language: details.language,
+      carrier: signals.carrier,
+      category: signals.category,
     );
   }
 }

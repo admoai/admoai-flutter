@@ -103,6 +103,16 @@ enum DeviceCategory {
   /// The string sent on the wire.
   final String value;
   const DeviceCategory(this.value);
+
+  /// Parses a wire string. Exact, case-sensitive match only; null and unknown
+  /// values yield null.
+  static DeviceCategory? fromWire(String? raw) {
+    if (raw == null) return null;
+    for (final c in values) {
+      if (c.value == raw) return c;
+    }
+    return null;
+  }
 }
 
 /// Custom-targeting keys used by the audience helpers, for callers that go

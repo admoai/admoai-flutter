@@ -128,6 +128,70 @@ jobs:
       - name: Test (deterministic unit + mock suites)
         run: flutter test --exclude-tags "live || e2e"
 
+  # The plugin's native code (Kotlin, Swift) is only compiled when a host app builds it; the
+  # Dart jobs never do. tool/host_app.sh generates that host app under build/host_app: it is
+  # generated, not tracked, because the tracked example app was retired (#85) when its
+  # generated symlinks broke Argo CD for adhub (admoai/adhub#4585). A change that breaks the
+  # native side goes red here instead of in a publisher's build. Same docs-only skip as the sdk job.
+  native-android:
+    name: Native build (Android)
+    needs: changes
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.code == 'true') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - name: Generate the host app
+        run: tool/host_app.sh build/host_app
+
+      - name: Build the host app
+        working-directory: build/host_app
+        run: flutter build apk --debug
+
+      # After the build: it writes the Gradle wrapper and the plugin wiring this task needs.
+      - name: Plugin JVM unit tests
+        working-directory: build/host_app/android
+        run: ./gradlew :admoai:testDebugUnitTest
+
+  native-ios:
+    name: Native build (iOS)
+    needs: changes
+    if: ${{ !cancelled() && (needs.changes.result != 'success' || needs.changes.outputs.code == 'true') }}
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - name: Generate the host app
+        run: tool/host_app.sh build/host_app
+
+      - name: Build the host app for the simulator
+        working-directory: build/host_app
+        run: flutter build ios --simulator --no-codesign
+
   # The shared scenario manifest is vendored from adhub's @admoai/sdk-scenarios package
   # (admoai/adhub#4158): the bytes must be exactly the version MANIFEST_VERSION names, so a
   # scenario edited here instead of in adhub fails this repo's own PR. A newer published

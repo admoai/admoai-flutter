@@ -278,6 +278,7 @@ Device.osVersion  field: String? (read)
 Device.timezone  field: String? (read)
 Device.toJson  method() -> Map<String, dynamic>
 DeviceCategory  type : Enum
+DeviceCategory.fromWire  static method(String? raw) -> DeviceCategory?
 DeviceCategory.other  static field: DeviceCategory (read)
 DeviceCategory.phone  static field: DeviceCategory (read)
 DeviceCategory.tablet  static field: DeviceCategory (read)
