@@ -255,6 +255,19 @@ void main() {
       expect(sdk.deviceConfig.carrier, 'Manual Co');
     });
 
+    test('(e2) a manual carrier that normalizes to nothing stays absent',
+        () async {
+      native = {'carrier': 'T-Mobile', 'category': 'phone'};
+      final sdk = await initWithClient();
+      sdk.setDeviceConfig(carrier: 'wifi');
+      await sdk.requestAds(build(sdk));
+      expect(sentDevice()!.containsKey('carrier'), isFalse);
+      expect(sentDevice()!['category'], 'phone');
+      await sdk.requestAds(build(sdk));
+      expect(sentDevice()!.containsKey('carrier'), isFalse);
+      expect(sentDevice()!['category'], 'phone');
+    });
+
     test('(f) clearDeviceConfig: no channel call, no carrier or category',
         () async {
       final sdk = await initWithClient();
