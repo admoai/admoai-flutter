@@ -1,0 +1,11 @@
+.idea/
+.vagrant/
+.sconsign.dblite
+.svn/
+.DS_Store
+*.swp
+profile
+DerivedData/
+build/
+.build/
+.swiftpm/

@@ -1,6 +1,7 @@
 import 'package:logging/logging.dart';
 import 'utils/app_details.dart';
 import 'utils/device_details.dart';
+import 'utils/device_signals.dart';
 import 'models/audience_signals.dart';
 import 'models/decision_request.dart';
 
@@ -17,6 +18,14 @@ class SDKConfig {
   final Duration receiveTimeout;
   final Logger logger;
 
+  /// Opt-in: when true, the SDK reads the device's mobile carrier and category
+  /// (phone, tablet, other) from the platform and sends them as
+  /// `device.carrier` / `device.category`. Off by default: a workspace without
+  /// audience signals enabled rejects requests that carry these fields, so the
+  /// default SDK never sends them. Values set by hand with
+  /// [AdMoai.setDeviceConfig] are sent either way.
+  final bool collectDeviceSignals;
+
   SDKConfig({
     required this.baseUrl,
     this.apiVersion,
@@ -25,6 +34,7 @@ class SDKConfig {
     this.connectTimeout = const Duration(seconds: 10),
     this.receiveTimeout = const Duration(seconds: 10),
     Logger? logger,
+    this.collectDeviceSignals = false,
   }) : logger = logger ?? Logger('AdMoai');
 }
 
@@ -84,8 +94,16 @@ class DeviceConfig implements Clearable {
 
   factory DeviceConfig.clear() => DeviceConfig();
 
-  static Future<DeviceConfig> systemDefault() async {
+  /// The device as the platform reports it. Carrier and category are read
+  /// only when [collectSignals] is true (see [SDKConfig.collectDeviceSignals]);
+  /// otherwise the native channel is never called and both stay absent.
+  static Future<DeviceConfig> systemDefault(
+      {bool collectSignals = false}) async {
     final details = await getDeviceDetails();
+    // A failed first read has nothing to fall back to: treat it as empty.
+    final signals = collectSignals
+        ? await collectDeviceSignals() ?? DeviceSignals.empty
+        : DeviceSignals.empty;
     return DeviceConfig(
       id: details.id,
       model: details.model,
@@ -94,6 +112,8 @@ class DeviceConfig implements Clearable {
       osVersion: details.osVersion,
       timezone: details.timezone,
       language: details.language,
+      carrier: signals.carrier,
+      category: signals.category,
     );
   }
 }

@@ -145,6 +145,25 @@ sdk.clearAppConfig();
 | `connectTimeout` | Duration | 10s | Connection timeout (default HTTP client only) |
 | `receiveTimeout` | Duration | 10s | Idle timeout (default HTTP client only) |
 | `logger` | Logger | SDK default | Custom logger instance |
+| `collectDeviceSignals` | bool | `false` | Opt-in: read the device's mobile carrier and category (phone, tablet, other) and send them as `device.carrier` / `device.category` |
+
+**Device carrier and category are opt-in.** The default SDK never sends them. A workspace without
+audience signals enabled rejects a request that carries them, so an app that sent them before its
+workspace is ready would get no ads. Turn collection on once audience signals are enabled for your
+workspace, or set the values by hand; a value set by hand is sent with or without the flag:
+
+```dart
+final sdk = await AdMoai.initialize(
+  config: SDKConfig(
+    baseUrl: 'https://api.admoai.com',
+    apiVersion: '2025-11-01',
+    collectDeviceSignals: true,
+  ),
+);
+
+// Or by hand:
+sdk.setDeviceConfig(carrier: 'Example Mobile', category: DeviceCategory.phone);
+```
 
 `AdMoai.initialize` additionally accepts `sessionId` (the sticky Journey session —
 see [Journey Ads](#journey-ads)) and `httpClient` (a custom

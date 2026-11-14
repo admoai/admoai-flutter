@@ -1,3 +1,17 @@
+## Unreleased
+
+### Added
+
+- **Device carrier and category, opt-in.** `SDKConfig(collectDeviceSignals: true)`
+  reads the mobile carrier (Android only, from the default data subscription)
+  and the device category (`phone`, `tablet` or `other`) and sends them as
+  `device.carrier` / `device.category`. Off by default: a workspace without
+  audience signals enabled rejects requests that carry these fields, so an app
+  that upgrades and changes nothing sends exactly what it sent before. Values
+  set by hand with `setDeviceConfig(carrier:, category:)` are sent either way.
+  The package is now a Flutter plugin (Android and iOS native code, no new
+  permissions). (#108)
+
 ## 0.7.0 - 2026-11-10
 
 ### Added
