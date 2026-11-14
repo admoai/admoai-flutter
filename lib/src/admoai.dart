@@ -101,7 +101,9 @@ class AdMoai {
     final sdk = AdMoai._(
       config: config,
       appConfig: await AppConfig.systemDefault(),
-      deviceConfig: await DeviceConfig.systemDefault(),
+      deviceConfig: await DeviceConfig.systemDefault(
+        collectSignals: config.collectDeviceSignals,
+      ),
       userConfig: userConfig ?? UserConfig.clear(),
       httpClient: httpClient,
     );
@@ -181,7 +183,9 @@ class AdMoai {
   }
 
   Future<void> resetDeviceConfig() async {
-    deviceConfig = await DeviceConfig.systemDefault();
+    deviceConfig = await DeviceConfig.systemDefault(
+      collectSignals: config.collectDeviceSignals,
+    );
   }
 
   // User Configuration

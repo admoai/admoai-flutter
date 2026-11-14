@@ -295,7 +295,7 @@ DeviceConfig.model  field: String? (read)
 DeviceConfig.new  constructor({String? id, String? model, String? manufacturer, String? os, String? osVersion, String? timezone, String? language, String? carrier, DeviceCategory? category})
 DeviceConfig.os  field: String? (read)
 DeviceConfig.osVersion  field: String? (read)
-DeviceConfig.systemDefault  static method() -> Future<DeviceConfig>
+DeviceConfig.systemDefault  static method({bool collectSignals}) -> Future<DeviceConfig>
 DeviceConfig.timezone  field: String? (read)
 DeviceDetails  type
 DeviceDetails.id  field: String? (read)
@@ -459,10 +459,11 @@ Priority.values  static field: List<Priority> (read)
 SDKConfig  type
 SDKConfig.apiVersion  field: String? (read)
 SDKConfig.baseUrl  field: String (read)
+SDKConfig.collectDeviceSignals  field: bool (read)
 SDKConfig.connectTimeout  field: Duration (read)
 SDKConfig.defaultLanguage  field: String? (read)
 SDKConfig.logger  field: Logger (read)
-SDKConfig.new  constructor({required String baseUrl, String? apiVersion, String? defaultLanguage, Duration requestTimeout, Duration connectTimeout, Duration receiveTimeout, Logger? logger})
+SDKConfig.new  constructor({required String baseUrl, String? apiVersion, String? defaultLanguage, Duration requestTimeout, Duration connectTimeout, Duration receiveTimeout, Logger? logger, bool collectDeviceSignals})
 SDKConfig.receiveTimeout  field: Duration (read)
 SDKConfig.requestTimeout  field: Duration (read)
 ServerError  type : APIError, Exception

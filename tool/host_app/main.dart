@@ -13,7 +13,12 @@ const String baseUrl = String.fromEnvironment(
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final sdk = await AdMoai.initialize(
-    config: SDKConfig(baseUrl: baseUrl, apiVersion: '2025-11-01'),
+    // Carrier and category collection is opt-in; this app exists to show it.
+    config: SDKConfig(
+      baseUrl: baseUrl,
+      apiVersion: '2025-11-01',
+      collectDeviceSignals: true,
+    ),
   );
   runApp(ExampleApp(sdk: sdk));
 }
