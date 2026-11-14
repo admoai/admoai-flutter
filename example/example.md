@@ -36,7 +36,9 @@ Future<void> main() async {
 ## Audience signals and device
 
 Audience signals need `apiVersion: '2025-11-01'` (set above) to be recorded in reporting. The
-device `carrier` and `category` are collected automatically; override them if you need to.
+device `carrier` and `category` are opt-in: pass `collectDeviceSignals: true` to `SDKConfig` once
+your workspace has audience signals (a workspace without them rejects requests that carry these
+fields), or set them by hand.
 
 ```dart
 sdk.setDeviceConfig(carrier: 'Example Mobile', category: DeviceCategory.phone);

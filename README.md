@@ -1442,20 +1442,32 @@ value: 'news')`). No aliases are translated: `25-34` is not `25_34`, and the eng
 
 ## Device
 
-By default the SDK collects a `device` object (id, model, manufacturer, OS, timezone, language) and
-adds two coarse fields:
+By default the SDK collects a `device` object (id, model, manufacturer, OS, timezone, language).
+Two coarse fields can be added:
 
 | Field | Meaning |
 |-------|---------|
 | `carrier` | The registered mobile operator of the default data subscription. Never the Wi-Fi provider. |
 | `category` | `DeviceCategory.phone`, `.tablet` or `.other` (a positively identified different class: TV, watch, automotive hardware, desktop). |
 
+**Both are opt-in.** The default SDK never sends them. A workspace without audience signals
+enabled rejects a request that carries them, so turn collection on only once your workspace has
+audience signals:
+
 ```dart
-// Override the automatic values.
+final sdk = await AdMoai.initialize(
+  config: SDKConfig(
+    baseUrl: 'https://api.admoai.com',
+    apiVersion: '2025-11-01',
+    collectDeviceSignals: true, // read carrier and category from the device
+  ),
+);
+
+// Or set them by hand (sent with or without collectDeviceSignals).
 sdk.setDeviceConfig(carrier: 'Example Mobile', category: DeviceCategory.tablet);
 ```
 
-- Manual `setDeviceConfig(carrier:, category:)` values override the automatic ones.
+- Manual `setDeviceConfig(carrier:, category:)` values override the collected ones.
 - Carriers are normalised: trimmed, and empty, `--`, `unknown`, `wifi` and `wi-fi`
   (case-insensitive) are treated as absent.
 - `disableDeviceCollection()` on a builder omits the whole device object, manual values included.
