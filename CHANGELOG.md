@@ -11,6 +11,12 @@
   set by hand with `setDeviceConfig(carrier:, category:)` are sent either way.
   The package is now a Flutter plugin (Android and iOS native code, no new
   permissions). (#108)
+- **Fresh carrier and category on every request (opted-in apps).** `requestAds`
+  waits at most 300 ms for a fresh native read and otherwise sends the last
+  values read; concurrent requests share one read. A value set by hand is never
+  overwritten, `clearDeviceConfig()` stops collection until
+  `resetDeviceConfig()`, and a read that lands after either never undoes it.
+  `getHttpRequest` stays synchronous and uses the values from build time. (#109)
 
 ## 0.7.0 - 2026-11-10
 
