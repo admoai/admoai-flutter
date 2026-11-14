@@ -102,4 +102,20 @@ class AdmoaiPluginTest {
         assertEquals("other", readCategoryWith(cache, probe, { 360f }))
         assertEquals(2, probes)
     }
+
+    @Test fun featureAnswersWithoutReadingUiMode() =
+        assertTrue(hardwareIsOther(setOf("android.software.leanback")) { error("not read") })
+
+    @Test fun failedUiModeReadFallsBackToWidthAndIsRetried() {
+        val cache = HardwareClassCache()
+        var reads = 0
+        val uiMode = {
+            reads++
+            if (reads == 1) error("UiModeManager unavailable") else Configuration.UI_MODE_TYPE_TELEVISION
+        }
+        val probe = { hardwareIsOther(none, uiMode) }
+        assertEquals("phone", readCategoryWith(cache, probe, { 360f }))
+        assertEquals("other", readCategoryWith(cache, probe, { 360f }))
+        assertEquals(2, reads)
+    }
 }

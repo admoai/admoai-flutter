@@ -81,6 +81,15 @@ internal class HardwareClassCache {
 }
 
 /**
+ * Hardware-class probe: a matching feature answers without reading the UI mode;
+ * otherwise the UI mode decides. A UI-mode read that throws propagates, so the
+ * caller does not cache a failed read as "not other".
+ */
+internal fun hardwareIsOther(features: Set<String>, uiModeType: () -> Int): Boolean =
+    DeviceSignalRules.OTHER_FEATURES.any { it in features } ||
+        DeviceSignalRules.classify(emptySet(), uiModeType(), 0f) == "other"
+
+/**
  * Category for one read: the cached hardware class decides "other"; otherwise
  * the display width is read now (every call) and classified.
  */
@@ -157,17 +166,16 @@ class AdmoaiPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
     private fun probeHardwareIsOther(ctx: Context): Boolean {
         val pm = ctx.packageManager
         val features = DeviceSignalRules.OTHER_FEATURES.filter { pm.hasSystemFeature(it) }.toSet()
-        return DeviceSignalRules.classify(features, readUiModeType(ctx), 0f) == "other"
+        return hardwareIsOther(features) { readUiModeType(ctx) }
     }
 
-    /** Current UI mode type, or null when it cannot be read (unknown, not "other"). */
-    private fun readUiModeType(ctx: Context): Int? {
-        return try {
-            (ctx.getSystemService(Context.UI_MODE_SERVICE) as? UiModeManager)?.currentModeType
-        } catch (_: Throwable) {
-            null
-        }
-    }
+    /**
+     * Current UI mode type. Throws when the UiModeManager cannot be read, so the
+     * probe fails and [HardwareClassCache] retries it instead of caching "not other".
+     */
+    private fun readUiModeType(ctx: Context): Int =
+        (ctx.getSystemService(Context.UI_MODE_SERVICE) as? UiModeManager)?.currentModeType
+            ?: error("UiModeManager unavailable")
 
     /**
      * Smallest width of the physical default display in dp. Independent of the

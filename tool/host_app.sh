@@ -20,7 +20,7 @@
 # The app source is tool/host_app/main.dart. Needs `flutter` on PATH.
 set -euo pipefail
 
-root="$(cd "$(dirname "$0")/.." && pwd)"
+root="$(cd "$(dirname "$0")/.." && pwd -P)"
 dir="${1:-build/host_app}"
 
 fail() {
@@ -40,13 +40,16 @@ command -v flutter >/dev/null 2>&1 ||
     "it is the source the generated app runs" \
     "restore it with: git checkout -- tool/host_app/main.dart"
 
-# Resolve to an absolute path before changing directory.
+# Resolve to an absolute physical path (symlinks resolved, as for root) before
+# changing directory, so an alias of the repository cannot pass the guard below.
 mkdir -p "$(dirname "$dir")"
-dir="$(cd "$(dirname "$dir")" && pwd)/$(basename "$dir")"
+dir="$(cd "$(dirname "$dir")" && pwd -P)/$(basename "$dir")"
+target="$dir"
+[[ -d "$dir" ]] && target="$(cd "$dir" && pwd -P)"
 
 # Refuse to delete the repo or anything that contains it.
 case "$root/" in
-  "$dir"/*) fail "refusing to recreate $dir" \
+  "$target"/*) fail "refusing to recreate $dir" \
     "it contains the repository itself" \
     "pass a directory outside the repo, or under build/" ;;
 esac
