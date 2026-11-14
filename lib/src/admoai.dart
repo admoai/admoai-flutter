@@ -10,8 +10,9 @@ import 'api_client.dart';
 import 'models/audience_signals.dart';
 import 'models/decision_request.dart';
 import 'models/decision_response.dart';
-import 'utils/device_signals_state.dart';
 import 'models/decision_request_builder.dart';
+import 'utils/device_signals.dart';
+import 'utils/device_signals_state.dart';
 import 'view_beacon_ledger.dart';
 import 'third_party_tracker_dispatcher.dart';
 import 'version.dart';
@@ -43,6 +44,16 @@ class AdMoai {
   /// Carousel slide view URLs already fired — see [trackSlideView]. Its own
   /// instance so slide capacity never competes with pins'.
   final ViewBeaconLedger _slideViews = ViewBeaconLedger();
+
+  /// The native signals read in flight, shared by every request that arrives
+  /// while it runs, so concurrent or timed-out requests never start more reads.
+  Future<void>? _signalsRead;
+
+  /// Upper bound for one native read. A request waits at most
+  /// [_requestSignalsBudget] for it; the read itself may finish later and
+  /// still refresh the snapshot for the next request.
+  static const _nativeReadCap = Duration(seconds: 5);
+  static const _requestSignalsBudget = Duration(milliseconds: 300);
 
   factory AdMoai._({
     required SDKConfig config,
@@ -247,17 +258,18 @@ class AdMoai {
       DecisionRequest request) async {
     _warnIfJourneyWithoutApiVersion(request);
     var toSend = request;
-    final state = autoStateOf(deviceConfig);
-    if (state.auto) {
-      // Awaits a fresh native read for at most 300 ms; on failure or timeout the
-      // last snapshot is kept. The snapshot is updated for later requests too.
-      deviceConfig = await refreshAutoSignals(
-        deviceConfig,
-        timeout: const Duration(milliseconds: 300),
-      );
+    if (autoStateOf(deviceConfig).auto) {
+      // Waits at most 300 ms for the shared native read; on failure or timeout
+      // the last snapshot is used. Then the request carries the SDK's current
+      // carrier and category: refreshed, manual, or absent after a clear.
+      try {
+        await _readSignalsShared().timeout(_requestSignalsBudget);
+      } on TimeoutException {
+        // The read keeps running and refreshes the snapshot when it lands.
+      }
       final device = request.device;
       if (device != null) {
-        final fresh = autoStateOf(deviceConfig);
+        final current = deviceConfig;
         toSend = _withDevice(
           request,
           Device(
@@ -268,15 +280,30 @@ class AdMoai {
             osVersion: device.osVersion,
             timezone: device.timezone,
             language: device.language,
-            carrier:
-                fresh.manualCarrier ? device.carrier : deviceConfig.carrier,
-            category:
-                fresh.manualCategory ? device.category : deviceConfig.category,
+            carrier: current.carrier,
+            category: current.category,
           ),
         );
       }
     }
     return _client.requestDecision(toSend);
+  }
+
+  /// Joins the native read in flight, or starts one. The result is written
+  /// back only if [deviceConfig] is still the config captured when the read
+  /// started: a clear, set, reset or reassignment made meanwhile wins, and an
+  /// older read can never overwrite a newer config.
+  Future<void> _readSignalsShared() {
+    final pending = _signalsRead;
+    if (pending != null) return pending;
+    final captured = deviceConfig;
+    final read = collectDeviceSignals(timeout: _nativeReadCap).then((signals) {
+      if (signals != null && identical(deviceConfig, captured)) {
+        deviceConfig = applyAutoSignals(captured, signals);
+      }
+    }).whenComplete(() => _signalsRead = null);
+    _signalsRead = read;
+    return read;
   }
 
   static DecisionRequest _withDevice(DecisionRequest r, Device device) =>

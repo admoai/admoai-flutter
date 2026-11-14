@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:admoai/admoai.dart';
@@ -207,20 +208,101 @@ void main() {
       expect(sdk.deviceConfig.category, DeviceCategory.phone);
     });
 
-    test('(b) a slow native read keeps the snapshot and does not wait',
+    /// Native reads answer only when the test completes the returned completer.
+    Completer<Map<String, Object?>> holdNative() {
+      final pending = Completer<Map<String, Object?>>();
+      messenger.setMockMethodCallHandler(channel, (call) {
+        calls++;
+        return pending.future;
+      });
+      return pending;
+    }
+
+    test('(b) a slow native read keeps the snapshot, then refreshes it later',
         () async {
       final sdk = await initWithClient();
       final request = build(sdk);
-      messenger.setMockMethodCallHandler(channel, (call) async {
-        await Future<void>.delayed(const Duration(seconds: 2));
-        return {'carrier': 'Late Telco', 'category': 'phone'};
-      });
-      final sw = Stopwatch()..start();
-      await sdk.requestAds(request);
-      expect(sw.elapsedMilliseconds, lessThan(1000));
+      final late = holdNative();
+      await sdk.requestAds(request); // returns after the 300 ms budget
       expect(sentDevice()!['carrier'], 'Auto Telco');
       expect(sentDevice()!['category'], 'tablet');
       expect(sdk.deviceConfig.carrier, 'Auto Telco');
+
+      late.complete({'carrier': 'Late Telco', 'category': 'phone'});
+      await pumpEventQueue();
+      expect(sdk.deviceConfig.carrier, 'Late Telco');
+      expect(sdk.deviceConfig.category, DeviceCategory.phone);
+    });
+
+    test('(b2) concurrent and timed-out requests share one native read',
+        () async {
+      final sdk = await initWithClient();
+      calls = 0;
+      final pending = holdNative();
+      await Future.wait([
+        sdk.requestAds(build(sdk)),
+        sdk.requestAds(build(sdk)),
+      ]);
+      // Both timed out on the same read; a third request joins it too.
+      await sdk.requestAds(build(sdk));
+      expect(calls, 1);
+
+      pending.complete({'carrier': 'Shared Telco', 'category': 'phone'});
+      await pumpEventQueue();
+      native = {'carrier': 'Next Telco', 'category': 'phone'};
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        calls++;
+        return native;
+      });
+      await sdk.requestAds(build(sdk));
+      expect(calls, 2, reason: 'a new read starts once the shared one landed');
+      expect(sentDevice()!['carrier'], 'Next Telco');
+    });
+
+    test('(b3) clear while a read is pending: the read does not undo it',
+        () async {
+      final sdk = await initWithClient();
+      final pending = holdNative();
+      final sent = sdk.requestAds(build(sdk));
+      sdk.clearDeviceConfig();
+      pending.complete({'carrier': 'Old Telco', 'category': 'phone'});
+      await sent;
+      await pumpEventQueue();
+      expect(autoStateOf(sdk.deviceConfig).auto, isFalse);
+      expect(sdk.deviceConfig.carrier, isNull);
+      expect(sdk.deviceConfig.category, isNull);
+      expect(sentDevice()!.containsKey('carrier'), isFalse);
+      expect(sentDevice()!.containsKey('category'), isFalse);
+    });
+
+    test('(b4) a manual value set while a read is pending is kept and sent',
+        () async {
+      final sdk = await initWithClient();
+      final pending = holdNative();
+      final sent = sdk.requestAds(build(sdk));
+      sdk.setDeviceConfig(carrier: 'Manual Co');
+      pending.complete({'carrier': 'Old Telco', 'category': 'phone'});
+      await sent;
+      await pumpEventQueue();
+      expect(sdk.deviceConfig.carrier, 'Manual Co');
+      expect(sentDevice()!['carrier'], 'Manual Co');
+    });
+
+    test('(b5) an older read never overwrites a reset made meanwhile',
+        () async {
+      final sdk = await initWithClient();
+      final old = holdNative();
+      final sent = sdk.requestAds(build(sdk));
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        calls++;
+        return {'carrier': 'Reset Telco', 'category': 'tablet'};
+      });
+      await sdk.resetDeviceConfig();
+      old.complete({'carrier': 'Old Telco', 'category': 'phone'});
+      await sent;
+      await pumpEventQueue();
+      expect(sdk.deviceConfig.carrier, 'Reset Telco');
+      expect(sdk.deviceConfig.category, DeviceCategory.tablet);
     });
 
     test('(c) a native PlatformException keeps the previous snapshot',

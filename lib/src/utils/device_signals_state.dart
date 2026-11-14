@@ -74,10 +74,18 @@ Future<DeviceConfig> refreshAutoSignals(
   DeviceConfig current, {
   Duration timeout = const Duration(milliseconds: 500),
 }) async {
-  final state = autoStateOf(current);
-  if (!state.auto) return current;
+  if (!autoStateOf(current).auto) return current;
   final signals = await collectDeviceSignals(timeout: timeout);
   if (signals == null) return current;
+  return applyAutoSignals(current, signals);
+}
+
+/// [current] with its auto fields replaced by [signals]; fields marked manual
+/// keep their value. Returns [current] itself when auto is off. Pure: the
+/// caller decides whether the result may replace the SDK's config.
+DeviceConfig applyAutoSignals(DeviceConfig current, DeviceSignals signals) {
+  final state = autoStateOf(current);
+  if (!state.auto) return current;
   final next = DeviceConfig(
     id: current.id,
     model: current.model,
