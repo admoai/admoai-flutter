@@ -15,6 +15,21 @@ APIResponseBody.errors  field: List<AdMoaiError> (read)
 APIResponseBody.new  constructor({required bool success, T? data, List<AdMoaiError> errors, List<AdMoaiWarning> warnings})
 APIResponseBody.success  field: bool (read)
 APIResponseBody.warnings  field: List<AdMoaiWarning> (read)
+AccountTenure  type : Enum
+AccountTenure.days0To30  static field: AccountTenure (read)
+AccountTenure.days31To90  static field: AccountTenure (read)
+AccountTenure.days366Plus  static field: AccountTenure (read)
+AccountTenure.days91To365  static field: AccountTenure (read)
+AccountTenure.value  field: String (read)
+AccountTenure.values  static field: List<AccountTenure> (read)
+AccountType  type : Enum
+AccountType.business  static field: AccountType (read)
+AccountType.family  static field: AccountType (read)
+AccountType.other  static field: AccountType (read)
+AccountType.personal  static field: AccountType (read)
+AccountType.student  static field: AccountType (read)
+AccountType.value  field: String (read)
+AccountType.values  static field: List<AccountType> (read)
 AdMoai  type
 AdMoai.appConfig  field: AppConfig (read/write)
 AdMoai.clearAppConfig  method() -> void
@@ -42,7 +57,7 @@ AdMoai.requestAds  method(DecisionRequest request) -> Future<APIResponse<List<De
 AdMoai.resetAppConfig  method() -> Future<void>
 AdMoai.resetDeviceConfig  method() -> Future<void>
 AdMoai.setAppConfig  method({String? name, String? version, String? buildNumber, String? identifier, String? language}) -> void
-AdMoai.setDeviceConfig  method({String? id, String? model, String? manufacturer, String? os, String? osVersion, String? timezone, String? language}) -> void
+AdMoai.setDeviceConfig  method({String? id, String? model, String? manufacturer, String? os, String? osVersion, String? timezone, String? language, String? carrier, DeviceCategory? category}) -> void
 AdMoai.setSessionId  method(String sessionId) -> void
 AdMoai.setUserConfig  method({String? id, String? ip, String? timezone, Consent? consent}) -> void
 AdMoai.trackPointClick  method(MatchedPoint point) -> void
@@ -83,6 +98,16 @@ Advertiser.legalName  field: String? (read)
 Advertiser.logoUrl  field: String? (read)
 Advertiser.name  field: String? (read)
 Advertiser.new  constructor({String? id, String? name, String? legalName, String? logoUrl})
+AgeGroup  type : Enum
+AgeGroup.age18To24  static field: AgeGroup (read)
+AgeGroup.age25To34  static field: AgeGroup (read)
+AgeGroup.age35To44  static field: AgeGroup (read)
+AgeGroup.age45To54  static field: AgeGroup (read)
+AgeGroup.age55To64  static field: AgeGroup (read)
+AgeGroup.age65Plus  static field: AgeGroup (read)
+AgeGroup.under18  static field: AgeGroup (read)
+AgeGroup.value  field: String (read)
+AgeGroup.values  static field: List<AgeGroup> (read)
 App  type
 App.buildNumber  field: String? (read)
 App.identifier  field: String? (read)
@@ -107,6 +132,16 @@ AppDetails.language  field: String? (read)
 AppDetails.name  field: String? (read)
 AppDetails.new  constructor({String? name, String? version, String? buildNumber, String? identifier, String? language})
 AppDetails.version  field: String? (read)
+AudienceSignalKey  type
+AudienceSignalKey.accountTenure  static field: String (read)
+AudienceSignalKey.accountType  static field: String (read)
+AudienceSignalKey.ageGroup  static field: String (read)
+AudienceSignalKey.gender  static field: String (read)
+AudienceSignalKey.lastTripRecency  static field: String (read)
+AudienceSignalKey.new  constructor()
+AudienceSignalKey.publisherSegments  static field: String (read)
+AudienceSignalKey.subscriptionStatus  static field: String (read)
+AudienceSignalKey.tripFrequency30d  static field: String (read)
 Clearable  type
 Clearable.clear  constructor()
 ClientError  type : APIError, Exception
@@ -201,13 +236,21 @@ DecisionRequestBuilder.clearUser  method() -> DecisionRequestBuilder
 DecisionRequestBuilder.disableAppCollection  method() -> DecisionRequestBuilder
 DecisionRequestBuilder.disableDeviceCollection  method() -> DecisionRequestBuilder
 DecisionRequestBuilder.new  constructor({required AppConfig appConfig, required DeviceConfig deviceConfig, required UserConfig userConfig, String? sessionId, Logger? logger})
+DecisionRequestBuilder.setAccountTenure  method(AccountTenure? value) -> DecisionRequestBuilder
+DecisionRequestBuilder.setAccountType  method(AccountType? value) -> DecisionRequestBuilder
+DecisionRequestBuilder.setAgeGroup  method(AgeGroup? value) -> DecisionRequestBuilder
 DecisionRequestBuilder.setCustomTargeting  method(List<CustomKeyValue>? custom) -> DecisionRequestBuilder
 DecisionRequestBuilder.setDestinationTargeting  method(List<Destination>? destinations) -> DecisionRequestBuilder
 DecisionRequestBuilder.setDistanceTargeting  method(Distance distance) -> DecisionRequestBuilder
+DecisionRequestBuilder.setGender  method(Gender? value) -> DecisionRequestBuilder
 DecisionRequestBuilder.setGeoTargeting  method(List<int>? geoNameIds) -> DecisionRequestBuilder
 DecisionRequestBuilder.setJourneyOpt  method(JourneyOpt opt) -> DecisionRequestBuilder
+DecisionRequestBuilder.setLastTripRecency  method(LastTripRecency? value) -> DecisionRequestBuilder
 DecisionRequestBuilder.setLocationTargeting  method(List<Location> locations) -> DecisionRequestBuilder
+DecisionRequestBuilder.setPublisherSegments  method(List<String>? codes) -> DecisionRequestBuilder
 DecisionRequestBuilder.setSessionId  method(String sessionId) -> DecisionRequestBuilder
+DecisionRequestBuilder.setSubscriptionStatus  method(SubscriptionStatus? value) -> DecisionRequestBuilder
+DecisionRequestBuilder.setTripFrequency30d  method(TripFrequency30d? value) -> DecisionRequestBuilder
 DecisionRequestBuilder.setUserConsent  method(Consent? consent) -> DecisionRequestBuilder
 DecisionRequestBuilder.setUserId  method(String? id) -> DecisionRequestBuilder
 DecisionRequestBuilder.setUserIp  method(String? ip) -> DecisionRequestBuilder
@@ -223,22 +266,32 @@ Destination.longitude  field: double (read)
 Destination.minConfidence  field: double (read)
 Destination.new  constructor({required double latitude, required double longitude, required double minConfidence})
 Device  type
+Device.carrier  field: String? (read)
+Device.category  field: DeviceCategory? (read)
 Device.id  field: String? (read)
 Device.language  field: String? (read)
 Device.manufacturer  field: String? (read)
 Device.model  field: String? (read)
-Device.new  constructor({String? id, String? model, String? manufacturer, String? os, String? osVersion, String? timezone, String? language})
+Device.new  constructor({String? id, String? model, String? manufacturer, String? os, String? osVersion, String? timezone, String? language, String? carrier, DeviceCategory? category})
 Device.os  field: String? (read)
 Device.osVersion  field: String? (read)
 Device.timezone  field: String? (read)
 Device.toJson  method() -> Map<String, dynamic>
+DeviceCategory  type : Enum
+DeviceCategory.other  static field: DeviceCategory (read)
+DeviceCategory.phone  static field: DeviceCategory (read)
+DeviceCategory.tablet  static field: DeviceCategory (read)
+DeviceCategory.value  field: String (read)
+DeviceCategory.values  static field: List<DeviceCategory> (read)
 DeviceConfig  type : Clearable
+DeviceConfig.carrier  field: String? (read)
+DeviceConfig.category  field: DeviceCategory? (read)
 DeviceConfig.clear  constructor()
 DeviceConfig.id  field: String? (read)
 DeviceConfig.language  field: String? (read)
 DeviceConfig.manufacturer  field: String? (read)
 DeviceConfig.model  field: String? (read)
-DeviceConfig.new  constructor({String? id, String? model, String? manufacturer, String? os, String? osVersion, String? timezone, String? language})
+DeviceConfig.new  constructor({String? id, String? model, String? manufacturer, String? os, String? osVersion, String? timezone, String? language, String? carrier, DeviceCategory? category})
 DeviceConfig.os  field: String? (read)
 DeviceConfig.osVersion  field: String? (read)
 DeviceConfig.systemDefault  static method() -> Future<DeviceConfig>
@@ -272,6 +325,13 @@ Format.native  static field: Format (read)
 Format.value  field: String (read)
 Format.values  static field: List<Format> (read)
 Format.video  static field: Format (read)
+Gender  type : Enum
+Gender.female  static field: Gender (read)
+Gender.male  static field: Gender (read)
+Gender.other  static field: Gender (read)
+Gender.preferNotToSay  static field: Gender (read)
+Gender.value  field: String (read)
+Gender.values  static field: List<Gender> (read)
 HTTPMethod  type : Enum
 HTTPMethod.delete  static field: HTTPMethod (read)
 HTTPMethod.get  static field: HTTPMethod (read)
@@ -321,6 +381,14 @@ JourneyOpt.optIn  static field: JourneyOpt (read)
 JourneyOpt.optOut  static field: JourneyOpt (read)
 JourneyOpt.value  field: String (read)
 JourneyOpt.values  static field: List<JourneyOpt> (read)
+LastTripRecency  type : Enum
+LastTripRecency.days0To7  static field: LastTripRecency (read)
+LastTripRecency.days31To90  static field: LastTripRecency (read)
+LastTripRecency.days8To30  static field: LastTripRecency (read)
+LastTripRecency.days91Plus  static field: LastTripRecency (read)
+LastTripRecency.never  static field: LastTripRecency (read)
+LastTripRecency.value  field: String (read)
+LastTripRecency.values  static field: List<LastTripRecency> (read)
 Location  type
 Location.latitude  field: double (read)
 Location.longitude  field: double (read)
@@ -412,6 +480,14 @@ SlideTracking.clicks  field: List<TrackingItem>? (read)
 SlideTracking.new  constructor({List<TrackingItem>? views, List<TrackingItem>? clicks})
 SlideTracking.tryFromJson  static method(dynamic json) -> SlideTracking?
 SlideTracking.views  field: List<TrackingItem>? (read)
+SubscriptionStatus  type : Enum
+SubscriptionStatus.active  static field: SubscriptionStatus (read)
+SubscriptionStatus.expired  static field: SubscriptionStatus (read)
+SubscriptionStatus.none  static field: SubscriptionStatus (read)
+SubscriptionStatus.paused  static field: SubscriptionStatus (read)
+SubscriptionStatus.trial  static field: SubscriptionStatus (read)
+SubscriptionStatus.value  field: String (read)
+SubscriptionStatus.values  static field: List<SubscriptionStatus> (read)
 Targeting  type
 Targeting.custom  field: List<CustomKeyValue>? (read)
 Targeting.destination  field: List<Destination>? (read)
@@ -463,6 +539,13 @@ TrackingType.impression  static field: TrackingType (read)
 TrackingType.value  field: String (read)
 TrackingType.values  static field: List<TrackingType> (read)
 TrackingType.videoEvent  static field: TrackingType (read)
+TripFrequency30d  type : Enum
+TripFrequency30d.trips10Plus  static field: TripFrequency30d (read)
+TripFrequency30d.trips1To2  static field: TripFrequency30d (read)
+TripFrequency30d.trips3To9  static field: TripFrequency30d (read)
+TripFrequency30d.value  field: String (read)
+TripFrequency30d.values  static field: List<TripFrequency30d> (read)
+TripFrequency30d.zero  static field: TripFrequency30d (read)
 UnexpectedStatusError  type : APIError, Exception
 UnexpectedStatusError.message  field: String (read)
 UnexpectedStatusError.new  constructor(int statusCode)

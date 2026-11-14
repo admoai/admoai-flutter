@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'audience_signals.dart';
+
 /// Explicit runtime opt control for Journey Takeover Ads.
 ///
 /// The decision-engine accepts only the wire literals `"in"` / `"out"`;
@@ -393,6 +395,11 @@ class Device {
   final String? timezone;
   final String? language;
 
+  /// Normalized with the same rule as [DeviceConfig]: trimmed; empty, `--`, `unknown`, `wifi`
+  /// and `wi-fi` (case-insensitive) are absent.
+  final String? carrier;
+  final DeviceCategory? category;
+
   Device({
     this.id,
     this.model,
@@ -401,7 +408,9 @@ class Device {
     this.osVersion,
     this.timezone,
     this.language,
-  });
+    String? carrier,
+    this.category,
+  }) : carrier = normalizeCarrier(carrier);
 
   Map<String, dynamic> toJson() {
     return {
@@ -412,6 +421,8 @@ class Device {
       if (osVersion != null) 'osVersion': osVersion,
       if (timezone != null) 'timezone': timezone,
       if (language != null) 'language': language,
+      if (carrier != null) 'carrier': carrier,
+      if (category != null) 'category': category!.value,
     };
   }
 }

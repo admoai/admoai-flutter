@@ -2,6 +2,7 @@ import 'dart:collection';
 
 import 'package:logging/logging.dart';
 
+import 'audience_signals.dart';
 import 'decision_request.dart';
 import '../configs.dart';
 
@@ -41,6 +42,8 @@ class DecisionRequestBuilder {
       osVersion: deviceConfig.osVersion,
       timezone: deviceConfig.timezone,
       language: deviceConfig.language,
+      carrier: deviceConfig.carrier,
+      category: deviceConfig.category,
     );
 
     _user = User(
@@ -255,6 +258,101 @@ class DecisionRequestBuilder {
     final currentCustom = List<CustomKeyValue>.from(_targeting?.custom ?? []);
     currentCustom.add(CustomKeyValue(key: key, value: value));
     return setCustomTargeting(currentCustom);
+  }
+
+  // Audience signals. Each helper upserts one custom-targeting key through
+  // [setCustomTargeting], so last write wins per key, shared with
+  // [addCustomTargeting]. Audience dimensions require apiVersion '2025-11-01'.
+  DecisionRequestBuilder _setSignal(String key, Object value) {
+    final current = List<CustomKeyValue>.from(_targeting?.custom ?? []);
+    current.add(CustomKeyValue(key: key, value: value));
+    return setCustomTargeting(current);
+  }
+
+  // Removes one audience key's entry. Remaining custom entries keep their
+  // order; if none remain there is no `"custom"` key, and if nothing else is
+  // targeted there is no `"targeting"` key, so the wire equals an untargeted
+  // builder's. Removing a key that is not there is a no-op.
+  DecisionRequestBuilder _removeSignal(String key) {
+    final current = _targeting?.custom;
+    if (current == null) return this;
+    final remaining = current.where((kv) => kv.key != key).toList();
+    if (remaining.isNotEmpty) return setCustomTargeting(remaining);
+    // Removing the only custom entry must put the wire back where it was: no `"custom": []`,
+    // and no empty `"targeting": {}` when nothing else was targeted.
+    final t = _targeting!;
+    final nothingElse = t.geo == null &&
+        t.location == null &&
+        t.destination == null &&
+        t.distance == null;
+    if (nothingElse) {
+      _targeting = null;
+      return this;
+    }
+    return clearCustomTargeting();
+  }
+
+  DecisionRequestBuilder _setOrRemoveSignal(String key, String? value) =>
+      value == null ? _removeSignal(key) : _setSignal(key, value);
+
+  /// Sets the viewer's age bracket; `null` removes it.
+  DecisionRequestBuilder setAgeGroup(AgeGroup? value) =>
+      _setOrRemoveSignal(AudienceSignalKey.ageGroup, value?.value);
+
+  /// Sets the viewer's gender; `null` removes it.
+  DecisionRequestBuilder setGender(Gender? value) =>
+      _setOrRemoveSignal(AudienceSignalKey.gender, value?.value);
+
+  /// Sets the viewer's account type; `null` removes it.
+  DecisionRequestBuilder setAccountType(AccountType? value) =>
+      _setOrRemoveSignal(AudienceSignalKey.accountType, value?.value);
+
+  /// Sets the viewer's subscription status; `null` removes it.
+  DecisionRequestBuilder setSubscriptionStatus(SubscriptionStatus? value) =>
+      _setOrRemoveSignal(AudienceSignalKey.subscriptionStatus, value?.value);
+
+  /// Sets the account tenure; `null` removes it.
+  DecisionRequestBuilder setAccountTenure(AccountTenure? value) =>
+      _setOrRemoveSignal(AudienceSignalKey.accountTenure, value?.value);
+
+  /// Sets the trips taken in the last 30 days; `null` removes it.
+  DecisionRequestBuilder setTripFrequency30d(TripFrequency30d? value) =>
+      _setOrRemoveSignal(AudienceSignalKey.tripFrequency30d, value?.value);
+
+  /// Sets the time since the last trip; `null` removes it.
+  DecisionRequestBuilder setLastTripRecency(LastTripRecency? value) =>
+      _setOrRemoveSignal(AudienceSignalKey.lastTripRecency, value?.value);
+
+  static final RegExp _segmentCode = RegExp(r'^[a-zA-Z0-9_]+$');
+
+  /// Sets the publisher segment codes (always sent as an array).
+  ///
+  /// Every code must match `^[a-zA-Z0-9_]+$`, otherwise an [ArgumentError]
+  /// naming the offending code is thrown and the builder is left unchanged.
+  /// Duplicates are dropped keeping first-seen order; codes are otherwise sent
+  /// as given. An empty list or `null` removes any earlier segments.
+  DecisionRequestBuilder setPublisherSegments(List<String>? codes) {
+    if (codes == null) {
+      return _removeSignal(AudienceSignalKey.publisherSegments);
+    }
+    for (final code in codes) {
+      if (!_segmentCode.hasMatch(code)) {
+        throw ArgumentError.value(
+          codes,
+          'codes',
+          'invalid segment code "$code": codes may only contain letters, '
+              'digits and underscores',
+        );
+      }
+    }
+    final unique = LinkedHashSet<String>.from(codes).toList(growable: false);
+    if (unique.isEmpty) {
+      return _removeSignal(AudienceSignalKey.publisherSegments);
+    }
+    return _setSignal(
+      AudienceSignalKey.publisherSegments,
+      List<String>.unmodifiable(unique),
+    );
   }
 
   /// Asks for the campaign's pins near a point (Sponsored Pin Locations).

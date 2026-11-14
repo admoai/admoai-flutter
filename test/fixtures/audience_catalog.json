@@ -1,0 +1,86 @@
+{
+  "$comment": "Vendored from admoai/adhub ui/platform/lib/audience-signals/catalog.generated.json at 1df3c5812 (keys, request shapes and canonical values only). Refresh by re-extracting from that file; test/audience_catalog_conformance_test.dart fails if the SDK enums drift from it.",
+  "presets": [
+    {
+      "key": "age_group",
+      "requestShape": "string",
+      "values": [
+        "under_18",
+        "18_24",
+        "25_34",
+        "35_44",
+        "45_54",
+        "55_64",
+        "65_plus"
+      ]
+    },
+    {
+      "key": "gender",
+      "requestShape": "string",
+      "values": [
+        "female",
+        "male",
+        "other",
+        "prefer_not_to_say"
+      ]
+    },
+    {
+      "key": "account_type",
+      "requestShape": "string",
+      "values": [
+        "personal",
+        "business",
+        "family",
+        "student",
+        "other"
+      ]
+    },
+    {
+      "key": "subscription_status",
+      "requestShape": "string",
+      "values": [
+        "none",
+        "trial",
+        "active",
+        "paused",
+        "expired"
+      ]
+    },
+    {
+      "key": "account_tenure",
+      "requestShape": "string",
+      "values": [
+        "0_30d",
+        "31_90d",
+        "91_365d",
+        "366d_plus"
+      ]
+    },
+    {
+      "key": "trip_frequency_30d",
+      "requestShape": "string",
+      "values": [
+        "0",
+        "1_2",
+        "3_9",
+        "10_plus"
+      ]
+    },
+    {
+      "key": "last_trip_recency",
+      "requestShape": "string",
+      "values": [
+        "never",
+        "0_7d",
+        "8_30d",
+        "31_90d",
+        "91d_plus"
+      ]
+    },
+    {
+      "key": "publisher_segments",
+      "requestShape": "string_array",
+      "values": []
+    }
+  ]
+}

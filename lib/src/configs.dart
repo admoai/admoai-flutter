@@ -1,6 +1,7 @@
 import 'package:logging/logging.dart';
 import 'utils/app_details.dart';
 import 'utils/device_details.dart';
+import 'models/audience_signals.dart';
 import 'models/decision_request.dart';
 
 abstract class Clearable {
@@ -65,6 +66,10 @@ class DeviceConfig implements Clearable {
   final String? timezone;
   final String? language;
 
+  /// Mobile carrier name, normalized with [normalizeCarrier]; null when absent.
+  final String? carrier;
+  final DeviceCategory? category;
+
   DeviceConfig({
     this.id,
     this.model,
@@ -73,7 +78,9 @@ class DeviceConfig implements Clearable {
     this.osVersion,
     this.timezone,
     this.language,
-  });
+    String? carrier,
+    this.category,
+  }) : carrier = normalizeCarrier(carrier);
 
   factory DeviceConfig.clear() => DeviceConfig();
 
