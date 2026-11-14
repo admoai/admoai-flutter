@@ -11,6 +11,8 @@ import 'models/audience_signals.dart';
 import 'models/decision_request.dart';
 import 'models/decision_response.dart';
 import 'models/decision_request_builder.dart';
+import 'utils/device_signals.dart';
+import 'utils/device_signals_state.dart';
 import 'view_beacon_ledger.dart';
 import 'third_party_tracker_dispatcher.dart';
 import 'version.dart';
@@ -42,6 +44,16 @@ class AdMoai {
   /// Carousel slide view URLs already fired — see [trackSlideView]. Its own
   /// instance so slide capacity never competes with pins'.
   final ViewBeaconLedger _slideViews = ViewBeaconLedger();
+
+  /// The native signals read in flight, shared by every request that arrives
+  /// while it runs, so concurrent or timed-out requests never start more reads.
+  Future<void>? _signalsRead;
+
+  /// Upper bound for one native read. A request waits at most
+  /// [_requestSignalsBudget] for it; the read itself may finish later and
+  /// still refresh the snapshot for the next request.
+  static const _nativeReadCap = Duration(seconds: 5);
+  static const _requestSignalsBudget = Duration(milliseconds: 300);
 
   factory AdMoai._({
     required SDKConfig config,
@@ -165,16 +177,17 @@ class AdMoai {
     String? carrier,
     DeviceCategory? category,
   }) {
-    deviceConfig = DeviceConfig(
-      id: id ?? deviceConfig.id,
-      model: model ?? deviceConfig.model,
-      manufacturer: manufacturer ?? deviceConfig.manufacturer,
-      os: os ?? deviceConfig.os,
-      osVersion: osVersion ?? deviceConfig.osVersion,
-      timezone: timezone ?? deviceConfig.timezone,
-      language: language ?? deviceConfig.language,
-      carrier: carrier ?? deviceConfig.carrier,
-      category: category ?? deviceConfig.category,
+    deviceConfig = applyManualDeviceConfig(
+      deviceConfig,
+      id: id,
+      model: model,
+      manufacturer: manufacturer,
+      os: os,
+      osVersion: osVersion,
+      timezone: timezone,
+      language: language,
+      carrier: carrier,
+      category: category,
     );
   }
 
@@ -244,9 +257,67 @@ class AdMoai {
   Future<APIResponse<DecisionResponse>> requestAds(
       DecisionRequest request) async {
     _warnIfJourneyWithoutApiVersion(request);
-    return _client.requestDecision(request);
+    var toSend = request;
+    if (autoStateOf(deviceConfig).auto) {
+      // Waits at most 300 ms for the shared native read; on failure or timeout
+      // the last snapshot is used. Then the request carries the SDK's current
+      // carrier and category: refreshed, manual, or absent after a clear.
+      try {
+        await _readSignalsShared().timeout(_requestSignalsBudget);
+      } on TimeoutException {
+        // The read keeps running and refreshes the snapshot when it lands.
+      }
+      final device = request.device;
+      if (device != null) {
+        final current = deviceConfig;
+        toSend = _withDevice(
+          request,
+          Device(
+            id: device.id,
+            model: device.model,
+            manufacturer: device.manufacturer,
+            os: device.os,
+            osVersion: device.osVersion,
+            timezone: device.timezone,
+            language: device.language,
+            carrier: current.carrier,
+            category: current.category,
+          ),
+        );
+      }
+    }
+    return _client.requestDecision(toSend);
   }
 
+  /// Joins the native read in flight, or starts one. The result is written
+  /// back only if [deviceConfig] is still the config captured when the read
+  /// started: a clear, set, reset or reassignment made meanwhile wins, and an
+  /// older read can never overwrite a newer config.
+  Future<void> _readSignalsShared() {
+    final pending = _signalsRead;
+    if (pending != null) return pending;
+    final captured = deviceConfig;
+    final read = collectDeviceSignals(timeout: _nativeReadCap).then((signals) {
+      if (signals != null && identical(deviceConfig, captured)) {
+        deviceConfig = applyAutoSignals(captured, signals);
+      }
+    }).whenComplete(() => _signalsRead = null);
+    _signalsRead = read;
+    return read;
+  }
+
+  static DecisionRequest _withDevice(DecisionRequest r, Device device) =>
+      DecisionRequest(
+        placements: r.placements,
+        targeting: r.targeting,
+        user: r.user,
+        device: device,
+        app: r.app,
+        sessionId: r.sessionId,
+        journeyOpt: r.journeyOpt,
+      );
+
+  /// Synchronous: never refreshes native signals; sends the builder's snapshot.
   HTTPRequest getHttpRequest(DecisionRequest request) {
     _warnIfJourneyWithoutApiVersion(request);
     return _client.getDecisionRequest(request);

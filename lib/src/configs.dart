@@ -2,6 +2,7 @@ import 'package:logging/logging.dart';
 import 'utils/app_details.dart';
 import 'utils/device_details.dart';
 import 'utils/device_signals.dart';
+import 'utils/device_signals_state.dart';
 import 'models/audience_signals.dart';
 import 'models/decision_request.dart';
 
@@ -104,7 +105,7 @@ class DeviceConfig implements Clearable {
     final signals = collectSignals
         ? await collectDeviceSignals() ?? DeviceSignals.empty
         : DeviceSignals.empty;
-    return DeviceConfig(
+    final config = DeviceConfig(
       id: details.id,
       model: details.model,
       manufacturer: details.manufacturer,
@@ -115,6 +116,12 @@ class DeviceConfig implements Clearable {
       carrier: signals.carrier,
       category: signals.category,
     );
+    // Auto signals on (opted in), nothing manual. Kept outside the public API.
+    // Without the opt-in the config is not auto, so requests never refresh.
+    if (collectSignals) {
+      deviceAutoState[config] = const DeviceAutoState(auto: true);
+    }
+    return config;
   }
 }
 
