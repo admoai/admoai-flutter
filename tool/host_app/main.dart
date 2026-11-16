@@ -10,6 +10,12 @@ const String baseUrl = String.fromEnvironment(
   defaultValue: 'http://10.0.2.2:8080',
 );
 
+/// `--dart-define=QA_AUDIENCE=off` runs the app as an integration that has not
+/// adopted audience signals: the default SDK (no carrier/category collection)
+/// and no audience helpers on the request, so the wire is the one from before.
+const bool audienceOn =
+    String.fromEnvironment('QA_AUDIENCE', defaultValue: 'on') != 'off';
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final sdk = await AdMoai.initialize(
@@ -17,7 +23,7 @@ Future<void> main() async {
     config: SDKConfig(
       baseUrl: baseUrl,
       apiVersion: '2025-11-01',
-      collectDeviceSignals: true,
+      collectDeviceSignals: audienceOn,
     ),
   );
   runApp(ExampleApp(sdk: sdk));
@@ -30,12 +36,14 @@ class ExampleApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final request = (sdk.createRequestBuilder()
-          ..addPlacement(key: 'home')
-          ..setAgeGroup(AgeGroup.age25To34)
-          ..setTripFrequency30d(TripFrequency30d.zero)
-          ..setPublisherSegments(['airport_commuter', 'high_value']))
-        .build();
+    final builder = sdk.createRequestBuilder()..addPlacement(key: 'home');
+    if (audienceOn) {
+      builder
+        ..setAgeGroup(AgeGroup.age25To34)
+        ..setTripFrequency30d(TripFrequency30d.zero)
+        ..setPublisherSegments(['airport_commuter', 'high_value']);
+    }
+    final request = builder.build();
     final json = const JsonEncoder.withIndent('  ').convert(request.toJson());
     final device = sdk.deviceConfig;
     return MaterialApp(
@@ -45,6 +53,7 @@ class ExampleApp extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           children: [
             Text('Base URL: $baseUrl'),
+            Text('Audience signals: ${audienceOn ? 'on' : 'off'}'),
             Text(
               'carrier: ${device.carrier ?? '-'}',
               key: const Key('device-carrier'),
