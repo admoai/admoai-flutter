@@ -119,6 +119,30 @@ Future<void> readmeExamples() async {
   await sdk.resetDeviceConfig();
   sdk.clearDeviceConfig();
   sdk.clearAppConfig();
+
+  // Audience signals: publisher segments, request examples, refusals.
+  final segments = sdk.createRequestBuilder().addPlacement(key: 'home');
+  segments.setPublisherSegments(['airport_commuter', 'beach_goer']);
+  segments.setPublisherSegments(null);
+  segments.setPublisherSegments([]);
+  segments.clearAll();
+  final optedIn = await AdMoai.initialize(
+    config: SDKConfig(
+      baseUrl: '...',
+      apiVersion: '2025-11-01',
+      collectDeviceSignals: true,
+    ),
+  );
+  optedIn.setDeviceConfig(
+      carrier: 'Example Mobile', category: DeviceCategory.phone);
+  try {
+    await optedIn.requestAds(
+        optedIn.createRequestBuilder().addPlacement(key: 'home').build());
+  } on ValidationError catch (e) {
+    for (final error in e.errors) {
+      print('${error.code}: ${error.message}');
+    }
+  }
 }
 
 void main() {

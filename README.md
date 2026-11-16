@@ -1430,6 +1430,93 @@ value: 'news')`). No aliases are translated: `25-34` is not `25_34`, and the eng
 - **The server decides whether a code exists.** An unknown code gets a validation error from the
   API; an archived code keeps matching.
 
+### Publisher segments
+
+Publisher segments are audiences you define and own (`airport_commuter`, `beach_goer`). You
+register each code in the Ad Manager, then send the codes a user belongs to. An Ad targeting
+segments is served when the request carries **any one** of its codes.
+
+| Step | Call | On the wire |
+|------|------|-------------|
+| Set | `setPublisherSegments(['airport_commuter', 'beach_goer'])` | `{"key": "publisher_segments", "value": ["airport_commuter", "beach_goer"]}` |
+| Clear | `setPublisherSegments(null)` or `setPublisherSegments([])` | no `publisher_segments` entry: the request asserts no segment |
+| Reset | `clearAll()` on the builder, or a new `createRequestBuilder()` | nothing from earlier requests is carried over |
+
+Segments live on the request builder, not on the SDK: each request sends exactly the codes
+you set on it.
+
+- **A code is 1 to 32 characters of letters, digits and underscores.** The SDK throws
+  `ArgumentError` for any other character and leaves the builder unchanged. The Ad Manager does
+  not register a code longer than 32 characters, so the engine refuses one as unregistered.
+- **At most 20 codes per request.** The engine refuses a longer list (422, code 10076) instead of
+  truncating it, so the request gets no ad. Send the 20 most relevant codes.
+- **Each code once.** `setPublisherSegments` drops duplicates for you. A raw
+  `addCustomTargeting(key: 'publisher_segments', value: [...])` list is sent as given, and the
+  engine refuses a repeated code (422, code 10073).
+- **Register before you send.** An unregistered code is refused (422, code 10029). An archived
+  code keeps matching.
+
+### Request examples
+
+One example per audience surface. Each matches a scenario every AdMoai SDK runs against a real
+engine (`@admoai/sdk-scenarios` 2.0.0; the ids are in brackets).
+
+**Standard attributes** (AS1): an Ad targeting `age_group` 25-34 is served.
+
+```dart
+final request = sdk
+    .createRequestBuilder()
+    .addPlacement(key: 'home')
+    .setAgeGroup(AgeGroup.age25To34)
+    .setTripFrequency30d(TripFrequency30d.zero)
+    .build();
+// targeting.custom: [{"key": "age_group", "value": "25_34"},
+//                    {"key": "trip_frequency_30d", "value": "0"}]
+```
+
+**Publisher segments** (AS9, AS10): an Ad targeting `airport_commuter` is served for either list.
+`['beach_goer']` alone (AS11), or no segments (AS12), gets no ad.
+
+```dart
+final request = sdk
+    .createRequestBuilder()
+    .addPlacement(key: 'home')
+    .setPublisherSegments(['airport_commuter', 'beach_goer'])
+    .build();
+// targeting.custom: [{"key": "publisher_segments", "value": ["airport_commuter", "beach_goer"]}]
+```
+
+**Device** (AS6, AS7, AS8): carrier and category never change which Ad is served. A tablet whose
+carrier reads `wifi` (sent as no carrier) and a request with no device values are served the same way.
+
+```dart
+sdk.setDeviceConfig(carrier: 'Example Mobile', category: DeviceCategory.phone);
+final request = sdk.createRequestBuilder().addPlacement(key: 'home').build();
+// device: {..., "carrier": "Example Mobile", "category": "phone"}
+```
+
+### When the engine refuses a request
+
+A refused request gets no ad: `requestAds` throws a `ValidationError` whose `errors` list
+carries the code. The typed setters prevent most of these.
+
+| Code | Cause | Scenario |
+|------|-------|----------|
+| 10029 | A value outside the catalog (`25-34` instead of `25_34`), a malformed segment code (`airport-commuter`), or a segment code the workspace has not registered | AS5, AS18, AS14 |
+| 10030 | A list for a single-value key (`age_group`), or a string for `publisher_segments` | AS15, AS16 |
+| 10073 | The same segment code twice in a raw custom list | AS13 |
+| 10076 | More than 20 segment codes | AS17 |
+
+```dart
+try {
+  final response = await sdk.requestAds(request);
+} on ValidationError catch (e) {
+  for (final error in e.errors) {
+    print('${error.code}: ${error.message}');
+  }
+}
+```
+
 ### Your responsibilities
 
 - Compute the buckets from your own data with the documented windows: elapsed-day buckets use
@@ -1466,6 +1553,15 @@ final sdk = await AdMoai.initialize(
 // Or set them by hand (sent with or without collectDeviceSignals).
 sdk.setDeviceConfig(carrier: 'Example Mobile', category: DeviceCategory.tablet);
 ```
+
+What the request carries:
+
+| Your app | `carrier` / `category` sent |
+|----------|-----------------------------|
+| Default SDK (`collectDeviceSignals` off), nothing set by hand | Absent. The request is exactly what it was before audience signals. |
+| `collectDeviceSignals: true` | The values read from the device, through the SDK's platform channel to native Android and iOS code. A value the device cannot provide (a carrier on iOS, or on a device with no SIM) is absent. |
+| `setDeviceConfig(carrier:, category:)` | Your value, with or without the flag. |
+| After `sdk.clearDeviceConfig()` | Absent, until `await sdk.resetDeviceConfig()`. |
 
 - Manual `setDeviceConfig(carrier:, category:)` values override the collected ones.
 - Carriers are normalised: trimmed, and empty, `--`, `unknown`, `wifi` and `wi-fi`
