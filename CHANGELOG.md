@@ -1,7 +1,17 @@
-## Unreleased
+## 0.8.0 - 2026-11-17
 
 ### Added
 
+- **Typed audience signals.** One setter per Standard key on the request
+  builder (`setAgeGroup`, `setGender`, `setAccountType`,
+  `setSubscriptionStatus`, `setAccountTenure`, `setTripFrequency30d`,
+  `setLastTripRecency`), each taking an enum of the catalog's values, and
+  `setPublisherSegments` (always an array; duplicates dropped; codes checked
+  against `^[a-zA-Z0-9_]+$`). `null` removes a key. `Device` gains `carrier`
+  and `category` (`DeviceCategory.phone`, `.tablet`, `.other`). An app that
+  sets none of them sends exactly what it sent before. Audience signals need
+  Audience Signals enabled on the workspace and `apiVersion` `2025-11-01` to be
+  recorded in reporting. (#105)
 - **Device carrier and category, opt-in.** `SDKConfig(collectDeviceSignals: true)`
   reads the mobile carrier (Android only, from the default data subscription)
   and the device category (`phone`, `tablet` or `other`) and sends them as
@@ -21,7 +31,9 @@
   reset; 1–32 character codes; at most 20 per request), device carrier and
   category (opt-in collection, a value set by hand, or absent), one request
   example per audience surface, and the validation codes the engine can return.
-  (#112)
+  (#112) The guide states that the Standard keys and publisher segments also
+  need Audience Signals enabled on the workspace (otherwise 422, code 10028).
+  (#115)
 
 ### Changed
 
