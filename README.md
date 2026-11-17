@@ -1387,6 +1387,10 @@ Manager. You compute the values; the SDK never derives or infers them.
 > **Requires `apiVersion: '2025-11-01'`** in `SDKConfig` for the audience to be recorded as
 > dimensions in reporting and tracking. On the default route the values are validated and matched,
 > but they are **not** recorded as audience dimensions.
+>
+> **Requires Audience Signals enabled on your workspace**, for the Standard keys and publisher
+> segments as well as for device carrier and category. A workspace without it rejects a request
+> that sends any of these keys with 422, code 10028 (`ValidationError`), so the request gets no ad.
 
 | Wire key | Dart setter | Enum | Wire values |
 |----------|-------------|------|-------------|
