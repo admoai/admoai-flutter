@@ -1423,12 +1423,8 @@ value: 'news')`). No aliases are translated: `25-34` is not `25_34`, and the eng
   so setting the same key twice leaves one value.
 - **`null` removes a key**: `setAgeGroup(null)` drops `age_group`. A missing key means "no
   assertion"; the SDK never invents a value.
-- **Segments are always an array**, even for a single code. Duplicates are dropped keeping the
-  first-seen order; codes are not trimmed or case-folded. An empty list or `null` removes the key.
-- **Segment codes must fully match `^[a-zA-Z0-9_]+$`.** Anything else throws `ArgumentError` and
-  the builder is left unchanged.
-- **The server decides whether a code exists.** An unknown code gets a validation error from the
-  API; an archived code keeps matching.
+- **Publisher segments have their own rules** (code format and length, the 20-code cap,
+  duplicates, registration): see [Publisher segments](#publisher-segments).
 
 ### Publisher segments
 
@@ -1440,14 +1436,18 @@ segments is served when the request carries **any one** of its codes.
 |------|------|-------------|
 | Set | `setPublisherSegments(['airport_commuter', 'beach_goer'])` | `{"key": "publisher_segments", "value": ["airport_commuter", "beach_goer"]}` |
 | Clear | `setPublisherSegments(null)` or `setPublisherSegments([])` | no `publisher_segments` entry: the request asserts no segment |
-| Reset | `clearAll()` on the builder, or a new `createRequestBuilder()` | nothing from earlier requests is carried over |
+| Reset | a new `createRequestBuilder()` | a fresh request with no segments; placements and the automatic `device` and `app` objects are as on any new request |
 
 Segments live on the request builder, not on the SDK: each request sends exactly the codes
-you set on it.
+you set on it. Do not use the builder's `clearAll()` to drop segments: it also removes the
+placements and turns off the `device` and `app` objects for that request.
 
-- **A code is 1 to 32 characters of letters, digits and underscores.** The SDK throws
-  `ArgumentError` for any other character and leaves the builder unchanged. The Ad Manager does
-  not register a code longer than 32 characters, so the engine refuses one as unregistered.
+- **A code matches `^[a-zA-Z0-9_]{1,32}$`: 1 to 32 letters, digits and underscores.** The SDK
+  checks the character set only (`^[a-zA-Z0-9_]+$`): any other character throws `ArgumentError`
+  and leaves the builder unchanged. The engine checks the length: the Ad Manager does not
+  register a code longer than 32 characters, so the engine refuses one (422, code 10029).
+- **Always an array**, even for a single code. Codes are sent as given: not trimmed, not
+  case-folded.
 - **At most 20 codes per request.** The engine refuses a longer list (422, code 10076) instead of
   truncating it, so the request gets no ad. Send the 20 most relevant codes.
 - **Each code once.** `setPublisherSegments` drops duplicates for you. A raw
@@ -1561,7 +1561,7 @@ What the request carries:
 | Default SDK (`collectDeviceSignals` off), nothing set by hand | Absent. The request is exactly what it was before audience signals. |
 | `collectDeviceSignals: true` | The values read from the device, through the SDK's platform channel to native Android and iOS code. A value the device cannot provide (a carrier on iOS, or on a device with no SIM) is absent. |
 | `setDeviceConfig(carrier:, category:)` | Your value, with or without the flag. |
-| After `sdk.clearDeviceConfig()` | Absent in requests built after the clear, until `await sdk.resetDeviceConfig()`. A request built before the clear keeps the carrier and category it was built with. |
+| After `sdk.clearDeviceConfig()` | Absent in requests built after the clear, until `await sdk.resetDeviceConfig()`, unless set again by hand with `setDeviceConfig`. A request built before the clear keeps the carrier and category it was built with. |
 
 - Manual `setDeviceConfig(carrier:, category:)` values override the collected ones.
 - Carriers are normalised: trimmed, and empty, `--`, `unknown`, `wifi` and `wi-fi`

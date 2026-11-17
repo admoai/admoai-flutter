@@ -21,11 +21,12 @@
   reset; 1–32 character codes; at most 20 per request), device carrier and
   category (opt-in collection, a value set by hand, or absent), one request
   example per audience surface, and the validation codes the engine can return.
+  (#112)
 
 ### Changed
 
 - The contract tests adopt `@admoai/sdk-scenarios` 2.0.0 (schemaVersion 6): the
-  runner sends a scenario's manual `device` and list values in `custom`.
+  runner sends a scenario's manual `device` and list values in `custom`. (#112)
 
 ## 0.7.0 - 2026-11-10
 

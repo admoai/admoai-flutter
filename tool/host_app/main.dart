@@ -19,7 +19,9 @@ const bool audienceOn =
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final sdk = await AdMoai.initialize(
-    // Carrier and category collection is opt-in; this app exists to show it.
+    // Carrier and category collection is opt-in: on in this app, off when run
+    // with QA_AUDIENCE=off. The app shows the request it builds; it does not
+    // send it.
     config: SDKConfig(
       baseUrl: baseUrl,
       apiVersion: '2025-11-01',

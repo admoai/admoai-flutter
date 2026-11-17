@@ -120,7 +120,9 @@ Future<void> readmeExamples() async {
   sdk.clearDeviceConfig();
   sdk.clearAppConfig();
 
-  // Audience signals: publisher segments, request examples, refusals.
+  // Mirrors README "Audience signals" (Publisher segments, Request examples,
+  // When the engine refuses a request) and "Device". Hand-copied, not
+  // extracted: a new README snippet must be added here too.
   final segments = sdk.createRequestBuilder().addPlacement(key: 'home');
   segments.setPublisherSegments(['airport_commuter', 'beach_goer']);
   segments.setPublisherSegments(null);
