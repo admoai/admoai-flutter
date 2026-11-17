@@ -7,7 +7,7 @@ import 'package:http/testing.dart';
 import 'e2e/journey_e2e_harness.dart';
 import 'e2e/manifest_runner.dart';
 
-// The live manifest runner's `expect.creative` interpreter (schemaVersion 4 and 5), exercised on a
+// The live manifest runner's `expect.creative` interpreter (schemaVersion 4 to 6), exercised on a
 // creative decoded from a literal wire object: no engine, so the pass AND fail path of every
 // new key is proven offline. The live proof is test/e2e/journey_e2e_test.dart.
 
@@ -116,13 +116,13 @@ void main() {
     _fails({'templateKey': 'card', 'somethingFromSchemaVersion5': true});
   });
 
-  test('the runner refuses every schemaVersion but 5', () {
-    expect(supportedSchemaVersion, equals(5));
+  test('the runner refuses every schemaVersion but 6', () {
+    expect(supportedSchemaVersion, equals(6));
   });
 
   test('a scenario key the runner does not execute is known or fails', () {
     expect(knownScenarioKeys, contains('slideTracking'));
-    expect(knownScenarioKeys, isNot(contains('somethingFromSchemaVersion6')));
+    expect(knownScenarioKeys, isNot(contains('somethingFromSchemaVersion7')));
   });
 
   group('slides and clickKeys (Carousel)', () {

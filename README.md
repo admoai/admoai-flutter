@@ -1377,6 +1377,211 @@ reset. Call `clearSessionId()` to drop it explicitly.
 
 ---
 
+## Audience signals
+
+Audience signals are eight standard attributes you already know about your user (age bracket,
+subscription state, how often they ride, ...). The SDK sends them through `targeting.custom`, and
+the engine matches them against Ads that were authored with **Standard presets** in the Ad
+Manager. You compute the values; the SDK never derives or infers them.
+
+> **Requires `apiVersion: '2025-11-01'`** in `SDKConfig` for the audience to be recorded as
+> dimensions in reporting and tracking. On the default route the values are validated and matched,
+> but they are **not** recorded as audience dimensions.
+
+| Wire key | Dart setter | Enum | Wire values |
+|----------|-------------|------|-------------|
+| `age_group` | `setAgeGroup` | `AgeGroup` | `under18` = `under_18`, `age18To24` = `18_24`, `age25To34` = `25_34`, `age35To44` = `35_44`, `age45To54` = `45_54`, `age55To64` = `55_64`, `age65Plus` = `65_plus` |
+| `gender` | `setGender` | `Gender` | `female`, `male`, `other`, `preferNotToSay` = `prefer_not_to_say` |
+| `account_type` | `setAccountType` | `AccountType` | `personal`, `business`, `family`, `student`, `other` |
+| `subscription_status` | `setSubscriptionStatus` | `SubscriptionStatus` | `none`, `trial`, `active`, `paused`, `expired` |
+| `account_tenure` | `setAccountTenure` | `AccountTenure` | `days0To30` = `0_30d`, `days31To90` = `31_90d`, `days91To365` = `91_365d`, `days366Plus` = `366d_plus` |
+| `trip_frequency_30d` | `setTripFrequency30d` | `TripFrequency30d` | `zero` = `"0"`, `trips1To2` = `1_2`, `trips3To9` = `3_9`, `trips10Plus` = `10_plus` |
+| `last_trip_recency` | `setLastTripRecency` | `LastTripRecency` | `never`, `days0To7` = `0_7d`, `days8To30` = `8_30d`, `days31To90` = `31_90d`, `days91Plus` = `91d_plus` |
+| `publisher_segments` | `setPublisherSegments` | `List<String>` | your own segment codes (see below) |
+
+```dart
+final request = sdk
+    .createRequestBuilder()
+    .addPlacement(key: 'home')
+    .setAgeGroup(AgeGroup.age25To34)
+    .setTripFrequency30d(TripFrequency30d.zero)
+    .setPublisherSegments(['airport_commuter', 'high_value'])
+    .build();
+
+final response = await sdk.requestAds(request);
+```
+
+This sends `{"key": "age_group", "value": "25_34"}`, `{"key": "trip_frequency_30d", "value": "0"}`
+and `{"key": "publisher_segments", "value": ["airport_commuter", "high_value"]}`. Audience
+signals mix freely with your existing custom keys (`addCustomTargeting(key: 'category',
+value: 'news')`). No aliases are translated: `25-34` is not `25_34`, and the engine rejects it.
+
+### Rules
+
+- **`"0"` is a string.** Every value is a string on the wire, including `TripFrequency30d.zero`.
+- **The last setter wins per key.** Typed setters and `addCustomTargeting` share the same entry,
+  so setting the same key twice leaves one value.
+- **`null` removes a key**: `setAgeGroup(null)` drops `age_group`. A missing key means "no
+  assertion"; the SDK never invents a value.
+- **Publisher segments have their own rules** (code format and length, the 20-code cap,
+  duplicates, registration): see [Publisher segments](#publisher-segments).
+
+### Publisher segments
+
+Publisher segments are audiences you define and own (`airport_commuter`, `beach_goer`). You
+register each code in the Ad Manager, then send the codes a user belongs to. An Ad targeting
+segments is served when the request carries **any one** of its codes.
+
+| Step | Call | On the wire |
+|------|------|-------------|
+| Set | `setPublisherSegments(['airport_commuter', 'beach_goer'])` | `{"key": "publisher_segments", "value": ["airport_commuter", "beach_goer"]}` |
+| Clear | `setPublisherSegments(null)` or `setPublisherSegments([])` | no `publisher_segments` entry: the request asserts no segment |
+| Reset | a new `createRequestBuilder()` | a fresh request with no segments; placements and the automatic `device` and `app` objects are as on any new request |
+
+Segments live on the request builder, not on the SDK: each request sends exactly the codes
+you set on it. Do not use the builder's `clearAll()` to drop segments: it also removes the
+placements and turns off the `device` and `app` objects for that request.
+
+- **A code matches `^[a-zA-Z0-9_]{1,32}$`: 1 to 32 letters, digits and underscores.** The SDK
+  checks the character set only (`^[a-zA-Z0-9_]+$`): any other character throws `ArgumentError`
+  and leaves the builder unchanged. The engine checks the length: the Ad Manager does not
+  register a code longer than 32 characters, so the engine refuses one (422, code 10029).
+- **Always an array**, even for a single code. Codes are sent as given: not trimmed, not
+  case-folded.
+- **At most 20 codes per request.** The engine refuses a longer list (422, code 10076) instead of
+  truncating it, so the request gets no ad. Send the 20 most relevant codes.
+- **Each code once.** `setPublisherSegments` drops duplicates for you. A raw
+  `addCustomTargeting(key: 'publisher_segments', value: [...])` list is sent as given, and the
+  engine refuses a repeated code (422, code 10073).
+- **Register before you send.** An unregistered code is refused (422, code 10029). An archived
+  code keeps matching.
+
+### Request examples
+
+One example per audience surface. Each matches a scenario every AdMoai SDK runs against a real
+engine (`@admoai/sdk-scenarios` 2.0.0; the ids are in brackets).
+
+**Standard attributes** (AS1): an Ad targeting `age_group` 25-34 is served.
+
+```dart
+final request = sdk
+    .createRequestBuilder()
+    .addPlacement(key: 'home')
+    .setAgeGroup(AgeGroup.age25To34)
+    .setTripFrequency30d(TripFrequency30d.zero)
+    .build();
+// targeting.custom: [{"key": "age_group", "value": "25_34"},
+//                    {"key": "trip_frequency_30d", "value": "0"}]
+```
+
+**Publisher segments** (AS9, AS10): an Ad targeting `airport_commuter` is served for either list.
+`['beach_goer']` alone (AS11), or no segments (AS12), gets no ad.
+
+```dart
+final request = sdk
+    .createRequestBuilder()
+    .addPlacement(key: 'home')
+    .setPublisherSegments(['airport_commuter', 'beach_goer'])
+    .build();
+// targeting.custom: [{"key": "publisher_segments", "value": ["airport_commuter", "beach_goer"]}]
+```
+
+**Device** (AS6, AS7, AS8): carrier and category never change which Ad is served. A tablet whose
+carrier reads `wifi` (sent as no carrier) and a request with no device values are served the same way.
+
+```dart
+sdk.setDeviceConfig(carrier: 'Example Mobile', category: DeviceCategory.phone);
+final request = sdk.createRequestBuilder().addPlacement(key: 'home').build();
+// device: {..., "carrier": "Example Mobile", "category": "phone"}
+```
+
+### When the engine refuses a request
+
+A refused request gets no ad: `requestAds` throws a `ValidationError` whose `errors` list
+carries the code. The typed setters prevent most of these.
+
+| Code | Cause | Scenario |
+|------|-------|----------|
+| 10029 | A value outside the catalog (`25-34` instead of `25_34`), a malformed segment code (`airport-commuter`), or a segment code the workspace has not registered | AS5, AS18, AS14 |
+| 10030 | A list for a single-value key (`age_group`), or a string for `publisher_segments` | AS15, AS16 |
+| 10073 | The same segment code twice in a raw custom list | AS13 |
+| 10076 | More than 20 segment codes | AS17 |
+
+```dart
+try {
+  final response = await sdk.requestAds(request);
+} on ValidationError catch (e) {
+  for (final error in e.errors) {
+    print('${error.code}: ${error.message}');
+  }
+}
+```
+
+### Your responsibilities
+
+- Compute the buckets from your own data with the documented windows: elapsed-day buckets use
+  completed 24-hour periods between UTC instants; trip frequency counts completed trips in the
+  trailing 30 x 24 hours. Send `TripFrequency30d.zero` only when zero completed trips is known,
+  and `LastTripRecency.never` only when no completed trip is known to exist.
+- Choose the account context (the selected profile, the relevant subscription). If you cannot
+  pick one reliably, omit the field or use publisher segments.
+- Register every segment code in the Ad Manager before sending it.
+
+## Device
+
+By default the SDK collects a `device` object (id, model, manufacturer, OS, timezone, language).
+Two coarse fields can be added:
+
+| Field | Meaning |
+|-------|---------|
+| `carrier` | The registered mobile operator of the default data subscription. Never the Wi-Fi provider. |
+| `category` | `DeviceCategory.phone`, `.tablet` or `.other` (a positively identified different class: TV, watch, automotive hardware, desktop). |
+
+**Both are opt-in.** The default SDK never sends them. A workspace without audience signals
+enabled rejects a request that carries them, so turn collection on only once your workspace has
+audience signals:
+
+```dart
+final sdk = await AdMoai.initialize(
+  config: SDKConfig(
+    baseUrl: 'https://api.admoai.com',
+    apiVersion: '2025-11-01',
+    collectDeviceSignals: true, // read carrier and category from the device
+  ),
+);
+
+// Or set them by hand (sent with or without collectDeviceSignals).
+sdk.setDeviceConfig(carrier: 'Example Mobile', category: DeviceCategory.tablet);
+```
+
+What the request carries:
+
+| Your app | `carrier` / `category` sent |
+|----------|-----------------------------|
+| Default SDK (`collectDeviceSignals` off), nothing set by hand | Absent. The request is exactly what it was before audience signals. |
+| `collectDeviceSignals: true` | The values read from the device, through the SDK's platform channel to native Android and iOS code. A value the device cannot provide (a carrier on iOS, or on a device with no SIM) is absent. |
+| `setDeviceConfig(carrier:, category:)` | Your value, with or without the flag. |
+| After `sdk.clearDeviceConfig()` | Absent in requests built after the clear, until `await sdk.resetDeviceConfig()`, unless set again by hand with `setDeviceConfig`. A request built before the clear keeps the carrier and category it was built with. |
+
+- Manual `setDeviceConfig(carrier:, category:)` values override the collected ones.
+- Carriers are normalised: trimmed, and empty, `--`, `unknown`, `wifi` and `wi-fi`
+  (case-insensitive) are treated as absent.
+- `disableDeviceCollection()` on a builder omits the whole device object, manual values included.
+- `sdk.clearDeviceConfig()` stops automatic collection; `await sdk.resetDeviceConfig()` resumes it.
+
+| Platform | `carrier` | `category` |
+|----------|-----------|------------|
+| Android | Registered operator of the default data subscription. Android 7+ (API 24+), no new permission. | TV, watch, automotive or PC hardware, or a TV or watch UI mode, is `other`; a phone or tablet docked in car or desk mode keeps its class. Otherwise the smallest width of the full display decides: under 600 dp is `phone`, 600 dp or more is `tablet`. It is the device, not the app window, so rotation and split-screen do not change it. If the display cannot be read, `category` is absent. |
+| iOS | Never sent: Apple returns static placeholder values since iOS 16.4. | From the device idiom. An iPhone-only app running on an iPad reports `phone`; Mac, Catalyst and Vision report `other`. |
+| Other hosts | Absent | Absent |
+
+The values are read at initialization and on `resetDeviceConfig()`, and refreshed by `requestAds`
+within 300 ms, falling back to the last value read. `getHttpRequest` uses the value available when
+it builds the request.
+
+The SDK is now a Flutter plugin with native code for Android and iOS. It needs no new permissions
+and raises no minimum versions.
+
 ## Response Structure
 
 ```
@@ -1458,6 +1663,20 @@ We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.
 - Commit message conventions (Conventional Commits)
 - Code style and testing requirements
 - Development workflow
+
+### Running the host app
+
+The package is a plugin with native code, so there is no tracked example app (#85). Generate a
+throwaway host app, not tracked, in `build/host_app`:
+
+```bash
+tool/host_app.sh [dir]      # default: build/host_app; an existing dir is recreated
+cd build/host_app
+flutter run --dart-define=ADMOAI_BASE_URL=<your decision engine URL>
+```
+
+Without the define, the app uses `http://10.0.2.2:8080`, the Android emulator's loopback to the
+host machine.
 
 Before pushing, run what CI runs:
 

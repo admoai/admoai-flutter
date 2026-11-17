@@ -98,8 +98,53 @@ Future<void> readmeExamples() async {
       timezone: 'UTC',
       consent: Consent(gdpr: true));
   sdk.clearUserConfig();
+
+  // Audience signals and Device sections
+  final audience = sdk
+      .createRequestBuilder()
+      .addPlacement(key: 'home')
+      .setAgeGroup(AgeGroup.age25To34)
+      .setGender(Gender.female)
+      .setAccountType(AccountType.personal)
+      .setSubscriptionStatus(SubscriptionStatus.active)
+      .setAccountTenure(AccountTenure.days31To90)
+      .setTripFrequency30d(TripFrequency30d.zero)
+      .setLastTripRecency(LastTripRecency.days0To7)
+      .setPublisherSegments(['airport_commuter', 'high_value'])
+      .addCustomTargeting(key: 'category', value: 'news')
+      .build();
+  await sdk.requestAds(audience);
+  sdk.setDeviceConfig(
+      carrier: 'Example Mobile', category: DeviceCategory.tablet);
+  await sdk.resetDeviceConfig();
   sdk.clearDeviceConfig();
   sdk.clearAppConfig();
+
+  // Mirrors README "Audience signals" (Publisher segments, Request examples,
+  // When the engine refuses a request) and "Device". Hand-copied, not
+  // extracted: a new README snippet must be added here too.
+  final segments = sdk.createRequestBuilder().addPlacement(key: 'home');
+  segments.setPublisherSegments(['airport_commuter', 'beach_goer']);
+  segments.setPublisherSegments(null);
+  segments.setPublisherSegments([]);
+  segments.clearAll();
+  final optedIn = await AdMoai.initialize(
+    config: SDKConfig(
+      baseUrl: '...',
+      apiVersion: '2025-11-01',
+      collectDeviceSignals: true,
+    ),
+  );
+  optedIn.setDeviceConfig(
+      carrier: 'Example Mobile', category: DeviceCategory.phone);
+  try {
+    await optedIn.requestAds(
+        optedIn.createRequestBuilder().addPlacement(key: 'home').build());
+  } on ValidationError catch (e) {
+    for (final error in e.errors) {
+      print('${error.code}: ${error.message}');
+    }
+  }
 }
 
 void main() {
