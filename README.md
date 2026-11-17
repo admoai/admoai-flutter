@@ -1561,7 +1561,7 @@ What the request carries:
 | Default SDK (`collectDeviceSignals` off), nothing set by hand | Absent. The request is exactly what it was before audience signals. |
 | `collectDeviceSignals: true` | The values read from the device, through the SDK's platform channel to native Android and iOS code. A value the device cannot provide (a carrier on iOS, or on a device with no SIM) is absent. |
 | `setDeviceConfig(carrier:, category:)` | Your value, with or without the flag. |
-| After `sdk.clearDeviceConfig()` | Absent, until `await sdk.resetDeviceConfig()`. |
+| After `sdk.clearDeviceConfig()` | Absent in requests built after the clear, until `await sdk.resetDeviceConfig()`. A request built before the clear keeps the carrier and category it was built with. |
 
 - Manual `setDeviceConfig(carrier:, category:)` values override the collected ones.
 - Carriers are normalised: trimmed, and empty, `--`, `unknown`, `wifi` and `wi-fi`
