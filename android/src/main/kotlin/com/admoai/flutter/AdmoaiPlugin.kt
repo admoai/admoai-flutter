@@ -9,6 +9,7 @@ import android.os.Build
 import android.telephony.SubscriptionManager
 import android.telephony.TelephonyManager
 import android.util.DisplayMetrics
+import android.util.Log
 import android.view.Display
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.plugin.common.MethodCall
@@ -65,16 +66,18 @@ internal object DeviceSignalRules {
  * Process-wide cache of the hardware-class answer ("is this a TV, watch,
  * automotive or PC device?"). Those inputs never change while the process
  * lives, so the probe runs once. A probe that throws caches nothing (it is
- * retried on the next read) and counts as "not other" for that call.
+ * retried on the next read) and counts as "not other" for that call; the
+ * failure is handed to [onFailure] (the plugin logs its type).
  */
 internal class HardwareClassCache {
     @Volatile private var cachedIsOther: Boolean? = null
 
-    fun isOther(probe: () -> Boolean): Boolean {
+    fun isOther(probe: () -> Boolean, onFailure: (Throwable) -> Unit = {}): Boolean {
         cachedIsOther?.let { return it }
         return try {
             probe().also { cachedIsOther = it }
-        } catch (_: Throwable) {
+        } catch (e: Throwable) {
+            onFailure(e)
             false
         }
     }
@@ -97,8 +100,9 @@ internal fun readCategoryWith(
     hardware: HardwareClassCache,
     hardwareProbe: () -> Boolean,
     widthProvider: () -> Float?,
+    onProbeFailure: (Throwable) -> Unit = {},
 ): String? =
-    if (hardware.isOther(hardwareProbe)) "other"
+    if (hardware.isOther(hardwareProbe, onProbeFailure)) "other"
     else DeviceSignalRules.classify(emptySet(), null, widthProvider())
 
 /**
@@ -150,15 +154,25 @@ class AdmoaiPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
             val tm = ctx.getSystemService(Context.TELEPHONY_SERVICE) as? TelephonyManager
                 ?: return null
             tm.createForSubscriptionId(subId).networkOperatorName?.takeIf { it.isNotBlank() }
-        } catch (_: Throwable) {
+        } catch (e: Throwable) {
+            // The failure's type only: never the carrier or any device value.
+            Log.d(LOG_TAG, "carrier read failed (${e.javaClass.simpleName}); carrier is absent")
             null
         }
     }
 
     private fun readCategory(ctx: Context): String? {
         return try {
-            readCategoryWith(hardwareClass, { probeHardwareIsOther(ctx) }, { fullDisplaySmallestWidthDp(ctx) })
-        } catch (_: Throwable) {
+            readCategoryWith(
+                hardwareClass,
+                { probeHardwareIsOther(ctx) },
+                { fullDisplaySmallestWidthDp(ctx) },
+                { e ->
+                    Log.d(LOG_TAG, "hardware class read failed (${e.javaClass.simpleName}); category from the display width")
+                },
+            )
+        } catch (e: Throwable) {
+            Log.d(LOG_TAG, "category read failed (${e.javaClass.simpleName}); category is absent")
             null
         }
     }
@@ -197,6 +211,7 @@ class AdmoaiPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
 
     companion object {
         private const val CHANNEL = "admoai/device_signals"
+        private const val LOG_TAG = "AdMoai"
         private val hardwareClass = HardwareClassCache()
     }
 }

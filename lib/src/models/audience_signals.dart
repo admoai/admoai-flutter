@@ -3,8 +3,12 @@
 // targeting (or on the device object). Audience dimensions require the
 // SDKConfig `apiVersion` '2025-11-01'.
 
-/// Age bracket of the viewer. Wire key `age_group`.
+/// Age bracket of the viewer, in completed years. Wire key `age_group`.
+///
+/// If the age is unknown, do not set it (leave the setter unset or null).
+/// Never guess a bracket.
 enum AgeGroup {
+  /// Below 18 completed years.
   under18('under_18'),
   age18To24('18_24'),
   age25To34('25_34'),
@@ -18,11 +22,15 @@ enum AgeGroup {
   const AgeGroup(this.value);
 }
 
-/// Gender of the viewer. Wire key `gender`.
+/// Gender of the viewer, as the user stated it to you. Wire key `gender`.
+/// The SDK and AdMoai never infer it. If it is unknown, do not set it.
 enum Gender {
   female('female'),
   male('male'),
   other('other'),
+
+  /// The user's recorded choice not to say. Never a default for missing data:
+  /// if you do not know the gender, do not send one.
   preferNotToSay('prefer_not_to_say');
 
   /// The string sent on the wire.
@@ -36,6 +44,9 @@ enum AccountType {
   business('business'),
   family('family'),
   student('student'),
+
+  /// A known account type outside the four named ones. If the type is
+  /// unknown, do not send one.
   other('other');
 
   /// The string sent on the wire.
@@ -45,6 +56,8 @@ enum AccountType {
 
 /// Subscription state of the viewer. Wire key `subscription_status`.
 enum SubscriptionStatus {
+  /// Known: the user has no current or previous subscription. If it is
+  /// unknown, do not send a value.
   none('none'),
   trial('trial'),
   active('active'),
@@ -56,7 +69,9 @@ enum SubscriptionStatus {
   const SubscriptionStatus(this.value);
 }
 
-/// How long the account has existed. Wire key `account_tenure`.
+/// Age of the user's account with you (since the account was created). It is
+/// not the age of the app install or of the SDK install. Wire key
+/// `account_tenure`.
 enum AccountTenure {
   days0To30('0_30d'),
   days31To90('31_90d'),
@@ -68,10 +83,15 @@ enum AccountTenure {
   const AccountTenure(this.value);
 }
 
-/// Completed activities (trips, parking sessions, rentals, flights) in the last
-/// 30 days. Wire key `activity_frequency_30d`.
+/// Completed activities in the trailing 30 x 24 hours. Wire key
+/// `activity_frequency_30d`.
+///
+/// An activity is one completed use of your service (a ride, a parking
+/// session, a ticket, a rental). A booking that was not used does not count.
 /// The wire value is always a string, including `"0"`.
 enum ActivityFrequency30d {
+  /// Known: zero completed activities in the window. If the count is unknown,
+  /// do not send a value.
   zero('0'),
   times1To2('1_2'),
   times3To9('3_9'),
@@ -82,8 +102,14 @@ enum ActivityFrequency30d {
   const ActivityFrequency30d(this.value);
 }
 
-/// Time since the viewer's last completed activity. Wire key `last_activity_recency`.
+/// Time since the viewer's last completed activity, in elapsed days: completed
+/// 24-hour periods between UTC instants. Wire key `last_activity_recency`.
+///
+/// An activity is one completed use of your service. A booking that was not
+/// used does not count.
 enum LastActivityRecency {
+  /// Known: no activity was ever completed. If it is unknown, do not send a
+  /// value.
   never('never'),
   days0To7('0_7d'),
   days8To30('8_30d'),
@@ -95,7 +121,8 @@ enum LastActivityRecency {
   const LastActivityRecency(this.value);
 }
 
-/// Form factor of the device. Sent as `device.category`.
+/// Form factor of the device. Sent as `device.category`. Recorded for
+/// reporting: ads cannot target it yet.
 enum DeviceCategory {
   phone('phone'),
   tablet('tablet'),

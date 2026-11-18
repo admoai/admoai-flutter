@@ -3,6 +3,7 @@ import 'dart:io' show Platform;
 
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart' show visibleForTesting;
+import 'package:logging/logging.dart';
 
 import '../models/audience_signals.dart';
 
@@ -50,9 +51,14 @@ bool _isMobileHost() =>
 /// null fields) when the native side answered. On hosts that are neither iOS
 /// nor Android ([isMobileHost] false) the channel is not called and the answer
 /// is [DeviceSignals.empty]. Non-string or unknown values leave the field absent.
+///
+/// A failed read logs one `fine` line on [logger] with the failure's type only
+/// (never a carrier or any other value), so an integration can see why the
+/// fields are missing without the SDK logging device data.
 Future<DeviceSignals?> collectDeviceSignals({
   Duration timeout = const Duration(milliseconds: 500),
   bool Function()? isMobileHost,
+  Logger? logger,
 }) async {
   if (!(isMobileHost ?? _isMobileHost)()) return DeviceSignals.empty;
   try {
@@ -66,8 +72,10 @@ Future<DeviceSignals?> collectDeviceSignals({
       carrier: normalizeCarrier(carrier is String ? carrier : null),
       category: DeviceCategory.fromWire(category is String ? category : null),
     );
-  } catch (_) {
+  } catch (e) {
     // MissingPluginException, PlatformException, TimeoutException, codec errors.
+    logger?.fine('Device signals read failed (${e.runtimeType}); '
+        'carrier and category keep their last values.');
     return null;
   }
 }

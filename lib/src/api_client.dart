@@ -80,34 +80,31 @@ class AdMoaiClient {
         throw ServerError(response.statusCode);
       }
 
+      // Every 4xx may carry the engine's `{"errors":[{"code","message"}]}`
+      // body. Read it tolerantly (a malformed or empty body is no errors), so
+      // the app can see the code, e.g. 10009 on a 400.
+      final errors = response.statusCode >= 400 && response.statusCode <= 499
+          ? _errorsFromBody(rawBody)
+          : const <AdMoaiError>[];
+
       switch (response.statusCode) {
         case 400:
-          throw ClientError(HTTPStatus.badRequest);
+          throw ClientError(HTTPStatus.badRequest, errors: errors);
         case 404:
-          throw ClientError(HTTPStatus.notFound);
+          throw ClientError(HTTPStatus.notFound, errors: errors);
         case 405:
-          throw ClientError(HTTPStatus.methodNotAllowed);
+          throw ClientError(HTTPStatus.methodNotAllowed, errors: errors);
         case 410:
-          throw ClientError(HTTPStatus.gone);
+          throw ClientError(HTTPStatus.gone, errors: errors);
         case 422:
-          Map<String, dynamic>? jsonBody;
-          try {
-            jsonBody = jsonDecode(rawBody) as Map<String, dynamic>;
-          } catch (_) {
-            jsonBody = null;
-          }
-          final errors = (jsonBody?['errors'] as List?)
-                  ?.map((e) => AdMoaiError.fromJson(e as Map<String, dynamic>))
-                  .toList() ??
-              [];
           if (errors.isNotEmpty) {
             throw ValidationError(errors);
           }
-          throw ClientError(HTTPStatus.unprocessableEntity);
+          throw ClientError(HTTPStatus.unprocessableEntity, errors: errors);
         case 429:
-          throw ClientError(HTTPStatus.tooManyRequests);
+          throw ClientError(HTTPStatus.tooManyRequests, errors: errors);
         default:
-          throw UnexpectedStatusError(response.statusCode);
+          throw UnexpectedStatusError(response.statusCode, errors: errors);
       }
     } on APIError {
       rethrow;
@@ -192,6 +189,18 @@ class APIResponseBody<T> {
     this.errors = const [],
     this.warnings = const [],
   });
+}
+
+/// The `errors` of an error response body, or none when the body is not the
+/// engine's JSON error shape. Never throws.
+List<AdMoaiError> _errorsFromBody(String rawBody) {
+  try {
+    final json = jsonDecode(rawBody);
+    if (json is! Map) return const [];
+    return _messageList(json['errors'], AdMoaiError.tryFromJson);
+  } catch (_) {
+    return const [];
+  }
 }
 
 /// Tolerant Reader list parse for the envelope's `errors` / `warnings`: a non-list yields an
@@ -282,17 +291,38 @@ class ValidationError extends APIError {
   }
 }
 
+/// A 4xx the SDK maps to an [HTTPStatus]. A 422 that carries errors is a
+/// [ValidationError] instead.
 class ClientError extends APIError {
   final HTTPStatus status;
-  ClientError(this.status)
-      : super('Client error: ${status.code} - ${status.description}');
+
+  /// The engine's error entries from the response body, in order: each has the
+  /// numeric [AdMoaiError.code] (for example 10009 on a 400 when the workspace
+  /// does not have Audience Signals enabled and the request carries device
+  /// carrier or category) and its message. Empty when the body has none.
+  final List<AdMoaiError> errors;
+
+  ClientError(this.status, {this.errors = const []})
+      : super(_clientMessage(
+            'Client error: ${status.code} - ${status.description}', errors));
 }
 
+/// A status the SDK does not map. For a 4xx, [errors] carries the engine's
+/// error entries when the body has them.
 class UnexpectedStatusError extends APIError {
   final int statusCode;
-  UnexpectedStatusError(this.statusCode)
-      : super('Unexpected HTTP status code: $statusCode');
+
+  /// The engine's error entries from a 4xx body; empty otherwise.
+  final List<AdMoaiError> errors;
+
+  UnexpectedStatusError(this.statusCode, {this.errors = const []})
+      : super(
+            _clientMessage('Unexpected HTTP status code: $statusCode', errors));
 }
+
+String _clientMessage(String head, List<AdMoaiError> errors) => errors.isEmpty
+    ? head
+    : '$head\n${errors.map((e) => '[${e.code}] ${e.message}').join('\n')}';
 
 class HTTPRequest {
   final String path;

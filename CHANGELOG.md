@@ -42,6 +42,31 @@
   `accessible_label` and `destination_url` through the content lookup, and
   `fireAssetTap`, which is not a click. Sponsored Pin Locations now says
   `pinImage` is a creative-level content key read the same way. (#122)
+- **The engine's error code on every 4xx.** `ClientError` and
+  `UnexpectedStatusError` gain `errors`: the engine's `{code, message}` entries
+  from the response body (empty when it has none), also in the error's
+  message. A device `carrier` or `category` sent to a workspace without
+  Audience Signals now shows code 10009 on the 400 instead of only "Client
+  error: 400". A 422 with errors is still a `ValidationError`, and a malformed
+  entry is dropped instead of failing the whole parse. (#124, fixes #113)
+- **A warning when audience signals are sent without `apiVersion`.** Like the
+  Journey warning: a request that carries a Standard key, publisher segments,
+  or a device carrier or category while `SDKConfig.apiVersion` is null logs one
+  warning, because the default route matches the values but does not record
+  them as audience dimensions. (#124)
+- **A debug line when a native read fails.** A failed carrier/category read
+  logs one `fine` line on `SDKConfig.logger` (Dart) and a `Log.d` line tagged
+  `AdMoai` (Android), with the failure's type only, never a device value.
+  `DeviceConfig.systemDefault` takes an optional `logger`. (#124)
+- **The iOS plugin is tested.** An XCTest runs the category rule (idiom, iPad
+  app on a Mac, Catalyst) and checks that no carrier is ever returned, on an
+  iPhone and an iPad simulator in CI. (#124)
+- **docs: what each audience value means**, in the README and the dartdoc
+  (completed years, a recorded choice, the account's age, one completed
+  activity, the 30 x 24 h window, elapsed days, and what `never`, `none`,
+  `zero` and `other` mean); carrier and category are not targetable yet; the
+  README example shows all seven setters; the refusal table gives the HTTP
+  status and the thrown type, with 10028 (422) and 10009 (400). (#124)
 
 ### Changed
 
@@ -60,6 +85,10 @@
 - The contract tests adopt `@admoai/sdk-scenarios` 3.0.0 (still schemaVersion
   6): the live audience scenarios send `activity_frequency_30d` and
   `last_activity_recency`. (#122)
+- The contract tests adopt `@admoai/sdk-scenarios` 3.1.0 (still schemaVersion
+  6): AS1, AS20 (device) and AS21 (segments) run with no version header
+  (`"apiVersion": "none"`, which the runner already sends as no header), and
+  AS6/AS9 pin 2025-11-01. (#124)
 
 ## 0.7.0 - 2026-11-10
 

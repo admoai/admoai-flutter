@@ -109,7 +109,7 @@ Future<void> readmeExamples() async {
       .setSubscriptionStatus(SubscriptionStatus.active)
       .setAccountTenure(AccountTenure.days31To90)
       .setActivityFrequency30d(ActivityFrequency30d.zero)
-      .setLastActivityRecency(LastActivityRecency.days0To7)
+      .setLastActivityRecency(LastActivityRecency.days31To90)
       .setPublisherSegments(['airport_commuter', 'high_value'])
       .addCustomTargeting(key: 'category', value: 'news')
       .build();
@@ -141,8 +141,16 @@ Future<void> readmeExamples() async {
     await optedIn.requestAds(
         optedIn.createRequestBuilder().addPlacement(key: 'home').build());
   } on ValidationError catch (e) {
+    // 422: the code is in e.errors, for example e.errors.first.code == 10028.
     for (final error in e.errors) {
       print('${error.code}: ${error.message}');
+    }
+  } on ClientError catch (e) {
+    // 400, 404, 429 and the other mapped 4xx: e.errors may be empty.
+    if (e.status == HTTPStatus.badRequest) {
+      for (final error in e.errors) {
+        print('${error.code}: ${error.message}'); // 10009 for device values
+      }
     }
   }
 }

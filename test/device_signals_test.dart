@@ -2,6 +2,7 @@ import 'package:admoai/admoai.dart';
 import 'package:admoai/src/utils/device_signals.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:logging/logging.dart';
 
 // Parity table: the Dart contract mirrors the native rules.
 //
@@ -86,6 +87,31 @@ void main() {
     messenger.setMockMethodCallHandler(
         channel, (call) async => throw PlatformException(code: 'boom'));
     expect(await collectDeviceSignals(), isNull);
+  });
+
+  test(
+      'a failed read logs one fine line with the failure type only, and a '
+      'successful read logs nothing', () async {
+    final records = <LogRecord>[];
+    hierarchicalLoggingEnabled = true;
+    final logger = Logger('device-signals-diag')
+      ..level = Level.ALL
+      ..onRecord.listen(records.add);
+
+    messenger.setMockMethodCallHandler(channel,
+        (call) async => throw PlatformException(code: 'boom', message: 'x'));
+    expect(await collectDeviceSignals(logger: logger), isNull);
+    expect(records, hasLength(1));
+    expect(records.single.level, Level.FINE);
+    expect(records.single.message, contains('PlatformException'));
+    expect(records.single.message, isNot(contains('boom')));
+
+    records.clear();
+    messenger.setMockMethodCallHandler(
+        channel, (call) async => {'carrier': 'Example Mobile'});
+    expect((await collectDeviceSignals(logger: logger))!.carrier,
+        'Example Mobile');
+    expect(records, isEmpty);
   });
 
   test('missing plugin is a failed read (null)', () async {

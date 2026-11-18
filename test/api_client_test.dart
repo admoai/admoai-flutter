@@ -141,6 +141,106 @@ void main() {
       }
     });
 
+    test(
+        '400 with the engine error body exposes code 10009 and its message '
+        '(gate OFF, device carrier sent)', () async {
+      // The exact body the engine answered in B5-flutter QA item 1.2.
+      const body = '{"success":false,"data":null,"errors":[{"code":10009,'
+          '"message":"The body contains an unknown field `\\"carrier\\"`"}],'
+          '"warnings":null}';
+      final sdk = await _sdkWithResponse(() => http.Response(body, 400));
+      final request =
+          (sdk.createRequestBuilder()..addPlacement(key: 'home')).build();
+      try {
+        await sdk.requestAds(request);
+        fail('expected ClientError');
+      } on ClientError catch (e) {
+        expect(e.status, equals(HTTPStatus.badRequest));
+        expect(e.errors.map((x) => x.code), equals([10009]));
+        expect(e.errors.single.message,
+            equals('The body contains an unknown field `"carrier"`'));
+        expect(e.message, contains('[10009]'));
+      }
+    });
+
+    test(
+        '400 with an empty or non-JSON body has no errors and stays a '
+        'ClientError', () async {
+      for (final body in ['', 'Bad Request', '[]', '{"errors":"x"}']) {
+        final sdk = await _sdkWithResponse(() => http.Response(body, 400));
+        final request =
+            (sdk.createRequestBuilder()..addPlacement(key: 'home')).build();
+        try {
+          await sdk.requestAds(request);
+          fail('expected ClientError for body "$body"');
+        } on ClientError catch (e) {
+          expect(e.status, equals(HTTPStatus.badRequest));
+          expect(e.errors, isEmpty);
+          expect(e.message, equals('Client error: 400 - Bad Request'));
+        }
+      }
+    });
+
+    test('a malformed entry is dropped and the valid one kept', () async {
+      final sdk = await _sdkWithResponse(() => http.Response(
+          '{"errors":[{"code":"x"},{"code":10009,"message":"m"}]}', 400));
+      final request =
+          (sdk.createRequestBuilder()..addPlacement(key: 'home')).build();
+      try {
+        await sdk.requestAds(request);
+        fail('expected ClientError');
+      } on ClientError catch (e) {
+        expect(e.errors.map((x) => x.code), equals([10009]));
+      }
+    });
+
+    test('other mapped 4xx (404, 429) carry the body errors too', () async {
+      for (final status in [404, 429]) {
+        final sdk = await _sdkWithResponse(() =>
+            http.Response('{"errors":[{"code":42,"message":"why"}]}', status));
+        final request =
+            (sdk.createRequestBuilder()..addPlacement(key: 'home')).build();
+        try {
+          await sdk.requestAds(request);
+          fail('expected ClientError for $status');
+        } on ClientError catch (e) {
+          expect(e.status.code, equals(status));
+          expect(e.errors.single.code, equals(42));
+        }
+      }
+    });
+
+    test(
+        'an unmapped 4xx (401) keeps UnexpectedStatusError and carries the '
+        'body errors', () async {
+      final sdk = await _sdkWithResponse(() =>
+          http.Response('{"errors":[{"code":7,"message":"no key"}]}', 401));
+      final request =
+          (sdk.createRequestBuilder()..addPlacement(key: 'home')).build();
+      try {
+        await sdk.requestAds(request);
+        fail('expected UnexpectedStatusError');
+      } on UnexpectedStatusError catch (e) {
+        expect(e.statusCode, equals(401));
+        expect(e.errors.single.code, equals(7));
+      }
+    });
+
+    test(
+        '422 with a malformed entry beside a valid one is a ValidationError '
+        'with the valid one', () async {
+      final sdk = await _sdkWithResponse(() => http.Response(
+          '{"errors":[{"code":null},{"code":10028,"message":"m"}]}', 422));
+      final request =
+          (sdk.createRequestBuilder()..addPlacement(key: 'home')).build();
+      try {
+        await sdk.requestAds(request);
+        fail('expected ValidationError');
+      } on ValidationError catch (e) {
+        expect(e.errors.single.code, equals(10028));
+      }
+    });
+
     test('422 with empty body still throws ClientError(unprocessableEntity)',
         () async {
       final sdk = await _sdkWithResponse(
