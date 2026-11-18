@@ -188,9 +188,25 @@ jobs:
       - name: Generate the host app
         run: tool/host_app.sh build/host_app
 
+      # QA ONLY (throwaway branch, never merged): the B5 QA app for a local engine on :43202.
+      - name: Allow plain HTTP to the local QA engine
+        working-directory: build/host_app
+        run: plutil -insert NSAppTransportSecurity -json '{"NSAllowsArbitraryLoads":true}' ios/Runner/Info.plist
+
       - name: Build the host app for the simulator
         working-directory: build/host_app
-        run: flutter build ios --simulator --no-codesign
+        run: flutter build ios --simulator --no-codesign --dart-define=ADMOAI_BASE_URL=http://127.0.0.1:43202 --dart-define=QA_AUDIENCE=on
+
+      - name: Zip the simulator app
+        working-directory: build/host_app/build/ios/iphonesimulator
+        run: ditto -c -k --keepParent Runner.app "$GITHUB_WORKSPACE/qa-runner-app.zip"
+
+      - name: Upload the simulator app
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-runner-app
+          path: qa-runner-app.zip
+          retention-days: 3
 
       # tool/host_app/RunnerTests.swift: the category rule and "never a carrier", on one
       # iPhone and one iPad simulator (collect() reports phone on one, tablet on the other).
