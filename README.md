@@ -1400,8 +1400,9 @@ Carousel are on the creative too.
   nothing more; a new response has new signed URLs and counts again. `trackSlideViews(slides)`
   does the same for a list.
 - **`trackSlideClick` sends the slide's view first** if it was not sent yet, then the slide's
-  click, then the creative's third-party click trackers once. A slide never has more clicks
-  than views.
+  click, then the creative's third-party click trackers once. The view goes once per response;
+  the click goes on every call, so a tap that came before the view rule was met still records
+  the view. AdMoai counts one view and one click per slide for each served ad.
 - **Never call `fireClick` for a Carousel.** A Carousel has no creative-level click, so it sends
   nothing.
 - Pass the `Slide` you rendered, never the creative and never an index.
