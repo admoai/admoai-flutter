@@ -1,5 +1,5 @@
 {
-  "$comment": "Vendored from admoai/adhub ui/platform/lib/audience-signals/catalog.generated.json at 1df3c5812, with the 2026-11-18 trip-to-activity key rename (keys, request shapes and canonical values only). Refresh by re-extracting from that file; test/audience_catalog_conformance_test.dart fails if the SDK enums drift from it.",
+  "$comment": "Vendored from admoai/adhub ui/platform/lib/audience-signals/catalog.generated.json at f1be5cb4f (keys, request shapes and canonical values only). Refresh by re-extracting from that file; test/audience_catalog_conformance_test.dart fails if the SDK enums drift from it.",
   "presets": [
     {
       "key": "age_group",

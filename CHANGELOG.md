@@ -45,6 +45,9 @@
   there is no deprecated alias.
 - The contract tests adopt `@admoai/sdk-scenarios` 2.0.0 (schemaVersion 6): the
   runner sends a scenario's manual `device` and list values in `custom`. (#112)
+- The contract tests adopt `@admoai/sdk-scenarios` 3.0.0 (still schemaVersion
+  6): the live audience scenarios send `activity_frequency_30d` and
+  `last_activity_recency`.
 
 ## 0.7.0 - 2026-11-10
 
