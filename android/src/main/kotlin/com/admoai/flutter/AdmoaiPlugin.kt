@@ -9,6 +9,7 @@ import android.os.Build
 import android.telephony.SubscriptionManager
 import android.telephony.TelephonyManager
 import android.util.DisplayMetrics
+import android.util.Log
 import android.view.Display
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.plugin.common.MethodCall
@@ -150,7 +151,9 @@ class AdmoaiPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
             val tm = ctx.getSystemService(Context.TELEPHONY_SERVICE) as? TelephonyManager
                 ?: return null
             tm.createForSubscriptionId(subId).networkOperatorName?.takeIf { it.isNotBlank() }
-        } catch (_: Throwable) {
+        } catch (e: Throwable) {
+            // The failure's type only: never the carrier or any device value.
+            Log.d(LOG_TAG, "carrier read failed (${e.javaClass.simpleName}); carrier is absent")
             null
         }
     }
@@ -158,7 +161,8 @@ class AdmoaiPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
     private fun readCategory(ctx: Context): String? {
         return try {
             readCategoryWith(hardwareClass, { probeHardwareIsOther(ctx) }, { fullDisplaySmallestWidthDp(ctx) })
-        } catch (_: Throwable) {
+        } catch (e: Throwable) {
+            Log.d(LOG_TAG, "category read failed (${e.javaClass.simpleName}); category is absent")
             null
         }
     }
@@ -197,6 +201,7 @@ class AdmoaiPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
 
     companion object {
         private const val CHANNEL = "admoai/device_signals"
+        private const val LOG_TAG = "AdMoai"
         private val hardwareClass = HardwareClassCache()
     }
 }
