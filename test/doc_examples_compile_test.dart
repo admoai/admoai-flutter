@@ -109,7 +109,7 @@ Future<void> readmeExamples() async {
       .setSubscriptionStatus(SubscriptionStatus.active)
       .setAccountTenure(AccountTenure.days31To90)
       .setActivityFrequency30d(ActivityFrequency30d.zero)
-      .setLastActivityRecency(LastActivityRecency.days0To7)
+      .setLastActivityRecency(LastActivityRecency.days31To90)
       .setPublisherSegments(['airport_commuter', 'high_value'])
       .addCustomTargeting(key: 'category', value: 'news')
       .build();

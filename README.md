@@ -1575,7 +1575,7 @@ final request = sdk
     .setSubscriptionStatus(SubscriptionStatus.active)
     .setAccountTenure(AccountTenure.days31To90)
     .setActivityFrequency30d(ActivityFrequency30d.zero)
-    .setLastActivityRecency(LastActivityRecency.days0To7)
+    .setLastActivityRecency(LastActivityRecency.days31To90)
     .setPublisherSegments(['airport_commuter', 'high_value'])
     .build();
 
@@ -1587,7 +1587,7 @@ final response = await sdk.requestAds(request);
 //   {"key": "subscription_status", "value": "active"}
 //   {"key": "account_tenure", "value": "31_90d"}
 //   {"key": "activity_frequency_30d", "value": "0"}
-//   {"key": "last_activity_recency", "value": "0_7d"}
+//   {"key": "last_activity_recency", "value": "31_90d"}
 //   {"key": "publisher_segments", "value": ["airport_commuter", "high_value"]}
 ```
 
