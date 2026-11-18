@@ -42,7 +42,7 @@ class ExampleApp extends StatelessWidget {
     if (audienceOn) {
       builder
         ..setAgeGroup(AgeGroup.age25To34)
-        ..setTripFrequency30d(TripFrequency30d.zero)
+        ..setActivityFrequency30d(ActivityFrequency30d.zero)
         ..setPublisherSegments(['airport_commuter', 'high_value']);
     }
     final request = builder.build();

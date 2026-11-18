@@ -315,13 +315,13 @@ class DecisionRequestBuilder {
   DecisionRequestBuilder setAccountTenure(AccountTenure? value) =>
       _setOrRemoveSignal(AudienceSignalKey.accountTenure, value?.value);
 
-  /// Sets the trips taken in the last 30 days; `null` removes it.
-  DecisionRequestBuilder setTripFrequency30d(TripFrequency30d? value) =>
-      _setOrRemoveSignal(AudienceSignalKey.tripFrequency30d, value?.value);
+  /// Sets the completed activities in the last 30 days; `null` removes it.
+  DecisionRequestBuilder setActivityFrequency30d(ActivityFrequency30d? value) =>
+      _setOrRemoveSignal(AudienceSignalKey.activityFrequency30d, value?.value);
 
-  /// Sets the time since the last trip; `null` removes it.
-  DecisionRequestBuilder setLastTripRecency(LastTripRecency? value) =>
-      _setOrRemoveSignal(AudienceSignalKey.lastTripRecency, value?.value);
+  /// Sets the time since the last completed activity; `null` removes it.
+  DecisionRequestBuilder setLastActivityRecency(LastActivityRecency? value) =>
+      _setOrRemoveSignal(AudienceSignalKey.lastActivityRecency, value?.value);
 
   static final RegExp _segmentCode = RegExp(r'^[a-zA-Z0-9_]+$');
 

@@ -25,6 +25,16 @@
 
 ### Changed
 
+- **Trip presets renamed to activity.** `trip_frequency_30d` and
+  `last_trip_recency` are now `activity_frequency_30d` and
+  `last_activity_recency` ("Activity in 30 days" and "Last activity" in the Ad
+  Manager), because they count any completed activity: parking sessions,
+  rentals, train rides, flights. The Dart names follow:
+  `setActivityFrequency30d(ActivityFrequency30d)` and
+  `setLastActivityRecency(LastActivityRecency)`, with `times1To2`, `times3To9`
+  and `times10Plus` in place of `trips1To2`, `trips3To9` and `trips10Plus`. The
+  wire values are unchanged. These setters have not shipped in a release, so
+  there is no deprecated alias.
 - The contract tests adopt `@admoai/sdk-scenarios` 2.0.0 (schemaVersion 6): the
   runner sends a scenario's manual `device` and list values in `custom`. (#112)
 

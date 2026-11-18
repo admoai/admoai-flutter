@@ -1399,8 +1399,8 @@ Manager. You compute the values; the SDK never derives or infers them.
 | `account_type` | `setAccountType` | `AccountType` | `personal`, `business`, `family`, `student`, `other` |
 | `subscription_status` | `setSubscriptionStatus` | `SubscriptionStatus` | `none`, `trial`, `active`, `paused`, `expired` |
 | `account_tenure` | `setAccountTenure` | `AccountTenure` | `days0To30` = `0_30d`, `days31To90` = `31_90d`, `days91To365` = `91_365d`, `days366Plus` = `366d_plus` |
-| `trip_frequency_30d` | `setTripFrequency30d` | `TripFrequency30d` | `zero` = `"0"`, `trips1To2` = `1_2`, `trips3To9` = `3_9`, `trips10Plus` = `10_plus` |
-| `last_trip_recency` | `setLastTripRecency` | `LastTripRecency` | `never`, `days0To7` = `0_7d`, `days8To30` = `8_30d`, `days31To90` = `31_90d`, `days91Plus` = `91d_plus` |
+| `activity_frequency_30d` | `setActivityFrequency30d` | `ActivityFrequency30d` | `zero` = `"0"`, `times1To2` = `1_2`, `times3To9` = `3_9`, `times10Plus` = `10_plus` |
+| `last_activity_recency` | `setLastActivityRecency` | `LastActivityRecency` | `never`, `days0To7` = `0_7d`, `days8To30` = `8_30d`, `days31To90` = `31_90d`, `days91Plus` = `91d_plus` |
 | `publisher_segments` | `setPublisherSegments` | `List<String>` | your own segment codes (see below) |
 
 ```dart
@@ -1408,21 +1408,21 @@ final request = sdk
     .createRequestBuilder()
     .addPlacement(key: 'home')
     .setAgeGroup(AgeGroup.age25To34)
-    .setTripFrequency30d(TripFrequency30d.zero)
+    .setActivityFrequency30d(ActivityFrequency30d.zero)
     .setPublisherSegments(['airport_commuter', 'high_value'])
     .build();
 
 final response = await sdk.requestAds(request);
 ```
 
-This sends `{"key": "age_group", "value": "25_34"}`, `{"key": "trip_frequency_30d", "value": "0"}`
+This sends `{"key": "age_group", "value": "25_34"}`, `{"key": "activity_frequency_30d", "value": "0"}`
 and `{"key": "publisher_segments", "value": ["airport_commuter", "high_value"]}`. Audience
 signals mix freely with your existing custom keys (`addCustomTargeting(key: 'category',
 value: 'news')`). No aliases are translated: `25-34` is not `25_34`, and the engine rejects it.
 
 ### Rules
 
-- **`"0"` is a string.** Every value is a string on the wire, including `TripFrequency30d.zero`.
+- **`"0"` is a string.** Every value is a string on the wire, including `ActivityFrequency30d.zero`.
 - **The last setter wins per key.** Typed setters and `addCustomTargeting` share the same entry,
   so setting the same key twice leaves one value.
 - **`null` removes a key**: `setAgeGroup(null)` drops `age_group`. A missing key means "no
@@ -1472,10 +1472,10 @@ final request = sdk
     .createRequestBuilder()
     .addPlacement(key: 'home')
     .setAgeGroup(AgeGroup.age25To34)
-    .setTripFrequency30d(TripFrequency30d.zero)
+    .setActivityFrequency30d(ActivityFrequency30d.zero)
     .build();
 // targeting.custom: [{"key": "age_group", "value": "25_34"},
-//                    {"key": "trip_frequency_30d", "value": "0"}]
+//                    {"key": "activity_frequency_30d", "value": "0"}]
 ```
 
 **Publisher segments** (AS9, AS10): an Ad targeting `airport_commuter` is served for either list.
@@ -1524,9 +1524,9 @@ try {
 ### Your responsibilities
 
 - Compute the buckets from your own data with the documented windows: elapsed-day buckets use
-  completed 24-hour periods between UTC instants; trip frequency counts completed trips in the
-  trailing 30 x 24 hours. Send `TripFrequency30d.zero` only when zero completed trips is known,
-  and `LastTripRecency.never` only when no completed trip is known to exist.
+  completed 24-hour periods between UTC instants; activity frequency counts completed activities in the
+  trailing 30 x 24 hours. Send `ActivityFrequency30d.zero` only when zero completed activities are known,
+  and `LastActivityRecency.never` only when no completed activity is known to exist.
 - Choose the account context (the selected profile, the relevant subscription). If you cannot
   pick one reliably, omit the field or use publisher segments.
 - Register every segment code in the Ad Manager before sending it.
