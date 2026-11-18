@@ -1639,7 +1639,7 @@ placements and turns off the `device` and `app` objects for that request.
 ### Request examples
 
 One example per audience surface. Each matches a scenario every AdMoai SDK runs against a real
-engine (`@admoai/sdk-scenarios` 3.0.0; the ids are in brackets).
+engine (`@admoai/sdk-scenarios` 3.1.0; the ids are in brackets).
 
 **Standard attributes** (AS1): an Ad targeting `age_group` 25-34 is served.
 
