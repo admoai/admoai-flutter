@@ -65,7 +65,7 @@ class _QaPageState extends State<QaPage> {
     if (audienceOn) {
       b
         ..setAgeGroup(AgeGroup.age25To34)
-        ..setTripFrequency30d(TripFrequency30d.zero)
+        ..setActivityFrequency30d(ActivityFrequency30d.zero)
         ..setPublisherSegments(
             ['airport_commuter', 'airport_commuter', 'beach_goer']);
     }
