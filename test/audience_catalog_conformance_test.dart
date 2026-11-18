@@ -25,10 +25,10 @@ void main() {
         SubscriptionStatus.values.map((v) => v.value).toList(),
     AudienceSignalKey.accountTenure:
         AccountTenure.values.map((v) => v.value).toList(),
-    AudienceSignalKey.tripFrequency30d:
-        TripFrequency30d.values.map((v) => v.value).toList(),
-    AudienceSignalKey.lastTripRecency:
-        LastTripRecency.values.map((v) => v.value).toList(),
+    AudienceSignalKey.activityFrequency30d:
+        ActivityFrequency30d.values.map((v) => v.value).toList(),
+    AudienceSignalKey.lastActivityRecency:
+        LastActivityRecency.values.map((v) => v.value).toList(),
   };
 
   test('the SDK knows exactly the catalog keys', () {

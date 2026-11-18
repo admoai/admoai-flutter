@@ -1,5 +1,5 @@
 {
-  "$comment": "Vendored from admoai/adhub ui/platform/lib/audience-signals/catalog.generated.json at 1df3c5812 (keys, request shapes and canonical values only). Refresh by re-extracting from that file; test/audience_catalog_conformance_test.dart fails if the SDK enums drift from it.",
+  "$comment": "Vendored from admoai/adhub ui/platform/lib/audience-signals/catalog.generated.json at f1be5cb4f (keys, request shapes and canonical values only). Refresh by re-extracting from that file; test/audience_catalog_conformance_test.dart fails if the SDK enums drift from it.",
   "presets": [
     {
       "key": "age_group",
@@ -57,7 +57,7 @@
       ]
     },
     {
-      "key": "trip_frequency_30d",
+      "key": "activity_frequency_30d",
       "requestShape": "string",
       "values": [
         "0",
@@ -67,7 +67,7 @@
       ]
     },
     {
-      "key": "last_trip_recency",
+      "key": "last_activity_recency",
       "requestShape": "string",
       "values": [
         "never",

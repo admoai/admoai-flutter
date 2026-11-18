@@ -50,12 +50,12 @@ void main() {
         AccountTenure.values,
         ['0_30d', '31_90d', '91_365d', '366d_plus']
       ),
-      'TripFrequency30d': (
-        TripFrequency30d.values,
+      'ActivityFrequency30d': (
+        ActivityFrequency30d.values,
         ['0', '1_2', '3_9', '10_plus']
       ),
-      'LastTripRecency': (
-        LastTripRecency.values,
+      'LastActivityRecency': (
+        LastActivityRecency.values,
         ['never', '0_7d', '8_30d', '31_90d', '91d_plus']
       ),
       'DeviceCategory': (DeviceCategory.values, ['phone', 'tablet', 'other']),
@@ -75,8 +75,8 @@ void main() {
       expect(AudienceSignalKey.accountType, 'account_type');
       expect(AudienceSignalKey.subscriptionStatus, 'subscription_status');
       expect(AudienceSignalKey.accountTenure, 'account_tenure');
-      expect(AudienceSignalKey.tripFrequency30d, 'trip_frequency_30d');
-      expect(AudienceSignalKey.lastTripRecency, 'last_trip_recency');
+      expect(AudienceSignalKey.activityFrequency30d, 'activity_frequency_30d');
+      expect(AudienceSignalKey.lastActivityRecency, 'last_activity_recency');
       expect(AudienceSignalKey.publisherSegments, 'publisher_segments');
     });
 
@@ -111,15 +111,15 @@ void main() {
         AccountTenure.values,
         (b, e) => b.setAccountTenure(e as AccountTenure)
       ),
-      'setTripFrequency30d': (
-        'trip_frequency_30d',
-        TripFrequency30d.values,
-        (b, e) => b.setTripFrequency30d(e as TripFrequency30d)
+      'setActivityFrequency30d': (
+        'activity_frequency_30d',
+        ActivityFrequency30d.values,
+        (b, e) => b.setActivityFrequency30d(e as ActivityFrequency30d)
       ),
-      'setLastTripRecency': (
-        'last_trip_recency',
-        LastTripRecency.values,
-        (b, e) => b.setLastTripRecency(e as LastTripRecency)
+      'setLastActivityRecency': (
+        'last_activity_recency',
+        LastActivityRecency.values,
+        (b, e) => b.setLastActivityRecency(e as LastActivityRecency)
       ),
     };
 
@@ -134,9 +134,9 @@ void main() {
     });
 
     test('"0" is a JSON string', () {
-      final b = _builder().setTripFrequency30d(TripFrequency30d.zero);
+      final b = _builder().setActivityFrequency30d(ActivityFrequency30d.zero);
       expect(jsonEncode(_json(b)['targeting']),
-          '{"custom":[{"key":"trip_frequency_30d","value":"0"}]}');
+          '{"custom":[{"key":"activity_frequency_30d","value":"0"}]}');
     });
   });
 
@@ -247,15 +247,15 @@ void main() {
         (b) => b.setAccountTenure(AccountTenure.days0To30),
         (b) => b.setAccountTenure(null)
       ),
-      'setTripFrequency30d': (
-        'trip_frequency_30d',
-        (b) => b.setTripFrequency30d(TripFrequency30d.trips3To9),
-        (b) => b.setTripFrequency30d(null)
+      'setActivityFrequency30d': (
+        'activity_frequency_30d',
+        (b) => b.setActivityFrequency30d(ActivityFrequency30d.times3To9),
+        (b) => b.setActivityFrequency30d(null)
       ),
-      'setLastTripRecency': (
-        'last_trip_recency',
-        (b) => b.setLastTripRecency(LastTripRecency.days0To7),
-        (b) => b.setLastTripRecency(null)
+      'setLastActivityRecency': (
+        'last_activity_recency',
+        (b) => b.setLastActivityRecency(LastActivityRecency.days0To7),
+        (b) => b.setLastActivityRecency(null)
       ),
       'setPublisherSegments': (
         'publisher_segments',

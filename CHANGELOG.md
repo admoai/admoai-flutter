@@ -1,11 +1,11 @@
-## 0.8.0 - 2026-11-17
+## 0.8.0 - 2026-11-18
 
 ### Added
 
 - **Typed audience signals.** One setter per Standard key on the request
   builder (`setAgeGroup`, `setGender`, `setAccountType`,
-  `setSubscriptionStatus`, `setAccountTenure`, `setTripFrequency30d`,
-  `setLastTripRecency`), each taking an enum of the catalog's values, and
+  `setSubscriptionStatus`, `setAccountTenure`, `setActivityFrequency30d`,
+  `setLastActivityRecency`), each taking an enum of the catalog's values, and
   `setPublisherSegments` (always an array; duplicates dropped; codes checked
   against `^[a-zA-Z0-9_]+$`). `null` removes a key. `Device` gains `carrier`
   and `category` (`DeviceCategory.phone`, `.tablet`, `.other`). An app that
@@ -34,11 +34,32 @@
   (#112) The guide states that the Standard keys and publisher segments also
   need Audience Signals enabled on the workspace (otherwise 422, code 10028).
   (#115)
+- **docs: README sections for Carousel and Branded Assets.** Carousel: render
+  `creative.slides` in the order given (never re-sorted by `position`), read
+  each slide's `contents`, and report with `trackSlideView` / `trackSlideViews`
+  / `trackSlideClick` (never `fireClick`). Branded Assets:
+  `metadata.assetContext` (`vehicle_marker`), `branded_image`,
+  `accessible_label` and `destination_url` through the content lookup, and
+  `fireAssetTap`, which is not a click. Sponsored Pin Locations now says
+  `pinImage` is a creative-level content key read the same way. (#122)
 
 ### Changed
 
+- **Trip presets renamed to activity.** `trip_frequency_30d` and
+  `last_trip_recency` are now `activity_frequency_30d` and
+  `last_activity_recency` ("Activity in 30 days" and "Last activity" in the Ad
+  Manager), because they count any completed activity: parking sessions,
+  rentals, train rides, flights. The Dart names follow:
+  `setActivityFrequency30d(ActivityFrequency30d)` and
+  `setLastActivityRecency(LastActivityRecency)`, with `times1To2`, `times3To9`
+  and `times10Plus` in place of `trips1To2`, `trips3To9` and `trips10Plus`. The
+  wire values are unchanged. These setters have not shipped in a release, so
+  there is no deprecated alias. (#122)
 - The contract tests adopt `@admoai/sdk-scenarios` 2.0.0 (schemaVersion 6): the
   runner sends a scenario's manual `device` and list values in `custom`. (#112)
+- The contract tests adopt `@admoai/sdk-scenarios` 3.0.0 (still schemaVersion
+  6): the live audience scenarios send `activity_frequency_30d` and
+  `last_activity_recency`. (#122)
 
 ## 0.7.0 - 2026-11-10
 
