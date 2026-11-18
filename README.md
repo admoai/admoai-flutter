@@ -1098,6 +1098,10 @@ A creative that is not a Sponsored Pin creative returns an empty list, never an 
 does not know about pins keeps working unchanged: the points ride inside `contents` as one more
 entry, and every version of this SDK has tolerated entries it does not recognise.
 
+The marker image is not on the points. `pinImage` is a content key of the creative, and you read it
+like any other key: `creative.contents.getContent('pinImage')?.value`. Every pin of that creative
+uses the same image.
+
 ### The click URL is already decided
 
 `point.clickUrl` is the answer. The server has already applied the precedence — the location's own
@@ -1345,6 +1349,159 @@ eligible for that placement.
 
 **Does any of this fan out third-party trackers?** No. Third-party trackers stay at the creative
 level and are not duplicated per pin.
+
+## Carousel
+
+A Carousel is one ad with two to ten slides. Each slide has its own image, its own destination
+and its own tracking. It needs `apiVersion: "2025-11-01"`; without it, standard-format ads are
+skipped.
+
+The examples below use this helper. It returns a text or URL value, and `null` when the key is
+absent or empty:
+
+```dart
+extension ContentText on List<Content> {
+  String? text(String key) {
+    final value = getContent(key)?.value;
+    return value is String && value.isNotEmpty ? value : null;
+  }
+}
+```
+
+### Reading the slides
+
+`creative.slides` is the list of slides **in the order to render them**. That is the server's
+order. Do not sort it by `position`: `position` is the slide's number for your information only.
+The list is empty for any creative that is not a Carousel.
+
+| Slide field | Type | Notes |
+|---|---|---|
+| `slideId` | String | Stable across requests and scrolling. Use it as the key of your list item. |
+| `position` | int | The slide's number, starting at 1. Informational. |
+| `contents` | `List<Content>` | `image` and `destination_url` always; `headline`, `supporting_text` and `cta_text` when the advertiser set them. |
+| `tracking` | `SlideTracking?` | This slide's own view and click. A slide without tracking still renders. |
+
+`brand_logo` and `disclaimer` are on the creative, not on the slides: show them once for the
+whole Carousel, and hide them when absent. Fields an operator adds to a template based on
+Carousel are on the creative too.
+
+### Tracking a Carousel
+
+| Event | When | Call |
+|---|---|---|
+| Impression | The Carousel is on screen. | `sdk.fireImpression(creative.tracking)` |
+| Slide view | A slide is at least 50% visible for one continuous second. | `sdk.trackSlideView(slide)` |
+| Slide click | The user taps a slide and its destination opens. | `sdk.trackSlideClick(slide, creative)` |
+
+- **Your app decides when a slide was viewed.** The SDK never fires a slide view on its own:
+  returning a slide is not showing it. If the slide drops below 50% before the second ends,
+  start counting again the next time it is visible.
+- **A slide view is sent once per decision response.** Scrolling back or redrawing sends
+  nothing more; a new response has new signed URLs and counts again. `trackSlideViews(slides)`
+  does the same for a list.
+- **`trackSlideClick` sends the slide's view first** if it was not sent yet, then the slide's
+  click, then the creative's third-party click trackers once. A slide never has more clicks
+  than views.
+- **Never call `fireClick` for a Carousel.** A Carousel has no creative-level click, so it sends
+  nothing.
+- Pass the `Slide` you rendered, never the creative and never an index.
+
+```dart
+void renderCarousel(Creative creative) {
+  for (final slide in creative.slides) {                  // server order
+    addItem(id: slide.slideId,                            // identity = slideId
+        image: slide.contents.text('image'),
+        headline: slide.contents.text('headline'));
+  }
+}
+
+// From your visibility callback, once the Carousel is on screen.
+void carouselBecameVisible(Creative creative) {
+  sdk.fireImpression(creative.tracking);
+}
+
+// When your visibility check passes: 50% visible for one continuous second.
+void slideWasViewed(Slide slide) {
+  sdk.trackSlideView(slide);
+}
+
+Future<void> slideTapped(Slide slide, Creative creative) async {
+  final url = slide.contents.text('destination_url');
+  if (url == null) return;
+  if (await launchUrl(Uri.parse(url))) {                  // url_launcher package
+    sdk.trackSlideClick(slide, creative);                 // not fireClick
+  }
+}
+```
+
+The visibility check depends on your list widget: use what it tells you about how much of an
+item is visible, with a timer you cancel when the slide drops below 50%.
+
+## Branded Assets
+
+Branded Assets is a transparent branded image that your app places in its own interface. The
+first use is a vehicle marker on a map. It needs `apiVersion: "2025-11-01"`.
+
+### Reading the asset
+
+`creative.metadata?.assetContext` says what the asset is for: `vehicle_marker`. Treat an
+unknown value as an asset you do not place.
+
+The contents are read with the same lookup as any other key (the `text` helper is in
+[Carousel](#carousel)):
+
+| Key | Type | Required | Use |
+|---|---|---|---|
+| `branded_image` | image | Yes | Draw it where your interface needs the asset. It has transparency. |
+| `accessible_label` | text | No | The image's accessibility label, when present. |
+| `destination_url` | url | No | Where the asset leads, if anywhere. |
+
+When `destination_url` is absent, the asset can be tapped but goes nowhere: do not show a button
+that opens nothing.
+
+### Tracking Branded Assets
+
+| Event | When | Call |
+|---|---|---|
+| Impression | The asset is on screen. | `sdk.fireImpression(creative.tracking)` |
+| Asset tap | The user tapped the asset. | `sdk.fireAssetTap(creative.tracking)` |
+| Click | The user opens the destination. | `sdk.fireClick(creative.tracking)` |
+
+**An asset tap is not a click.** `fireAssetTap` is a custom event; it sends no click and is
+never billed as one. AdMoai counts at most one asset tap per served ad. When a tap opens the
+destination straight away, call `fireAssetTap` and then `fireClick`. When a tap only shows your
+own detail view, call `fireClick` later, only if the user opens the destination. Without a
+destination there is no click tracker, and `fireClick` sends nothing.
+
+```dart
+void placeAsset(Creative creative) {
+  if (creative.metadata?.assetContext != 'vehicle_marker') return;
+  addVehicleMarker(
+    image: creative.contents.text('branded_image'),
+    semanticLabel: creative.contents.text('accessible_label'),
+  );
+}
+
+// The user tapped the asset.
+void onAssetTapped(Creative creative) {
+  sdk.fireAssetTap(creative.tracking);                    // not a click
+  showAssetDetail(creative);                              // what your interface does for a tap
+}
+
+// The user chose to open the destination, for example from the detail view.
+Future<void> onDestinationChosen(Creative creative) async {
+  final url = creative.contents.text('destination_url');
+  if (url == null) return;                                // no destination, no click
+  if (await launchUrl(Uri.parse(url))) {                  // url_launcher package
+    sdk.fireClick(creative.tracking);
+  }
+}
+
+// From your visibility callback, once the asset is on screen.
+void assetBecameVisible(Creative creative) {
+  sdk.fireImpression(creative.tracking);
+}
+```
 
 ## Request Builder
 

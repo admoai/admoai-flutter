@@ -22,6 +22,14 @@
   category (opt-in collection, a value set by hand, or absent), one request
   example per audience surface, and the validation codes the engine can return.
   (#112)
+- **docs: README sections for Carousel and Branded Assets.** Carousel: render
+  `creative.slides` in the order given (never re-sorted by `position`), read
+  each slide's `contents`, and report with `trackSlideView` / `trackSlideViews`
+  / `trackSlideClick` (never `fireClick`). Branded Assets:
+  `metadata.assetContext` (`vehicle_marker`), `branded_image`,
+  `accessible_label` and `destination_url` through the content lookup, and
+  `fireAssetTap`, which is not a click. Sponsored Pin Locations now says
+  `pinImage` is a creative-level content key read the same way.
 
 ### Changed
 
