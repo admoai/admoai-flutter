@@ -141,8 +141,16 @@ Future<void> readmeExamples() async {
     await optedIn.requestAds(
         optedIn.createRequestBuilder().addPlacement(key: 'home').build());
   } on ValidationError catch (e) {
+    // 422: the code is in e.errors, for example e.errors.first.code == 10028.
     for (final error in e.errors) {
       print('${error.code}: ${error.message}');
+    }
+  } on ClientError catch (e) {
+    // 400, 404, 429 and the other mapped 4xx: e.errors may be empty.
+    if (e.status == HTTPStatus.badRequest) {
+      for (final error in e.errors) {
+        print('${error.code}: ${error.message}'); // 10009 for device values
+      }
     }
   }
 }

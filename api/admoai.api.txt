@@ -152,8 +152,9 @@ AudienceSignalKey.subscriptionStatus  static field: String (read)
 Clearable  type
 Clearable.clear  constructor()
 ClientError  type : APIError, Exception
+ClientError.errors  field: List<AdMoaiError> (read)
 ClientError.message  field: String (read)
-ClientError.new  constructor(HTTPStatus status)
+ClientError.new  constructor(HTTPStatus status, {List<AdMoaiError> errors})
 ClientError.status  field: HTTPStatus (read)
 Consent  type
 Consent.gdpr  field: bool (read)
@@ -302,7 +303,7 @@ DeviceConfig.model  field: String? (read)
 DeviceConfig.new  constructor({String? id, String? model, String? manufacturer, String? os, String? osVersion, String? timezone, String? language, String? carrier, DeviceCategory? category})
 DeviceConfig.os  field: String? (read)
 DeviceConfig.osVersion  field: String? (read)
-DeviceConfig.systemDefault  static method({bool collectSignals}) -> Future<DeviceConfig>
+DeviceConfig.systemDefault  static method({bool collectSignals, Logger? logger}) -> Future<DeviceConfig>
 DeviceConfig.timezone  field: String? (read)
 DeviceDetails  type
 DeviceDetails.id  field: String? (read)
@@ -549,8 +550,9 @@ TrackingType.value  field: String (read)
 TrackingType.values  static field: List<TrackingType> (read)
 TrackingType.videoEvent  static field: TrackingType (read)
 UnexpectedStatusError  type : APIError, Exception
+UnexpectedStatusError.errors  field: List<AdMoaiError> (read)
 UnexpectedStatusError.message  field: String (read)
-UnexpectedStatusError.new  constructor(int statusCode)
+UnexpectedStatusError.new  constructor(int statusCode, {List<AdMoaiError> errors})
 UnexpectedStatusError.statusCode  field: int (read)
 User  type
 User.consent  field: Consent? (read)

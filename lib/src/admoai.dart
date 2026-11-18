@@ -167,6 +167,14 @@ class AdMoai {
   }
 
   // Device Configuration
+
+  /// Sets device values by hand. Only the arguments you pass change.
+  ///
+  /// A manual `carrier` or `category` wins over the automatic value and is
+  /// sent whether or not [SDKConfig.collectDeviceSignals] is on. On a
+  /// workspace without Audience Signals the engine refuses a request that
+  /// carries either one: `requestAds` throws a [ClientError] with
+  /// `status == HTTPStatus.badRequest` and code 10009 in `errors`.
   void setDeviceConfig({
     String? id,
     String? model,
@@ -192,10 +200,19 @@ class AdMoai {
     );
   }
 
+  /// Clears every device value, carrier and category included.
+  ///
+  /// Requests built after this call carry no carrier or category until
+  /// [resetDeviceConfig] runs, unless you set them again with
+  /// [setDeviceConfig]. A request built before the clear keeps its values.
   void clearDeviceConfig() {
     deviceConfig = DeviceConfig.clear();
   }
 
+  /// Reads the device values again and discards manual ones.
+  ///
+  /// Carrier and category are read again only when
+  /// [SDKConfig.collectDeviceSignals] is on; otherwise they stay absent.
   Future<void> resetDeviceConfig() async {
     deviceConfig = await DeviceConfig.systemDefault(
       collectSignals: config.collectDeviceSignals,

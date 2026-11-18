@@ -78,7 +78,11 @@ class DeviceConfig implements Clearable {
   final String? language;
 
   /// Mobile carrier name, normalized with [normalizeCarrier]; null when absent.
+  /// Recorded for reporting: ads cannot target the carrier yet.
   final String? carrier;
+
+  /// Phone, tablet or other. Recorded for reporting: ads cannot target the
+  /// category yet.
   final DeviceCategory? category;
 
   DeviceConfig({
