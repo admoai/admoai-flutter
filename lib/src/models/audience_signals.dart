@@ -68,21 +68,22 @@ enum AccountTenure {
   const AccountTenure(this.value);
 }
 
-/// Trips taken in the last 30 days. Wire key `trip_frequency_30d`.
+/// Completed activities (trips, parking sessions, rentals, flights) in the last
+/// 30 days. Wire key `activity_frequency_30d`.
 /// The wire value is always a string, including `"0"`.
-enum TripFrequency30d {
+enum ActivityFrequency30d {
   zero('0'),
-  trips1To2('1_2'),
-  trips3To9('3_9'),
-  trips10Plus('10_plus');
+  times1To2('1_2'),
+  times3To9('3_9'),
+  times10Plus('10_plus');
 
   /// The string sent on the wire.
   final String value;
-  const TripFrequency30d(this.value);
+  const ActivityFrequency30d(this.value);
 }
 
-/// Time since the viewer's last trip. Wire key `last_trip_recency`.
-enum LastTripRecency {
+/// Time since the viewer's last completed activity. Wire key `last_activity_recency`.
+enum LastActivityRecency {
   never('never'),
   days0To7('0_7d'),
   days8To30('8_30d'),
@@ -91,7 +92,7 @@ enum LastTripRecency {
 
   /// The string sent on the wire.
   final String value;
-  const LastTripRecency(this.value);
+  const LastActivityRecency(this.value);
 }
 
 /// Form factor of the device. Sent as `device.category`.
@@ -123,8 +124,8 @@ abstract final class AudienceSignalKey {
   static const String accountType = 'account_type';
   static const String subscriptionStatus = 'subscription_status';
   static const String accountTenure = 'account_tenure';
-  static const String tripFrequency30d = 'trip_frequency_30d';
-  static const String lastTripRecency = 'last_trip_recency';
+  static const String activityFrequency30d = 'activity_frequency_30d';
+  static const String lastActivityRecency = 'last_activity_recency';
   static const String publisherSegments = 'publisher_segments';
 }
 
