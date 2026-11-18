@@ -7,6 +7,7 @@
 //   ADMOAI_BASE_URL  engine URL from the emulator (default http://10.0.2.2:43202, the b5fl instance)
 //   QA_AUDIENCE      on (default) | off — off = an integration that never adopted audience signals
 //   QA_PLACEMENT     sdk_e2e_audience (default) | sdk_e2e_audience_segments
+//   QA_AUTOSEND      1 = press Send once, 2 s after launch (iOS simulator runs: no tap automation)
 import 'dart:convert';
 
 import 'package:admoai/admoai.dart';
@@ -16,10 +17,14 @@ import 'package:http/http.dart' as http;
 /// Logs the exact body the SDK puts on the wire (logcat: "B5QA wire ...").
 class WireLog extends http.BaseClient {
   final http.Client _inner = http.Client();
+
+  /// The last decision body sent, shown on screen.
+  static String last = '-';
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) {
     if (request is http.Request && request.url.path.contains('decision')) {
       debugPrint('B5QA wire ${request.method} ${request.url.path} ${request.body}');
+      last = const JsonEncoder.withIndent('  ').convert(jsonDecode(request.body));
     }
     return _inner.send(request);
   }
@@ -35,6 +40,7 @@ const String placement = String.fromEnvironment(
   'QA_PLACEMENT',
   defaultValue: 'sdk_e2e_audience',
 );
+const bool autoSend = String.fromEnvironment('QA_AUTOSEND') == '1';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -59,6 +65,14 @@ class QaPage extends StatefulWidget {
 class _QaPageState extends State<QaPage> {
   bool disableDevice = false;
   String result = '-';
+
+  @override
+  void initState() {
+    super.initState();
+    if (autoSend) {
+      Future<void>.delayed(const Duration(seconds: 2), send);
+    }
+  }
 
   DecisionRequest buildRequest() {
     final b = widget.sdk.createRequestBuilder()..addPlacement(key: placement);
@@ -116,6 +130,12 @@ class _QaPageState extends State<QaPage> {
           Text('Result: $result',
               key: const Key('result'),
               style: const TextStyle(fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          const Text('Last body sent (wire):',
+              style: TextStyle(fontWeight: FontWeight.bold)),
+          Text(WireLog.last,
+              key: const Key('wire'),
+              style: const TextStyle(fontFamily: 'Courier', fontSize: 11)),
           const SizedBox(height: 8),
           Wrap(children: [
             btn('Send', send),

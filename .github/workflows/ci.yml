@@ -195,7 +195,7 @@ jobs:
 
       - name: Build the host app for the simulator
         working-directory: build/host_app
-        run: flutter build ios --simulator --no-codesign --dart-define=ADMOAI_BASE_URL=http://127.0.0.1:43202 --dart-define=QA_AUDIENCE=on
+        run: flutter build ios --simulator --no-codesign --dart-define=ADMOAI_BASE_URL=http://127.0.0.1:43202 --dart-define=QA_AUDIENCE=on --dart-define=QA_AUTOSEND=1
 
       - name: Zip the simulator app
         working-directory: build/host_app/build/ios/iphonesimulator
