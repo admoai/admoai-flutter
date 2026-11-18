@@ -100,7 +100,7 @@ class AdMoaiClient {
           if (errors.isNotEmpty) {
             throw ValidationError(errors);
           }
-          throw ClientError(HTTPStatus.unprocessableEntity);
+          throw ClientError(HTTPStatus.unprocessableEntity, errors: errors);
         case 429:
           throw ClientError(HTTPStatus.tooManyRequests, errors: errors);
         default:
@@ -191,8 +191,6 @@ class APIResponseBody<T> {
   });
 }
 
-/// Tolerant Reader list parse for the envelope's `errors` / `warnings`: a non-list yields an
-/// empty list, and an entry missing or retyping `code`/`message` is dropped rather than throwing.
 /// The `errors` of an error response body, or none when the body is not the
 /// engine's JSON error shape. Never throws.
 List<AdMoaiError> _errorsFromBody(String rawBody) {
@@ -205,6 +203,8 @@ List<AdMoaiError> _errorsFromBody(String rawBody) {
   }
 }
 
+/// Tolerant Reader list parse for the envelope's `errors` / `warnings`: a non-list yields an
+/// empty list, and an entry missing or retyping `code`/`message` is dropped rather than throwing.
 List<T> _messageList<T>(dynamic raw, T? Function(dynamic) tryParse) {
   if (raw is! List) return const [];
   return raw.map(tryParse).whereType<T>().toList();

@@ -1720,7 +1720,7 @@ know the value, do not send the key.
 | `account_type` | `other` | A known account type outside the four named ones. |
 | `subscription_status` | `none` | Known: no current or previous subscription. |
 | `account_tenure` | all | Age of the user's account with you. Not the age of the app install or the SDK install. |
-| `activity_frequency_30d` | all | Completed activities in the trailing 30 x 24 hours. An activity is one completed use of your service (a ride, a parking session, a ticket, a rental). A booking that was not used does not count. |
+| `activity_frequency_30d` | all | Completed activities in the trailing 30 x 24 hours. An activity is one completed use of your service (a ride, a parking session, a ticket, a rental). A booking that was not used does not count. Cancelled, failed or only-booked activities do not count. |
 | `activity_frequency_30d` | `zero` | Known: zero completed activities in the window. |
 | `last_activity_recency` | all | Elapsed days since the last completed activity: completed 24-hour periods between UTC instants. |
 | `last_activity_recency` | `never` | Known: no activity was ever completed. |
