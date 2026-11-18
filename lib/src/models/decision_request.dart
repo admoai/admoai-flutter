@@ -396,8 +396,12 @@ class Device {
   final String? language;
 
   /// Normalized with the same rule as [DeviceConfig]: trimmed; empty, `--`, `unknown`, `wifi`
-  /// and `wi-fi` (case-insensitive) are absent.
+  /// and `wi-fi` (case-insensitive) are absent. Recorded for reporting: ads
+  /// cannot target the carrier yet.
   final String? carrier;
+
+  /// Phone, tablet or other. Recorded for reporting: ads cannot target the
+  /// category yet.
   final DeviceCategory? category;
 
   Device({

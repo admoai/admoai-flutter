@@ -16,6 +16,8 @@
 #   cd build/host_app && flutter build apk --debug
 #   cd build/host_app/android && ./gradlew :admoai:testDebugUnitTest
 #   cd build/host_app && flutter build ios --simulator --no-codesign
+#   cd build/host_app/ios && xcodebuild test -workspace Runner.xcworkspace -scheme Runner \
+#     -destination 'platform=iOS Simulator,name=<an installed iPhone>'
 #
 # The app source is tool/host_app/main.dart. Needs `flutter` on PATH.
 set -euo pipefail
@@ -76,6 +78,9 @@ mv pubspec.yaml.new pubspec.yaml
 
 cp "$root/tool/host_app/main.dart" lib/main.dart
 rm -rf test
+# The plugin's XCTest (category rule, never a carrier) runs as the generated
+# RunnerTests target: `xcodebuild test -workspace ios/Runner.xcworkspace -scheme Runner`.
+cp "$root/tool/host_app/RunnerTests.swift" ios/RunnerTests/RunnerTests.swift
 
 flutter pub get ||
   fail "flutter pub get failed in $dir" \

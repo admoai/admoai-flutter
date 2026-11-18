@@ -78,7 +78,11 @@ class DeviceConfig implements Clearable {
   final String? language;
 
   /// Mobile carrier name, normalized with [normalizeCarrier]; null when absent.
+  /// Recorded for reporting: ads cannot target the carrier yet.
   final String? carrier;
+
+  /// Phone, tablet or other. Recorded for reporting: ads cannot target the
+  /// category yet.
   final DeviceCategory? category;
 
   DeviceConfig({
@@ -99,11 +103,11 @@ class DeviceConfig implements Clearable {
   /// only when [collectSignals] is true (see [SDKConfig.collectDeviceSignals]);
   /// otherwise the native channel is never called and both stay absent.
   static Future<DeviceConfig> systemDefault(
-      {bool collectSignals = false}) async {
+      {bool collectSignals = false, Logger? logger}) async {
     final details = await getDeviceDetails();
     // A failed first read has nothing to fall back to: treat it as empty.
     final signals = collectSignals
-        ? await collectDeviceSignals() ?? DeviceSignals.empty
+        ? await collectDeviceSignals(logger: logger) ?? DeviceSignals.empty
         : DeviceSignals.empty;
     final config = DeviceConfig(
       id: details.id,

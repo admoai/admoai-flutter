@@ -114,8 +114,12 @@ class AdmoaiPluginTest {
             if (reads == 1) error("UiModeManager unavailable") else Configuration.UI_MODE_TYPE_TELEVISION
         }
         val probe = { hardwareIsOther(none, uiMode) }
-        assertEquals("phone", readCategoryWith(cache, probe, { 360f }))
-        assertEquals("other", readCategoryWith(cache, probe, { 360f }))
+        val failures = mutableListOf<Throwable>()
+        assertEquals("phone", readCategoryWith(cache, probe, { 360f }, { failures += it }))
+        assertEquals("other", readCategoryWith(cache, probe, { 360f }, { failures += it }))
         assertEquals(2, reads)
+        // The failed first read is reported once (the plugin logs its type); the retry is not.
+        assertEquals(1, failures.size)
+        assertEquals("UiModeManager unavailable", failures.single().message)
     }
 }

@@ -115,6 +115,7 @@ class AdMoai {
       appConfig: await AppConfig.systemDefault(),
       deviceConfig: await DeviceConfig.systemDefault(
         collectSignals: config.collectDeviceSignals,
+        logger: config.logger,
       ),
       userConfig: userConfig ?? UserConfig.clear(),
       httpClient: httpClient,
@@ -166,6 +167,14 @@ class AdMoai {
   }
 
   // Device Configuration
+
+  /// Sets device values by hand. Only the arguments you pass change.
+  ///
+  /// A manual `carrier` or `category` wins over the automatic value and is
+  /// sent whether or not [SDKConfig.collectDeviceSignals] is on. On a
+  /// workspace without Audience Signals the engine refuses a request that
+  /// carries either one: `requestAds` throws a [ClientError] with
+  /// `status == HTTPStatus.badRequest` and code 10009 in `errors`.
   void setDeviceConfig({
     String? id,
     String? model,
@@ -191,13 +200,23 @@ class AdMoai {
     );
   }
 
+  /// Clears every device value, carrier and category included.
+  ///
+  /// Requests built after this call carry no carrier or category until
+  /// [resetDeviceConfig] runs, unless you set them again with
+  /// [setDeviceConfig]. A request built before the clear keeps its values.
   void clearDeviceConfig() {
     deviceConfig = DeviceConfig.clear();
   }
 
+  /// Reads the device values again and discards manual ones.
+  ///
+  /// Carrier and category are read again only when
+  /// [SDKConfig.collectDeviceSignals] is on; otherwise they stay absent.
   Future<void> resetDeviceConfig() async {
     deviceConfig = await DeviceConfig.systemDefault(
       collectSignals: config.collectDeviceSignals,
+      logger: config.logger,
     );
   }
 
@@ -286,6 +305,7 @@ class AdMoai {
         );
       }
     }
+    _warnIfAudienceWithoutApiVersion(toSend);
     return _client.requestDecision(toSend);
   }
 
@@ -297,7 +317,9 @@ class AdMoai {
     final pending = _signalsRead;
     if (pending != null) return pending;
     final captured = deviceConfig;
-    final read = collectDeviceSignals(timeout: _nativeReadCap).then((signals) {
+    final read =
+        collectDeviceSignals(timeout: _nativeReadCap, logger: config.logger)
+            .then((signals) {
       if (signals != null && identical(deviceConfig, captured)) {
         deviceConfig = applyAutoSignals(captured, signals);
       }
@@ -320,6 +342,7 @@ class AdMoai {
   /// Synchronous: never refreshes native signals; sends the builder's snapshot.
   HTTPRequest getHttpRequest(DecisionRequest request) {
     _warnIfJourneyWithoutApiVersion(request);
+    _warnIfAudienceWithoutApiVersion(request);
     return _client.getDecisionRequest(request);
   }
 
@@ -337,6 +360,39 @@ class AdMoai {
     if (!hasSession && request.journeyOpt == null) return;
     config.logger.warning(
       'Journey context set but apiVersion is null; Journey will be ignored.',
+    );
+  }
+
+  static const Set<String> _audienceKeys = {
+    AudienceSignalKey.ageGroup,
+    AudienceSignalKey.gender,
+    AudienceSignalKey.accountType,
+    AudienceSignalKey.subscriptionStatus,
+    AudienceSignalKey.accountTenure,
+    AudienceSignalKey.activityFrequency30d,
+    AudienceSignalKey.lastActivityRecency,
+    AudienceSignalKey.publisherSegments,
+  };
+
+  /// Audience signals (the Standard keys, publisher segments, device carrier
+  /// or category) sent without [SDKConfig.apiVersion] go to the default route:
+  /// they are validated and matched, but **not** recorded as audience
+  /// dimensions in reporting, and nothing in the response says so. Warn, the
+  /// same way as for Journey, so the misconfiguration shows during integration.
+  /// Checks the request as sent (after the per-request device refresh).
+  void _warnIfAudienceWithoutApiVersion(DecisionRequest request) {
+    if (config.apiVersion != null) return;
+    final hasKey =
+        request.targeting?.custom?.any((c) => _audienceKeys.contains(c.key)) ??
+            false;
+    final device = request.device;
+    final hasDevice =
+        device != null && (device.carrier != null || device.category != null);
+    if (!hasKey && !hasDevice) return;
+    config.logger.warning(
+      'Audience signals set but apiVersion is null; they are matched but not '
+      'recorded as audience dimensions in reporting. Set apiVersion '
+      '"2025-11-01".',
     );
   }
 

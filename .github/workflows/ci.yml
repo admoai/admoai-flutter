@@ -192,6 +192,26 @@ jobs:
         working-directory: build/host_app
         run: flutter build ios --simulator --no-codesign
 
+      # tool/host_app/RunnerTests.swift: the category rule and "never a carrier", on one
+      # iPhone and one iPad simulator (collect() reports phone on one, tablet on the other).
+      - name: Plugin XCTest (iPhone and iPad simulators)
+        working-directory: build/host_app/ios
+        run: |
+          set -euo pipefail
+          pick() {
+            xcrun simctl list devices available -j |
+              jq -r --arg p "$1" '[.devices | to_entries[] | select(.key | test("iOS"))
+                | .value[] | select(.name | startswith($p))][0].udid // empty'
+          }
+          phone="$(pick iPhone)"; pad="$(pick iPad)"
+          if [[ -z "$phone" || -z "$pad" ]]; then
+            echo "::error::No available iPhone or iPad simulator on this runner (iPhone='$phone', iPad='$pad'). Fix: pin a runner image that ships both, or create one with 'xcrun simctl create'."
+            exit 1
+          fi
+          xcodebuild test -workspace Runner.xcworkspace -scheme Runner \
+            -destination "id=$phone" -destination "id=$pad" \
+            -only-testing:RunnerTests CODE_SIGNING_ALLOWED=NO | tail -60
+
   # The shared scenario manifest is vendored from adhub's @admoai/sdk-scenarios package
   # (admoai/adhub#4158): the bytes must be exactly the version MANIFEST_VERSION names, so a
   # scenario edited here instead of in adhub fails this repo's own PR. A newer published

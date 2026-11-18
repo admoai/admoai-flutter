@@ -25,31 +25,51 @@ public class AdmoaiPlugin: NSObject, FlutterPlugin {
       result(FlutterMethodNotImplemented)
       return
     }
-    var out: [String: String] = [:]
-    if let category = AdmoaiPlugin.category() {
-      out["category"] = category
-    }
-    result(out)
+    result(AdmoaiPlugin.collect())
   }
 
+  /// The map sent back on `collect`. Only `category`, when known: there is no
+  /// `carrier` key on iOS, ever.
+  public static func collect() -> [String: String] {
+    var out: [String: String] = [:]
+    if let category = category() {
+      out["category"] = category
+    }
+    return out
+  }
+
+  /// The category of the device this process runs on.
   static func category() -> String? {
+    var onMac = false
     if #available(iOS 14.0, *) {
-      if ProcessInfo.processInfo.isiOSAppOnMac { return "other" }
+      onMac = ProcessInfo.processInfo.isiOSAppOnMac
     }
+    var catalyst = false
     if #available(iOS 13.0, *) {
-      if ProcessInfo.processInfo.isMacCatalystApp { return "other" }
+      catalyst = ProcessInfo.processInfo.isMacCatalystApp
     }
-    switch UIDevice.current.userInterfaceIdiom {
-    case .phone: return "phone"
-    case .pad: return "tablet"
-    case .tv, .carPlay: return "other"
-    default:
-      // .mac (iOS 14+) and .vision (iOS 17+) are not referenced by name so
-      // the code compiles against every SDK; compare raw values instead.
-      switch UIDevice.current.userInterfaceIdiom.rawValue {
-      case 5, 6: return "other"  // .mac = 5, .vision = 6
-      default: return nil
-      }
+    return category(
+      idiomRawValue: UIDevice.current.userInterfaceIdiom.rawValue,
+      isiOSAppOnMac: onMac,
+      isMacCatalyst: catalyst)
+  }
+
+  /// The pure rule, from raw inputs (tested by `tool/host_app/RunnerTests.swift`).
+  /// An iPad app on a Mac or a Catalyst app -> "other"; idiom phone (0) ->
+  /// "phone", pad (1) -> "tablet", tv (2), carPlay (3), mac (5) and vision (6)
+  /// -> "other"; anything else (unspecified -1, a future idiom) -> absent.
+  /// Raw values keep the code compiling against every SDK, since `.mac` and
+  /// `.vision` do not exist on older ones. An iPhone-only app on an iPad runs
+  /// with the phone idiom, so it reports "phone".
+  public static func category(
+    idiomRawValue: Int, isiOSAppOnMac: Bool, isMacCatalyst: Bool
+  ) -> String? {
+    if isiOSAppOnMac || isMacCatalyst { return "other" }
+    switch idiomRawValue {
+    case 0: return "phone"
+    case 1: return "tablet"
+    case 2, 3, 5, 6: return "other"
+    default: return nil
     }
   }
 }

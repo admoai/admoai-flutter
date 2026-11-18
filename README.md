@@ -1538,7 +1538,7 @@ reset. Call `clearSessionId()` to drop it explicitly.
 ## Audience signals
 
 Audience signals are eight standard attributes you already know about your user (age bracket,
-subscription state, how often they ride, ...). The SDK sends them through `targeting.custom`, and
+subscription state, how many activities they completed, ...). The SDK sends them through `targeting.custom`, and
 the engine matches them against Ads that were authored with **Standard presets** in the Ad
 Manager. You compute the values; the SDK never derives or infers them.
 
@@ -1546,9 +1546,13 @@ Manager. You compute the values; the SDK never derives or infers them.
 > dimensions in reporting and tracking. On the default route the values are validated and matched,
 > but they are **not** recorded as audience dimensions.
 >
-> **Requires Audience Signals enabled on your workspace**, for the Standard keys and publisher
-> segments as well as for device carrier and category. A workspace without it rejects a request
-> that sends any of these keys with 422, code 10028 (`ValidationError`), so the request gets no ad.
+> **Requires Audience Signals enabled on your workspace.** A workspace without it refuses the
+> request, so it gets no ad:
+>
+> - Standard keys or publisher segments: HTTP 422, code 10028, thrown as `ValidationError`.
+> - Device `carrier` or `category`: HTTP 400, code 10009 ("The body contains an unknown field"),
+>   thrown as `ClientError`. This includes values you set by hand with `setDeviceConfig`, which are
+>   sent even without `collectDeviceSignals: true`.
 
 | Wire key | Dart setter | Enum | Wire values |
 |----------|-------------|------|-------------|
@@ -1566,16 +1570,28 @@ final request = sdk
     .createRequestBuilder()
     .addPlacement(key: 'home')
     .setAgeGroup(AgeGroup.age25To34)
+    .setGender(Gender.female)
+    .setAccountType(AccountType.personal)
+    .setSubscriptionStatus(SubscriptionStatus.active)
+    .setAccountTenure(AccountTenure.days31To90)
     .setActivityFrequency30d(ActivityFrequency30d.zero)
+    .setLastActivityRecency(LastActivityRecency.days31To90)
     .setPublisherSegments(['airport_commuter', 'high_value'])
     .build();
 
 final response = await sdk.requestAds(request);
+// targeting.custom on the wire:
+//   {"key": "age_group", "value": "25_34"}
+//   {"key": "gender", "value": "female"}
+//   {"key": "account_type", "value": "personal"}
+//   {"key": "subscription_status", "value": "active"}
+//   {"key": "account_tenure", "value": "31_90d"}
+//   {"key": "activity_frequency_30d", "value": "0"}
+//   {"key": "last_activity_recency", "value": "31_90d"}
+//   {"key": "publisher_segments", "value": ["airport_commuter", "high_value"]}
 ```
 
-This sends `{"key": "age_group", "value": "25_34"}`, `{"key": "activity_frequency_30d", "value": "0"}`
-and `{"key": "publisher_segments", "value": ["airport_commuter", "high_value"]}`. Audience
-signals mix freely with your existing custom keys (`addCustomTargeting(key: 'category',
+Audience signals mix freely with your existing custom keys (`addCustomTargeting(key: 'category',
 value: 'news')`). No aliases are translated: `25-34` is not `25_34`, and the engine rejects it.
 
 ### Rules
@@ -1585,6 +1601,8 @@ value: 'news')`). No aliases are translated: `25-34` is not `25_34`, and the eng
   so setting the same key twice leaves one value.
 - **`null` removes a key**: `setAgeGroup(null)` drops `age_group`. A missing key means "no
   assertion"; the SDK never invents a value.
+- **Unknown means not sent.** If you do not know a value, leave the setter unset or pass `null`.
+  Never guess a bucket and never use a "none" value as a default for missing data.
 - **Publisher segments have their own rules** (code format and length, the 20-code cap,
   duplicates, registration): see [Publisher segments](#publisher-segments).
 
@@ -1621,7 +1639,7 @@ placements and turns off the `device` and `app` objects for that request.
 ### Request examples
 
 One example per audience surface. Each matches a scenario every AdMoai SDK runs against a real
-engine (`@admoai/sdk-scenarios` 2.0.0; the ids are in brackets).
+engine (`@admoai/sdk-scenarios` 3.1.0; the ids are in brackets).
 
 **Standard attributes** (AS1): an Ad targeting `age_group` 25-34 is served.
 
@@ -1659,40 +1677,63 @@ final request = sdk.createRequestBuilder().addPlacement(key: 'home').build();
 
 ### When the engine refuses a request
 
-A refused request gets no ad: `requestAds` throws a `ValidationError` whose `errors` list
-carries the code. The typed setters prevent most of these.
+A refused request gets no ad. The typed setters prevent most of these. Code 10028 and the 422
+codes below throw a `ValidationError`; code 10009 throws a `ClientError`. Both carry the engine's
+entries in `errors`, each with a `code` and a `message`.
 
-| Code | Cause | Scenario |
-|------|-------|----------|
-| 10029 | A value outside the catalog (`25-34` instead of `25_34`), a malformed segment code (`airport-commuter`), or a segment code the workspace has not registered | AS5, AS18, AS14 |
-| 10030 | A list for a single-value key (`age_group`), or a string for `publisher_segments` | AS15, AS16 |
-| 10073 | The same segment code twice in a raw custom list | AS13 |
-| 10076 | More than 20 segment codes | AS17 |
+| Code | HTTP | Thrown as | Cause | Scenario |
+|------|------|-----------|-------|----------|
+| 10028 | 422 | `ValidationError` | Standard keys or publisher segments sent to a workspace without Audience Signals | |
+| 10009 | 400 | `ClientError` | Device `carrier` or `category` sent to a workspace without Audience Signals ("The body contains an unknown field"), including values set by hand | |
+| 10029 | 422 | `ValidationError` | A value outside the catalog (`25-34` instead of `25_34`), a malformed segment code (`airport-commuter`), or a segment code the workspace has not registered | AS5, AS18, AS14 |
+| 10030 | 422 | `ValidationError` | A list for a single-value key (`age_group`), or a string for `publisher_segments` | AS15, AS16 |
+| 10073 | 422 | `ValidationError` | The same segment code twice in a raw custom list | AS13 |
+| 10076 | 422 | `ValidationError` | More than 20 segment codes | AS17 |
 
 ```dart
 try {
   final response = await sdk.requestAds(request);
 } on ValidationError catch (e) {
+  // 422: the code is in e.errors, for example e.errors.first.code == 10028.
   for (final error in e.errors) {
     print('${error.code}: ${error.message}');
+  }
+} on ClientError catch (e) {
+  // 400, 404, 429 and the other mapped 4xx: e.errors may be empty.
+  if (e.status == HTTPStatus.badRequest) {
+    for (final error in e.errors) {
+      print('${error.code}: ${error.message}'); // 10009 for device values
+    }
   }
 }
 ```
 
-### Your responsibilities
+### What each value means
 
-- Compute the buckets from your own data with the documented windows: elapsed-day buckets use
-  completed 24-hour periods between UTC instants; activity frequency counts completed activities in the
-  trailing 30 x 24 hours. Send `ActivityFrequency30d.zero` only when zero completed activities are known,
-  and `LastActivityRecency.never` only when no completed activity is known to exist.
-- Choose the account context (the selected profile, the relevant subscription). If you cannot
-  pick one reliably, omit the field or use publisher segments.
-- Register every segment code in the Ad Manager before sending it.
+You compute the values from your own data; the SDK never derives them. In every row, if you do not
+know the value, do not send the key.
+
+| Key | Value | Meaning |
+|-----|-------|---------|
+| `age_group` | all | Age in completed years. `under18` means below 18. |
+| `gender` | `preferNotToSay` | The user's recorded choice. Never a default for missing data. |
+| `account_type` | `other` | A known account type outside the four named ones. |
+| `subscription_status` | `none` | Known: no current or previous subscription. |
+| `account_tenure` | all | Age of the user's account with you. Not the age of the app install or the SDK install. |
+| `activity_frequency_30d` | all | Completed activities in the trailing 30 x 24 hours. An activity is one completed use of your service (a ride, a parking session, a ticket, a rental). A booking that was not used does not count. Cancelled, failed or only-booked activities do not count. |
+| `activity_frequency_30d` | `zero` | Known: zero completed activities in the window. |
+| `last_activity_recency` | all | Elapsed days since the last completed activity: completed 24-hour periods between UTC instants. |
+| `last_activity_recency` | `never` | Known: no activity was ever completed. |
+
+Choose the account context (the selected profile, the relevant subscription) yourself. If you
+cannot pick one reliably, omit the field or use publisher segments. Register every segment code in
+the Ad Manager before sending it.
 
 ## Device
 
 By default the SDK collects a `device` object (id, model, manufacturer, OS, timezone, language).
-Two coarse fields can be added:
+Two coarse fields can be added. They are not targetable in V1: they are recorded for reporting,
+and ads cannot target them yet.
 
 | Field | Meaning |
 |-------|---------|
@@ -1701,7 +1742,10 @@ Two coarse fields can be added:
 
 **Both are opt-in.** The default SDK never sends them. A workspace without audience signals
 enabled rejects a request that carries them, so turn collection on only once your workspace has
-audience signals:
+audience signals. On a workspace without it, the engine answers HTTP 400, code 10009, and
+`requestAds` throws a `ClientError` with `status == HTTPStatus.badRequest` and the entry in
+`e.errors`. Values set by hand with `setDeviceConfig` are sent without the flag, so they get the
+same answer:
 
 ```dart
 final sdk = await AdMoai.initialize(
