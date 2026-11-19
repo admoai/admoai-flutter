@@ -11,6 +11,10 @@ AdMoai Flutter SDK is a cross-platform advertising solution that enables seamles
 ## Features
 
 - **Native Ads** - Multiple template types (wide, image+text, text-only, carousel)
+- **Admoai standard formats** - Native Display, Carousel, Tap-to-expand, Branded Assets, Standard Video
+  and Sponsored Pin Locations, plus templates based on a standard. Read
+  [Admoai standard formats](#admoai-standard-formats): the SDK draws none of them, and it never
+  fires a beacon on its own
 - **Video Ads** - JSON, VAST Tag, and VAST XML delivery methods, with `Format.video` placement filter
 - **Journey Ads** - Multi-stage, single-brand trip journeys via `sessionId` / `journeyOpt` and read-only `creative.journey` metadata (requires `apiVersion: "2025-11-01"`)
 - **Sponsored Pin Locations** – Promote an advertiser's real places as pins on your map.
@@ -1350,16 +1354,83 @@ eligible for that placement.
 **Does any of this fan out third-party trackers?** No. Third-party trackers stay at the creative
 level and are not duplicated per pin.
 
-## Carousel
+## Admoai standard formats
 
-A Carousel is one ad with two to ten slides. Each slide has its own image, its own destination
-and its own tracking. It needs `apiVersion: "2025-11-01"`; without it, standard-format ads are
-skipped.
+Admoai defines six standard ad formats. Each has a fixed set of content keys and a fixed set of
+tracking events. The decision response tells your app what to show; your app draws it and reports
+what the user did. **The SDK draws none of them**: it decodes the response and gives you the
+tracking helpers.
 
-The examples below use this helper. It returns a text or URL value, and `null` when the key is
-absent or empty:
+| Format | Format key | What it is | Section |
+|---|---|---|---|
+| Native Display | `card` | One image with optional text and one destination. | [Native Display](#native-display) |
+| Carousel | `carousel` | Two to ten slides, each with its own destination. | [Carousel](#carousel) |
+| Tap-to-expand | `expandable_banner` | A small teaser that expands into a larger view. | [Tap-to-expand](#tap-to-expand) |
+| Branded Assets | `branded_assets` | A transparent branded image, for example a vehicle marker on a map. | [Branded Assets](#branded-assets) |
+| Standard Video | `standard_video` | A video with a poster image and playback tracking. | [Standard Video](#standard-video) |
+| Sponsored Pin Locations | `sponsored_pin_location` | An advertiser's real places, shown as pins on your map. | [Sponsored Pin Locations](#sponsored-pin-locations) |
+
+An operator can also create a template **based on** a standard and add fields of their own. See
+[Templates based on a standard](#templates-based-on-a-standard).
+
+### What you need
+
+- **SDK 0.7.0 or newer.** Older versions decode the response but do not expose the format metadata
+  or the Carousel slides, and have no slide, expand, close or asset-tap helpers.
+- **`apiVersion: "2025-11-01"` in `SDKConfig`**, as in [Quick Start](#1-initialize-the-sdk). The SDK
+  sends the version header only when `apiVersion` is set. Without it the engine answers with its
+  default version: it skips standard-format campaigns (warning `10025`, so the placement returns no
+  ad from them) and serves a template based on a standard without its format metadata.
+- **`url_launcher`** (and `video_player` for Standard Video) in your own `pubspec.yaml`: the SDK
+  opens nothing and plays nothing.
+
+### Detecting the format
+
+Every creative served as a standard format has these fields on `creative.metadata` (`Metadata`).
+All are nullable.
+
+| Property | Meaning |
+|---|---|
+| `effectiveStandardFormatKey` | The standard the creative follows: one of the format keys above. |
+| `effectiveStandardFormatVersion` | The version of that standard, a whole number starting at 1. A published version never changes. |
+| `templateSource` | `admoai_standard` (the standard itself) or `based_on_standard` (an operator's template built on it). |
+| `assetContext` | Branded Assets only: what the asset is for, today `vehicle_marker`. |
+
+Choose the renderer from the format key, and always have a default case:
 
 ```dart
+Widget? adFor(Creative creative) {
+  switch (creative.metadata?.effectiveStandardFormatKey) {
+    case 'card':                   return NativeDisplayAd(creative: creative, sdk: sdk);
+    case 'carousel':               return renderCarousel(creative);
+    case 'expandable_banner':      return TapToExpandAd(creative: creative, sdk: sdk);
+    case 'branded_assets':         return renderBrandedAsset(creative);
+    case 'standard_video':         return StandardVideoAd(creative: creative, sdk: sdk);
+    case 'sponsored_pin_location': return renderPins(creative);
+    default:                       return renderExistingWay(creative); // absent, or a value this app does not know
+  }
+}
+```
+
+The fields are `null` on ads that do not use a standard format, so your existing rendering does not
+change. For a template based on a standard, the key and version are the standard's, not the
+operator's template's: a derived Carousel still reports `carousel`. In the default case do not
+crash and do not throw; if your app cannot render the creative, show nothing for the slot and fire
+no event. Do not branch on `templateSource` or the version to hide an ad.
+
+### Optional content: absent means not set
+
+Some content keys are optional. When an operator leaves one empty, Admoai leaves it out of the
+response: it never sends an empty string, an empty image or a placeholder. So a missing key is
+normal and never an error. Hide the widget for it; do not show a blank label, an empty image or a
+default text, and lay the ad out so it looks right without each optional key.
+
+The examples in the format sections use this helper. It returns a string value, or `null` when the
+key is absent, empty or not a string:
+
+```dart
+import 'package:admoai/admoai.dart';
+
 extension ContentText on List<Content> {
   String? text(String key) {
     final value = getContent(key)?.value;
@@ -1367,6 +1438,138 @@ extension ContentText on List<Content> {
   }
 }
 ```
+
+### Who does what
+
+| Admoai | Your app |
+|---|---|
+| Decides which ad is served and which format it uses. | Draws the format. |
+| Sends the content for each key, and only the keys that have a value. | Treats a missing key as "not set". |
+| Signs every tracking URL and removes duplicate events on the server. | Calls the tracking helper at the right moment, and passes it the object it received. |
+| | Opens the destination when the user taps, and fires the click only when it opened. |
+
+Never build or edit a tracking URL. Fire impressions from your own visibility callback, only when
+the ad is really on screen.
+
+### Tolerant-reader rules
+
+1. **Ignore unknown fields.** Admoai adds fields over time without a new API version.
+2. **Strings with a fixed set of values are open sets**: format keys, template sources, content types, styles and tracking keys. A value you do not know must not crash your app.
+3. **A `switch` over a server string needs a `default`.**
+4. **Absent is not an error.**
+5. **Find a content entry by its `key`, never by its index.** The exception is Carousel slides, which you render in the order sent.
+6. **One bad entry is not a bad ad.** The SDK drops a malformed entry and keeps the rest; do the same in your own parsing.
+
+### Tracking at a glance
+
+| Format | Fire | Never fire |
+|---|---|---|
+| Native Display | `fireImpression`, `fireClick` | |
+| Carousel | `fireImpression`, `trackSlideView`, `trackSlideClick` | `fireClick` |
+| Tap-to-expand | `fireImpression`, `fireExpand`, `fireClose`, `fireClick` | `fireClick` on expand |
+| Branded Assets | `fireImpression`, `fireAssetTap`, `fireClick` | `fireClick` for a tap that opens nothing |
+| Standard Video | `fireImpression`, `fireVideoEvent`, `fireClick` | a skip event, `fireClick` without a destination |
+| Sponsored Pin Locations | see [Sponsored Pin Locations](#sponsored-pin-locations) | |
+
+The SDK never fires anything on its own.
+
+## Native Display
+
+Native Display is one image with optional text and one destination. The format key is `card`.
+It needs `apiVersion: "2025-11-01"`.
+
+### Content keys
+
+| Key | Type | Required |
+|---|---|---|
+| `image` | image | Yes |
+| `destination_url` | url | Yes |
+| `brand_logo` | image | No |
+| `headline` | text | No |
+| `supporting_text` | text | No |
+| `cta_text` | text | No |
+
+The simplest valid ad is an image and a destination. Hide any optional element whose key is absent.
+
+`creative.template?.style` is `compact`, `default` or `tall`; each response carries exactly one.
+An operator can allow several styles on one ad and each decision picks one, so support all three.
+`style` is nullable: fall back to `default`.
+
+### Tracking
+
+| Event | When | Call |
+|---|---|---|
+| Impression | The ad is on screen. | `sdk.fireImpression(creative.tracking)` |
+| Click | The user taps and the destination opens. | `sdk.fireClick(creative.tracking)` |
+
+Native Display has one click, with the key `default`; `fireClick` uses it when you pass no key.
+
+The first frame is the minimum visibility signal. In a scrolling list use your own rule (for
+example a visibility package) when the ad can be partly off screen.
+
+```dart
+import 'package:admoai/admoai.dart';
+import 'package:flutter/widgets.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+class NativeDisplayAd extends StatefulWidget {
+  const NativeDisplayAd({super.key, required this.creative, required this.sdk});
+  final Creative creative;
+  final AdMoai sdk;
+
+  @override
+  State<NativeDisplayAd> createState() => _NativeDisplayAdState();
+}
+
+class _NativeDisplayAdState extends State<NativeDisplayAd> {
+  @override
+  void initState() {
+    super.initState();
+    // Your visibility callback: once, when the ad is on screen.
+    WidgetsBinding.instance.addPostFrameCallback(
+        (_) => widget.sdk.fireImpression(widget.creative.tracking));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = widget.creative.contents;
+    final image = c.text('image');
+    final destination = c.text('destination_url');
+    if (image == null || destination == null) return const SizedBox.shrink();
+    final height = switch (widget.creative.template?.style) {
+      'compact' => 120.0,
+      'tall' => 360.0,
+      _ => 220.0,
+    };
+    final headline = c.text('headline');                     // hide when null
+    final body = c.text('supporting_text');
+    final cta = c.text('cta_text');
+
+    return GestureDetector(
+      onTap: () async {
+        if (await launchUrl(Uri.parse(destination))) {       // only when it opened
+          widget.sdk.fireClick(widget.creative.tracking);
+        }
+      },
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Image.network(image, height: height, width: double.infinity, fit: BoxFit.cover),
+        if (headline != null) Text(headline),
+        if (body != null) Text(body),
+        if (cta != null) Text(cta),
+      ]),
+    );
+  }
+}
+```
+
+## Carousel
+
+A Carousel is one ad with two to ten slides. Each slide has its own image, its own destination
+and its own tracking. It needs `apiVersion: "2025-11-01"`; without it, standard-format ads are
+skipped.
+
+The examples below use the `text` helper from
+[Optional content: absent means not set](#optional-content-absent-means-not-set).
 
 ### Reading the slides
 
@@ -1438,6 +1641,141 @@ Future<void> slideTapped(Slide slide, Creative creative) async {
 The visibility check depends on your list widget: use what it tells you about how much of an
 item is visible, with a timer you cancel when the slide drops below 50%.
 
+## Tap-to-expand
+
+Tap-to-expand is a small teaser that the user can open into a larger view. The format key is
+`expandable_banner`, the template style is `expandable`, and it needs `apiVersion: "2025-11-01"`.
+
+### Content keys
+
+| Key | Type | Required |
+|---|---|---|
+| `teaser_image` | image | Yes |
+| `expanded_image` | image | Yes |
+| `destination_url` | url | Yes |
+| `teaser_headline` | text | No |
+| `headline` | text | No |
+| `supporting_text` | text | No |
+| `cta_text` | text | No |
+| `disclaimer` | text | No |
+
+`teaser_image` and `teaser_headline` belong to the compact state. `expanded_image`, `headline`,
+`supporting_text`, `cta_text` and `disclaimer` belong to the expanded state. Both states arrive in
+the same creative.
+
+### How to render it
+
+1. Show the teaser in the compact state, with `teaser_image` and `teaser_headline` when present.
+2. When the user taps the teaser, expand to the larger view with the expanded keys.
+3. Give the user a way to close the expanded view.
+4. Open `destination_url` only when the user taps the call to action or the expanded content, never
+   when they expand.
+
+You choose how the expansion looks and animates.
+
+### Tracking
+
+| Event | When | Call |
+|---|---|---|
+| Impression | The teaser is on screen. | `sdk.fireImpression(creative.tracking)` |
+| Expand | The ad actually expanded. | `sdk.fireExpand(creative.tracking)` |
+| Close | The expanded view actually closed. | `sdk.fireClose(creative.tracking)` |
+| Click | The user taps through and the destination opens. | `sdk.fireClick(creative.tracking)` |
+
+**Expanding is not a click.** `fireExpand` and `fireClose` are custom events (`expand`, `close`).
+They send no click and are never billed as one. Only `fireClick` records a click, and only when the
+destination opens. Call `fireExpand` and `fireClose` when the state has really changed, not when a
+gesture starts that may be cancelled. Admoai counts at most one expand and one close for each
+served ad, so a second call does no harm.
+
+```dart
+import 'package:admoai/admoai.dart';
+import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+class TapToExpandAd extends StatefulWidget {
+  const TapToExpandAd({
+    super.key,
+    required this.creative,
+    required this.sdk,
+    this.expandedExtra,                                      // room for fields an operator adds
+  });
+  final Creative creative;
+  final AdMoai sdk;
+  final List<Widget>? expandedExtra;
+
+  @override
+  State<TapToExpandAd> createState() => _TapToExpandAdState();
+}
+
+class _TapToExpandAdState extends State<TapToExpandAd> {
+  bool _expanded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Your visibility callback: once, when the teaser is on screen.
+    WidgetsBinding.instance.addPostFrameCallback(
+        (_) => widget.sdk.fireImpression(widget.creative.tracking));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = widget.creative.contents;
+    final teaser = c.text('teaser_image');
+    final expandedImage = c.text('expanded_image');
+    final destination = c.text('destination_url');
+    if (teaser == null || expandedImage == null || destination == null) {
+      return const SizedBox.shrink();
+    }
+
+    if (!_expanded) {
+      final title = c.text('teaser_headline');
+      return GestureDetector(
+        onTap: () {
+          setState(() => _expanded = true);
+          widget.sdk.fireExpand(widget.creative.tracking);   // the view is now expanded
+        },
+        child: Column(children: [
+          Image.network(teaser, height: 100, width: double.infinity, fit: BoxFit.cover),
+          if (title != null) Text(title),
+        ]),
+      );
+    }
+
+    final headline = c.text('headline');
+    final body = c.text('supporting_text');
+    final cta = c.text('cta_text');
+    final disclaimer = c.text('disclaimer');
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Image.network(expandedImage, width: double.infinity, fit: BoxFit.contain),
+      if (headline != null) Text(headline),
+      if (body != null) Text(body),
+      ...?widget.expandedExtra,
+      if (cta != null)
+        ElevatedButton(
+          onPressed: () async {
+            if (await launchUrl(Uri.parse(destination))) {   // only when it opened
+              widget.sdk.fireClick(widget.creative.tracking);
+            }
+          },
+          child: Text(cta),
+        ),
+      if (disclaimer != null) Text(disclaimer),
+      TextButton(
+        onPressed: () {
+          setState(() => _expanded = false);
+          widget.sdk.fireClose(widget.creative.tracking);    // the view is now closed
+        },
+        child: const Text('Close'),
+      ),
+    ]);
+  }
+}
+```
+
+Fire the impression when the teaser is first on screen, not while you build the widget.
+
 ## Branded Assets
 
 Branded Assets is a transparent branded image that your app places in its own interface. The
@@ -1449,7 +1787,7 @@ first use is a vehicle marker on a map. It needs `apiVersion: "2025-11-01"`.
 unknown value as an asset you do not place.
 
 The contents are read with the same lookup as any other key (the `text` helper is in
-[Carousel](#carousel)):
+[Admoai standard formats](#optional-content-absent-means-not-set)):
 
 | Key | Type | Required | Use |
 |---|---|---|---|
@@ -1503,6 +1841,189 @@ void assetBecameVisible(Creative creative) {
   sdk.fireImpression(creative.tracking);
 }
 ```
+
+## Standard Video
+
+Standard Video is a video with a poster image and optional text. The format key is
+`standard_video`, it has one style (`default`), and it needs `apiVersion: "2025-11-01"`. It is
+delivered as JSON video, so everything in [Video Ad Support](#video-ad-support) and
+[Video Tracking Events](#video-tracking-events) applies; this section lists only what the standard
+adds. There is no VAST.
+
+- `creative.metadata?.format` is `video` and `creative.delivery` is `json`. The file URL is in `video_asset`.
+- The ad is never skippable: the response has no skippable setting and no skip offset. Add no skip control and fire no skip event.
+
+| Key | Type | Required |
+|---|---|---|
+| `video_asset` | video | Yes |
+| `poster_image` | image | Yes |
+| `brand_logo` | image | No |
+| `headline` | text | No |
+| `supporting_text` | text | No |
+| `cta_text` | text | No |
+| `destination_url` | url | No |
+| `disclaimer` | text | No |
+
+`creative.metadata?.duration` and `aspectRatio` can also be present. Show `poster_image` first. If the
+video cannot load or play, keep showing it instead of a black view, and fire only the events that
+really happened.
+
+| Event | When | Call |
+|---|---|---|
+| Impression | The ad is on screen, before playback starts. | `sdk.fireImpression(creative.tracking)` |
+| `start`, `first_quartile`, `midpoint`, `third_quartile` | Playback reaches 0%, 25%, 50%, 75%. | `sdk.fireVideoEvent(creative.tracking, "<key>")` |
+| `complete` | 98% played. | `sdk.fireVideoEvent(creative.tracking, "complete")` |
+| Click | The user taps and the destination opens. | `sdk.fireClick(creative.tracking)` |
+
+**No click without a destination.** When `destination_url` is absent the creative has no click
+tracker: show no tappable call to action, and `fireClick` sends nothing. Admoai stores the events as
+you send them and adds no `start` or quartile for you.
+
+The example plays the file with the `video_player` package.
+
+```dart
+import 'package:admoai/admoai.dart';
+import 'package:flutter/widgets.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:video_player/video_player.dart';
+
+class StandardVideoAd extends StatefulWidget {
+  const StandardVideoAd({super.key, required this.creative, required this.sdk});
+  final Creative creative;
+  final AdMoai sdk;
+
+  @override
+  State<StandardVideoAd> createState() => _StandardVideoAdState();
+}
+
+class _StandardVideoAdState extends State<StandardVideoAd> {
+  VideoPlayerController? _player;
+  final _fired = <String>{};
+  static const _steps = <String, double>{
+    'start': 0.0, 'first_quartile': 0.25, 'midpoint': 0.5,
+    'third_quartile': 0.75, 'complete': 0.98,
+  };
+
+  @override
+  void initState() {
+    super.initState();
+    final video = widget.creative.contents.text('video_asset');
+    if (video == null) return;
+    // Your visibility callback: once, when the ad is on screen.
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      widget.sdk.fireImpression(widget.creative.tracking);   // before playback
+      final player = VideoPlayerController.networkUrl(Uri.parse(video));
+      _player = player;
+      player.addListener(_onProgress);
+      try {
+        await player.initialize();
+        await player.play();
+        if (mounted) setState(() {});
+      } catch (_) {
+        // Playback failed: the poster stays, and no playback event is sent.
+      }
+    });
+  }
+
+  void _onProgress() {
+    final value = _player?.value;
+    if (value == null || !value.isPlaying || value.duration.inMilliseconds == 0) return;
+    final progress = value.position.inMilliseconds / value.duration.inMilliseconds;
+    _steps.forEach((key, threshold) {
+      if (progress >= threshold && _fired.add(key)) {
+        widget.sdk.fireVideoEvent(widget.creative.tracking, key);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _player?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = widget.creative.contents;
+    final poster = c.text('poster_image');
+    if (poster == null || c.text('video_asset') == null) return const SizedBox.shrink();
+    final destination = c.text('destination_url');           // null: no tap, no click
+    final player = _player;
+
+    return GestureDetector(
+      onTap: destination == null
+          ? null
+          : () async {
+              if (await launchUrl(Uri.parse(destination))) {
+                widget.sdk.fireClick(widget.creative.tracking);
+              }
+            },
+      child: Stack(children: [
+        Image.network(poster, width: double.infinity, fit: BoxFit.contain),   // also the fallback
+        if (player != null && player.value.isInitialized)
+          AspectRatio(aspectRatio: player.value.aspectRatio, child: VideoPlayer(player)),
+      ]),
+    );
+  }
+}
+```
+
+## Templates based on a standard
+
+An operator can create a template **based on** a standard and add fields of their own. The format
+stays the standard's; the creative simply carries more keys. The response then has:
+
+- every content key of the standard, in the standard's order, and
+- the operator's extra keys, after them.
+
+The format key and version are the standard's, and `templateSource` is `based_on_standard`: a
+derived Carousel reports `carousel`, a derived Tap-to-expand reports `expandable_banner`. The
+standard's own keys and tracking events behave exactly as in its section above, and an extra key
+never replaces a standard key. (`creative.template?.key` is the operator's template key, not the
+standard's, so never choose a renderer from it.)
+
+So your app should:
+
+1. **Pick the renderer from `effectiveStandardFormatKey`**, as in [Detecting the format](#detecting-the-format), and render the standard part with that format's renderer.
+2. **Read the extra keys by name** (`creative.contents.text('expanded_headline')`) and show the ones you know how to show. Extra keys use the same `key`, `type` and `value` shape as every other key; read `type` to decide how to show a value.
+3. **Treat extra keys as optional**, unless your own template contract says otherwise.
+4. **Ignore extra keys you do not know.** Do not fail, do not show an error and do not drop the ad.
+5. **Leave custom tracking events alone** unless your app has a reason to fire one. Operators can add their own; fire one with `sdk.fireCustomEvent(creative.tracking, '<key>')` when the user does the matching action.
+
+A template based on Sponsored Pin Locations works the same way: it reports `sponsored_pin_location`
+and `creative.matchedPoints` carries the pins (see [Sponsored Pin Locations](#sponsored-pin-locations)), with the operator's extra keys in `creative.contents`.
+
+### Worked example
+
+An operator built the template `promo_expandable` on Tap-to-expand and added a text field
+`expanded_headline` that should appear in the expanded view. The response contains the eight
+Tap-to-expand keys followed by `expanded_headline`, with `effectiveStandardFormatKey` =
+`expandable_banner` and `templateSource` = `based_on_standard`. `TapToExpandAd` is the widget from
+[Tap-to-expand](#tap-to-expand); the extra key goes in its `expandedExtra` slot.
+
+```dart
+import 'package:admoai/admoai.dart';
+import 'package:flutter/widgets.dart';
+
+Widget adView(Creative creative, AdMoai sdk) {
+  switch (creative.metadata?.effectiveStandardFormatKey) {
+    case 'expandable_banner':
+      // Standard part: the standard renderer. Extra part: read by name, shown only when set.
+      final extra = creative.contents.text('expanded_headline');
+      return TapToExpandAd(
+        creative: creative,
+        sdk: sdk,
+        expandedExtra: [if (extra != null) Text(extra)],
+      );
+    default:
+      return const SizedBox.shrink();                        // nothing to render: no widget, no event
+  }
+}
+```
+
+Because the format key is the standard's, the same case renders the plain standard Tap-to-expand
+(no `expanded_headline`, so the extra widget is simply absent) and every operator template based
+on it.
 
 ## Request Builder
 
