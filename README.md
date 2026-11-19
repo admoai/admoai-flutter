@@ -1437,7 +1437,16 @@ extension ContentText on List<Content> {
     return value is String && value.isNotEmpty ? value : null;
   }
 }
+
+extension CreativeResponse on Creative {
+  /// Changes with every decision response: the signed impression URL is new each time.
+  String get responseId => tracking.impressions?.firstOrNull?.url ?? '';
+}
 ```
+
+`responseId` is how the widgets notice that a parent has swapped in a new ad at the same position
+(Flutter then reuses the `State` and does not call `initState` again): `didUpdateWidget` resets
+their own state when it changes.
 
 ### Who does what
 
@@ -1504,8 +1513,10 @@ An operator can allow several styles on one ad and each decision picks one, so s
 
 Native Display has one click, with the key `default`; `fireClick` uses it when you pass no key.
 
-The first frame is the minimum visibility signal. In a scrolling list use your own rule (for
-example a visibility package) when the ad can be partly off screen.
+The examples fire the impression after the first frame in which the ad has what it needs to
+render, which is the minimum visibility signal: it does not know whether the ad is in the
+viewport. In a scrolling list use your own rule (for example a visibility package) and call the
+same method from it.
 
 ```dart
 import 'package:admoai/admoai.dart';
@@ -1522,12 +1533,32 @@ class NativeDisplayAd extends StatefulWidget {
 }
 
 class _NativeDisplayAdState extends State<NativeDisplayAd> {
+  String? _impressionFor;
+
   @override
   void initState() {
     super.initState();
-    // Your visibility callback: once, when the ad is on screen.
-    WidgetsBinding.instance.addPostFrameCallback(
-        (_) => widget.sdk.fireImpression(widget.creative.tracking));
+    _scheduleImpression();
+  }
+
+  @override
+  void didUpdateWidget(NativeDisplayAd oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.creative.responseId != widget.creative.responseId) {
+      _scheduleImpression();                                 // a new ad in the same widget
+    }
+  }
+
+  // Your visibility callback: replace the post-frame callback with your own rule.
+  void _scheduleImpression() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final creative = widget.creative;
+      final c = creative.contents;
+      if (!mounted || c.text('image') == null || c.text('destination_url') == null) return;
+      if (_impressionFor == creative.responseId) return;     // once for each served ad
+      _impressionFor = creative.responseId;
+      widget.sdk.fireImpression(creative.tracking);
+    });
   }
 
   @override
@@ -1541,18 +1572,21 @@ class _NativeDisplayAdState extends State<NativeDisplayAd> {
       'tall' => 360.0,
       _ => 220.0,
     };
-    final headline = c.text('headline');                     // hide when null
+    final logo = c.text('brand_logo');                       // hide when null
+    final headline = c.text('headline');
     final body = c.text('supporting_text');
     final cta = c.text('cta_text');
 
     return GestureDetector(
       onTap: () async {
+        final creative = widget.creative, sdk = widget.sdk;  // this ad, even if the parent swaps it
         if (await launchUrl(Uri.parse(destination))) {       // only when it opened
-          widget.sdk.fireClick(widget.creative.tracking);
+          sdk.fireClick(creative.tracking);
         }
       },
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Image.network(image, height: height, width: double.infinity, fit: BoxFit.cover),
+        if (logo != null) Image.network(logo, height: 24),
         if (headline != null) Text(headline),
         if (body != null) Text(body),
         if (cta != null) Text(cta),
@@ -1710,13 +1744,46 @@ class TapToExpandAd extends StatefulWidget {
 
 class _TapToExpandAdState extends State<TapToExpandAd> {
   bool _expanded = false;
+  String? _impressionFor;
 
   @override
   void initState() {
     super.initState();
-    // Your visibility callback: once, when the teaser is on screen.
-    WidgetsBinding.instance.addPostFrameCallback(
-        (_) => widget.sdk.fireImpression(widget.creative.tracking));
+    _scheduleImpression();
+  }
+
+  @override
+  void didUpdateWidget(TapToExpandAd oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.creative.responseId != widget.creative.responseId) {
+      _expanded = false;                                     // never inherit the last ad's state
+      _scheduleImpression();
+    }
+  }
+
+  // Your visibility callback: replace the post-frame callback with your own rule.
+  void _scheduleImpression() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final creative = widget.creative;
+      final c = creative.contents;
+      if (!mounted ||
+          c.text('teaser_image') == null ||
+          c.text('expanded_image') == null ||
+          c.text('destination_url') == null) {
+        return;
+      }
+      if (_impressionFor == creative.responseId) return;     // once for each served ad
+      _impressionFor = creative.responseId;
+      widget.sdk.fireImpression(creative.tracking);
+    });
+  }
+
+  // Opens the destination; the click is recorded for the ad that was opened.
+  Future<void> _open(String destination) async {
+    final creative = widget.creative, sdk = widget.sdk;
+    if (await launchUrl(Uri.parse(destination))) {           // only when it opened
+      sdk.fireClick(creative.tracking);
+    }
   }
 
   @override
@@ -1748,19 +1815,18 @@ class _TapToExpandAdState extends State<TapToExpandAd> {
     final cta = c.text('cta_text');
     final disclaimer = c.text('disclaimer');
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Image.network(expandedImage, width: double.infinity, fit: BoxFit.contain),
-      if (headline != null) Text(headline),
-      if (body != null) Text(body),
-      ...?widget.expandedExtra,
+      // The expanded content opens the destination, so it works without cta_text.
+      GestureDetector(
+        onTap: () => _open(destination),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Image.network(expandedImage, width: double.infinity, fit: BoxFit.contain),
+          if (headline != null) Text(headline),
+          if (body != null) Text(body),
+          ...?widget.expandedExtra,
+        ]),
+      ),
       if (cta != null)
-        ElevatedButton(
-          onPressed: () async {
-            if (await launchUrl(Uri.parse(destination))) {   // only when it opened
-              widget.sdk.fireClick(widget.creative.tracking);
-            }
-          },
-          child: Text(cta),
-        ),
+        ElevatedButton(onPressed: () => _open(destination), child: Text(cta)),
       if (disclaimer != null) Text(disclaimer),
       TextButton(
         onPressed: () {
@@ -1774,7 +1840,8 @@ class _TapToExpandAdState extends State<TapToExpandAd> {
 }
 ```
 
-Fire the impression when the teaser is first on screen, not while you build the widget.
+Fire the impression when the teaser is first on screen, not while you build the widget. The
+expanded content opens the destination too, so an ad without `cta_text` can still be opened.
 
 ## Branded Assets
 
@@ -1898,7 +1965,8 @@ class StandardVideoAd extends StatefulWidget {
 
 class _StandardVideoAdState extends State<StandardVideoAd> {
   VideoPlayerController? _player;
-  final _fired = <String>{};
+  var _fired = <String>{};
+  String? _impressionFor;
   static const _steps = <String, double>{
     'start': 0.0, 'first_quartile': 0.25, 'midpoint': 0.5,
     'third_quartile': 0.75, 'complete': 0.98,
@@ -1907,14 +1975,33 @@ class _StandardVideoAdState extends State<StandardVideoAd> {
   @override
   void initState() {
     super.initState();
-    final video = widget.creative.contents.text('video_asset');
-    if (video == null) return;
-    // Your visibility callback: once, when the ad is on screen.
+    _begin();
+  }
+
+  @override
+  void didUpdateWidget(StandardVideoAd oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.creative.responseId != widget.creative.responseId) {
+      _end();                                                // drop the old ad's player and events
+      _fired = <String>{};
+      _begin();
+    }
+  }
+
+  void _begin() {
+    final creative = widget.creative, sdk = widget.sdk;      // this ad, even if the parent swaps it
+    final video = creative.contents.text('video_asset');
+    if (video == null || creative.contents.text('poster_image') == null) return;
+    // Your visibility callback: replace the post-frame callback with your own rule.
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      widget.sdk.fireImpression(widget.creative.tracking);   // before playback
+      if (!mounted || widget.creative.responseId != creative.responseId) return;
+      if (_impressionFor != creative.responseId) {
+        _impressionFor = creative.responseId;                // once for each served ad
+        sdk.fireImpression(creative.tracking);               // before playback
+      }
       final player = VideoPlayerController.networkUrl(Uri.parse(video));
       _player = player;
-      player.addListener(_onProgress);
+      player.addListener(() => _onProgress(player, creative, sdk));
       try {
         await player.initialize();
         await player.play();
@@ -1925,43 +2012,68 @@ class _StandardVideoAdState extends State<StandardVideoAd> {
     });
   }
 
-  void _onProgress() {
-    final value = _player?.value;
-    if (value == null || !value.isPlaying || value.duration.inMilliseconds == 0) return;
-    final progress = value.position.inMilliseconds / value.duration.inMilliseconds;
+  void _end() {
+    _player?.dispose();
+    _player = null;
+  }
+
+  void _onProgress(VideoPlayerController player, Creative creative, AdMoai sdk) {
+    if (player != _player) return;                           // an old ad's player
+    final value = player.value;
+    if (value.duration.inMilliseconds == 0) return;
+    // Playback reached the end: the last update can arrive with isPlaying false, so check this
+    // first. Every point before the end was played through, so report any that were missed.
+    final progress = value.isCompleted
+        ? 1.0
+        : value.position.inMilliseconds / value.duration.inMilliseconds;
+    if (!value.isCompleted && !value.isPlaying) return;      // paused: not playback
     _steps.forEach((key, threshold) {
       if (progress >= threshold && _fired.add(key)) {
-        widget.sdk.fireVideoEvent(widget.creative.tracking, key);
+        sdk.fireVideoEvent(creative.tracking, key);
       }
     });
   }
 
   @override
   void dispose() {
-    _player?.dispose();
+    _end();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final c = widget.creative.contents;
+    final creative = widget.creative;
+    final c = creative.contents;
     final poster = c.text('poster_image');
     if (poster == null || c.text('video_asset') == null) return const SizedBox.shrink();
     final destination = c.text('destination_url');           // null: no tap, no click
+    final logo = c.text('brand_logo');                       // hide each optional element when null
+    final headline = c.text('headline');
+    final body = c.text('supporting_text');
+    final cta = c.text('cta_text');
+    final disclaimer = c.text('disclaimer');
     final player = _player;
 
     return GestureDetector(
       onTap: destination == null
           ? null
           : () async {
+              final sdk = widget.sdk;                        // this ad, even if the parent swaps it
               if (await launchUrl(Uri.parse(destination))) {
-                widget.sdk.fireClick(widget.creative.tracking);
+                sdk.fireClick(creative.tracking);
               }
             },
-      child: Stack(children: [
-        Image.network(poster, width: double.infinity, fit: BoxFit.contain),   // also the fallback
-        if (player != null && player.value.isInitialized)
-          AspectRatio(aspectRatio: player.value.aspectRatio, child: VideoPlayer(player)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Stack(children: [
+          Image.network(poster, width: double.infinity, fit: BoxFit.contain),   // also the fallback
+          if (player != null && player.value.isInitialized)
+            AspectRatio(aspectRatio: player.value.aspectRatio, child: VideoPlayer(player)),
+        ]),
+        if (logo != null) Image.network(logo, height: 24),
+        if (headline != null) Text(headline),
+        if (body != null) Text(body),
+        if (cta != null && destination != null) Text(cta),
+        if (disclaimer != null) Text(disclaimer),
       ]),
     );
   }
@@ -1973,7 +2085,7 @@ class _StandardVideoAdState extends State<StandardVideoAd> {
 An operator can create a template **based on** a standard and add fields of their own. The format
 stays the standard's; the creative simply carries more keys. The response then has:
 
-- every content key of the standard, in the standard's order, and
+- every content key of the standard that is set, in the standard's order, and
 - the operator's extra keys, after them.
 
 The format key and version are the standard's, and `templateSource` is `based_on_standard`: a
@@ -1996,8 +2108,8 @@ and `creative.matchedPoints` carries the pins (see [Sponsored Pin Locations](#sp
 ### Worked example
 
 An operator built the template `promo_expandable` on Tap-to-expand and added a text field
-`expanded_headline` that should appear in the expanded view. The response contains the eight
-Tap-to-expand keys followed by `expanded_headline`, with `effectiveStandardFormatKey` =
+`expanded_headline` that should appear in the expanded view. The response contains the
+Tap-to-expand keys that are set (the three required ones and any optional ones) followed by `expanded_headline`, with `effectiveStandardFormatKey` =
 `expandable_banner` and `templateSource` = `based_on_standard`. `TapToExpandAd` is the widget from
 [Tap-to-expand](#tap-to-expand); the extra key goes in its `expandedExtra` slot.
 
