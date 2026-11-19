@@ -89,6 +89,9 @@
   6): AS1, AS20 (device) and AS21 (segments) run with no version header
   (`"apiVersion": "none"`, which the runner already sends as no header), and
   AS6/AS9 pin 2025-11-01. (#124)
+- The contract tests adopt `@admoai/sdk-scenarios` 3.2.0 (still schemaVersion
+  6): SP16, a Journey screen on a template based on Sponsored Pin Location
+  serves the advertiser's matched shops. (#125)
 
 ## 0.7.0 - 2026-11-10
 
