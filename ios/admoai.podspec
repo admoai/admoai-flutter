@@ -3,7 +3,7 @@
 #
 Pod::Spec.new do |s|
   s.name             = 'admoai'
-  s.version          = '0.7.0'
+  s.version          = '0.8.0'
   s.summary          = 'AdMoai Flutter SDK native device signals.'
   s.description      = <<-DESC
 Native platform channel for the AdMoai Flutter SDK (coarse device category).
