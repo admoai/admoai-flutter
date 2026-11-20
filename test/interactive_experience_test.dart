@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:admoai/admoai.dart';
+import 'package:admoai/src/models/interactive_experience.dart'
+    show leadGenerationLaunch;
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -29,6 +31,8 @@ void main() {
   Map<String, dynamic> descriptor() => Map<String, dynamic>.from(
       fixture('creative-descriptor.json')['interactiveExperience'] as Map);
 
+  tearDown(() => AdMoai.secureSurfaceAvailableForTesting = null);
+
   setUp(() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(
@@ -36,10 +40,12 @@ void main() {
   });
 
   ({AdMoai sdk, List<http.Request> sent, List<LogRecord> logs}) build({
-    InteractiveExperienceIntegration? integration,
+    LeadFormValueProvider? provider,
+    bool surface = true,
     String? apiVersion = '2025-11-01',
     String responseBody = '{"success":true,"data":[]}',
   }) {
+    AdMoai.secureSurfaceAvailableForTesting = surface ? () => true : null;
     final sent = <http.Request>[];
     final logs = <LogRecord>[];
     final logger = Logger('ie-${scenarios.length}-${sent.hashCode}')
@@ -50,13 +56,13 @@ void main() {
         baseUrl: 'https://mock.api.admoai.com',
         apiVersion: apiVersion,
         logger: logger,
-        interactiveExperience: integration,
       ),
       httpClient: MockClient((r) async {
         sent.add(r);
         return http.Response(responseBody, 200);
       }),
     );
+    if (provider != null) sdk.enableInteractiveExperiences(provider);
     return (sdk: sdk, sent: sent, logs: logs);
   }
 
@@ -124,12 +130,11 @@ void main() {
   scenario('An app that hosts the form advertises the keys it can fill',
       () async {
     final t = build(
-      integration: InteractiveExperienceIntegration(
-          valueProvider: _Provider({
+      provider: _Provider({
         StandardAttributeKey.phone,
         StandardAttributeKey.email,
         StandardAttributeKey.fullName,
-      })),
+      }),
     );
     await t.sdk.requestAds(request(t.sdk));
     final expected =
@@ -140,7 +145,7 @@ void main() {
   });
 
   scenario('An app with no prefill still advertises support', () async {
-    final t = build(integration: const InteractiveExperienceIntegration());
+    final t = build(provider: _Provider(const {}));
     await t.sdk.requestAds(request(t.sdk));
     expect(
         bodyOf(t.sent.single)['interactiveExperience'],
@@ -148,25 +153,40 @@ void main() {
             'request-supported-empty-keys.json')['interactiveExperience']));
   });
 
-  scenario('Building and sending a request never reads a value', () async {
+  scenario('Building and sending a request reads only the keys', () async {
     final provider = _Provider({StandardAttributeKey.email});
-    final t = build(
-        integration: InteractiveExperienceIntegration(valueProvider: provider));
+    final t = build(provider: provider);
     await t.sdk.requestAds(request(t.sdk));
     t.sdk.getHttpRequest(request(t.sdk));
-    expect(provider.valueCalls, 0);
+    expect(provider.keyReads, 2);
   });
 
   scenario('A provider that fails to list keys does not block the request',
       () async {
-    final t = build(
-        integration:
-            InteractiveExperienceIntegration(valueProvider: _ThrowingKeys()));
+    final t = build(provider: _ThrowingKeys());
     await t.sdk.requestAds(request(t.sdk));
     expect(bodyOf(t.sent.single)['interactiveExperience'],
         equals({'supported': true, 'availableAttributeKeys': <String>[]}));
     expect(t.logs.map((r) => r.message).join('\n'),
         isNot(contains('secret-user-data')));
+  });
+
+  scenario('An app that turns Lead Generation off stops advertising it',
+      () async {
+    final t = build(provider: _Provider({StandardAttributeKey.email}));
+    t.sdk.disableInteractiveExperiences();
+    await t.sdk.requestAds(request(t.sdk));
+    expect(bodyOf(t.sent.single).containsKey('interactiveExperience'), isFalse);
+  });
+
+  scenario(
+      'A device that cannot host the form does not advertise Lead Generation',
+      () async {
+    final t = build(
+        provider: _Provider({StandardAttributeKey.email}), surface: false);
+    await t.sdk.requestAds(request(t.sdk));
+    expect(bodyOf(t.sent.single).containsKey('interactiveExperience'), isFalse);
+    expect(t.logs.where((r) => r.level >= Level.WARNING), isEmpty);
   });
 
   scenario('Each creative carries its own experience', () async {
@@ -181,8 +201,9 @@ void main() {
     expect(lead.formId, d['formId']);
     expect(lead.preparedVersionId, d['preparedVersionId']);
     expect(lead.formInstanceId, d['formInstanceId']);
-    expect(lead.launchUrl, Uri.parse(d['launchUrl'] as String));
-    expect(lead.preparationToken, d['preparationToken']);
+    final launch = leadGenerationLaunch(lead);
+    expect(launch.launchUrl, Uri.parse(d['launchUrl'] as String));
+    expect(launch.preparationToken, d['preparationToken']);
     expect(lead.expiresAt, DateTime.utc(2026, 11, 12, 15, 15));
     expect(lead.expiresAt.isUtc, isTrue);
     expect(lead.prefillAttributeKeys,
@@ -266,42 +287,36 @@ void main() {
     final experience = creatives.single.interactiveExperience!;
     expect(experience.toString(), isNot(contains(token)));
     expect(creatives.single.toString(), isNot(contains(token)));
-    expect(experience.toString(), contains('<redacted>'));
+    expect(experience.toString(), isNot(contains(descriptor()['launchUrl'])));
   });
 
   scenario('Opting in without an API version warns the integrator', () async {
-    final t = build(
-        apiVersion: null,
-        integration: const InteractiveExperienceIntegration());
+    final t = build(apiVersion: null, provider: _Provider(const {}));
     await t.sdk.requestAds(request(t.sdk));
     final warnings = t.logs
         .where((r) =>
             r.level == Level.WARNING &&
-            r.message.contains('Interactive experience integration set but'))
+            r.message.contains('Interactive experiences enabled but'))
         .length;
     expect(warnings, 1);
   });
 }
 
-class _Provider implements StandardValueProvider {
-  _Provider(this.availableKeys);
+class _Provider implements LeadFormValueProvider {
+  _Provider(this._keys);
+
+  final Set<StandardAttributeKey> _keys;
+  int keyReads = 0;
 
   @override
-  final Set<StandardAttributeKey> availableKeys;
-  int valueCalls = 0;
-
-  @override
-  Future<String?> valueFor(StandardAttributeKey key) async {
-    valueCalls++;
-    return 'value';
+  Set<StandardAttributeKey> get availableKeys {
+    keyReads++;
+    return _keys;
   }
 }
 
-class _ThrowingKeys implements StandardValueProvider {
+class _ThrowingKeys implements LeadFormValueProvider {
   @override
   Set<StandardAttributeKey> get availableKeys =>
       throw StateError('secret-user-data');
-
-  @override
-  Future<String?> valueFor(StandardAttributeKey key) async => null;
 }

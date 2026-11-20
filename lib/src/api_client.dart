@@ -134,7 +134,7 @@ class AdMoaiClient {
 
   HTTPRequest getDecisionRequest(
     DecisionRequest request, {
-    InteractiveExperienceSupport? interactiveExperience,
+    InteractiveExperienceCapability? interactiveExperience,
   }) {
     final headers = {
       'Content-Type': 'application/json',
@@ -164,7 +164,7 @@ class AdMoaiClient {
 
   Future<APIResponse<DecisionResponse>> requestDecision(
     DecisionRequest request, {
-    InteractiveExperienceSupport? interactiveExperience,
+    InteractiveExperienceCapability? interactiveExperience,
   }) async {
     final httpRequest = getDecisionRequest(request,
         interactiveExperience: interactiveExperience);

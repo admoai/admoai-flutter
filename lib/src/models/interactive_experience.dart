@@ -30,56 +30,33 @@ enum StandardAttributeKey {
   }
 }
 
-/// Supplies the standard values the app could fill into a form.
-abstract interface class StandardValueProvider {
-  /// A provider with no keys: the integration that hosts the form but prefills
-  /// nothing.
-  static const StandardValueProvider none = _NoStandardValues();
-
-  /// The keys the app could fill for the current user. Read when a request is
-  /// built. Only the keys are read here, never the values.
+/// Supplies the standard attributes the app could fill into a Lead Generation
+/// form. Only the keys are read, when a decision request is built. The value
+/// lookup is added when forms can open; an app with no prefill returns an empty
+/// set.
+abstract interface class LeadFormValueProvider {
+  /// The keys the app could fill for the current user.
   Set<StandardAttributeKey> get availableKeys;
-
-  /// The value for [key], or `null`. Called only after a form is activated, for
-  /// the keys the form asks for; NEVER while building or sending a decision
-  /// request.
-  Future<String?> valueFor(StandardAttributeKey key);
-}
-
-class _NoStandardValues implements StandardValueProvider {
-  const _NoStandardValues();
-
-  @override
-  Set<StandardAttributeKey> get availableKeys => const <StandardAttributeKey>{};
-
-  @override
-  Future<String?> valueFor(StandardAttributeKey key) async => null;
-}
-
-/// The explicit opt-in to Lead Generation ads. Setting it on
-/// `SDKConfig.interactiveExperience` declares that the app hosts the Lead
-/// Generation form (controller, container, close and link handling); a new SDK
-/// version alone never advertises support.
-class InteractiveExperienceIntegration {
-  final StandardValueProvider valueProvider;
-
-  const InteractiveExperienceIntegration({
-    this.valueProvider = StandardValueProvider.none,
-  });
 }
 
 /// The `interactiveExperience` object of a decision request.
-class InteractiveExperienceSupport {
+class InteractiveExperienceCapability {
+  /// Always `true` when constructed by the SDK.
+  final bool supported;
+
   /// Deduplicated, in [StandardAttributeKey] declaration order.
   final List<StandardAttributeKey> availableAttributeKeys;
 
-  InteractiveExperienceSupport(Iterable<StandardAttributeKey> keys)
-      : availableAttributeKeys = List.unmodifiable(
-          StandardAttributeKey.values.where(keys.toSet().contains),
+  InteractiveExperienceCapability({
+    required Iterable<StandardAttributeKey> availableAttributeKeys,
+  })  : supported = true,
+        availableAttributeKeys = List.unmodifiable(
+          StandardAttributeKey.values
+              .where(availableAttributeKeys.toSet().contains),
         );
 
   Map<String, dynamic> toJson() => {
-        'supported': true,
+        'supported': supported,
         'availableAttributeKeys': [
           for (final key in availableAttributeKeys) key.wireName,
         ],
@@ -117,8 +94,8 @@ final class LeadGenerationExperience extends InteractiveExperience {
   final String formId;
   final String preparedVersionId;
   final String formInstanceId;
-  final Uri launchUrl;
-  final String preparationToken;
+  final Uri _launchUrl;
+  final String _preparationToken;
 
   /// UTC.
   final DateTime expiresAt;
@@ -130,11 +107,12 @@ final class LeadGenerationExperience extends InteractiveExperience {
     required this.formId,
     required this.preparedVersionId,
     required this.formInstanceId,
-    required this.launchUrl,
-    required this.preparationToken,
+    required Uri launchUrl,
+    required String preparationToken,
     required this.expiresAt,
     this.prefillAttributeKeys = const <StandardAttributeKey>[],
-  });
+  })  : _launchUrl = launchUrl,
+        _preparationToken = preparationToken;
 
   @override
   String get type => wireType;
@@ -181,9 +159,18 @@ final class LeadGenerationExperience extends InteractiveExperience {
 
   @override
   String toString() => 'LeadGenerationExperience(formId: $formId, '
-      'formInstanceId: $formInstanceId, preparationToken: <redacted>, '
+      'formInstanceId: $formInstanceId, '
       'expiresAt: ${expiresAt.toIso8601String()})';
 }
+
+/// SDK-internal: the launch URL and preparation token of [experience]. Not part
+/// of the public API (hidden from the package export).
+({Uri launchUrl, String preparationToken}) leadGenerationLaunch(
+        LeadGenerationExperience experience) =>
+    (
+      launchUrl: experience._launchUrl,
+      preparationToken: experience._preparationToken,
+    );
 
 /// An experience this SDK cannot open: an unknown `type`, or a `lead_generation`
 /// descriptor that is malformed. The app must treat the creative as not

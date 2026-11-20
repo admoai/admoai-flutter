@@ -5,7 +5,6 @@ import 'utils/device_signals.dart';
 import 'utils/device_signals_state.dart';
 import 'models/audience_signals.dart';
 import 'models/decision_request.dart';
-import 'models/interactive_experience.dart';
 
 abstract class Clearable {
   factory Clearable.clear() => throw UnimplementedError();
@@ -28,12 +27,6 @@ class SDKConfig {
   /// [AdMoai.setDeviceConfig] are sent either way.
   final bool collectDeviceSignals;
 
-  /// The explicit opt-in to Lead Generation ads. Setting it declares that the app
-  /// hosts the Lead Generation form (controller, container, close and link
-  /// handling); a new SDK version alone never advertises support. `null` (the
-  /// default) sends no `interactiveExperience` field.
-  final InteractiveExperienceIntegration? interactiveExperience;
-
   SDKConfig({
     required this.baseUrl,
     this.apiVersion,
@@ -43,7 +36,6 @@ class SDKConfig {
     this.receiveTimeout = const Duration(seconds: 10),
     Logger? logger,
     this.collectDeviceSignals = false,
-    this.interactiveExperience,
   }) : logger = logger ?? Logger('AdMoai');
 }
 

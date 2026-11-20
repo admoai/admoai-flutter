@@ -309,7 +309,7 @@ class AdMoai {
     _warnIfAudienceWithoutApiVersion(toSend);
     _warnIfInteractiveExperienceWithoutApiVersion();
     return _client.requestDecision(toSend,
-        interactiveExperience: _interactiveExperienceSupport());
+        interactiveExperience: _interactiveExperienceCapability());
   }
 
   /// Joins the native read in flight, or starts one. The result is written
@@ -348,7 +348,7 @@ class AdMoai {
     _warnIfAudienceWithoutApiVersion(request);
     _warnIfInteractiveExperienceWithoutApiVersion();
     return _client.getDecisionRequest(request,
-        interactiveExperience: _interactiveExperienceSupport());
+        interactiveExperience: _interactiveExperienceCapability());
   }
 
   /// The decision endpoint version-routes on `X-Decision-Version`; Journey fields
@@ -401,33 +401,62 @@ class AdMoai {
     );
   }
 
+  LeadFormValueProvider? _leadFormValueProvider;
+
+  /// **Experimental.** Declares that the app hosts the Lead Generation form.
+  /// Replaces a previous provider. A new SDK version alone never advertises
+  /// support.
+  void enableInteractiveExperiences(LeadFormValueProvider provider) {
+    _leadFormValueProvider = provider;
+  }
+
+  /// The next request carries no `interactiveExperience`.
+  void disableInteractiveExperiences() {
+    _leadFormValueProvider = null;
+  }
+
+  static bool Function() _secureSurfaceAvailable = _noSecureSurface;
+
+  static bool _noSecureSurface() => false;
+
+  @visibleForTesting
+  static set secureSurfaceAvailableForTesting(bool Function()? check) {
+    _secureSurfaceAvailable = check ?? _noSecureSurface;
+  }
+
+  /// This SDK version has no secure form surface yet, so it never advertises
+  /// support, even when enabled; the surface and its device check arrive with
+  /// the form controller. This prevents an app on a release cut before the
+  /// controller from receiving ads it cannot open.
+  bool get _canHostInteractiveExperience => _secureSurfaceAvailable();
+
   /// The request extension for an opted-in app, or `null` (field omitted). Reads
-  /// only the keys, never a value. A provider that throws advertises support with
-  /// no keys; the exception is not logged because it could carry user data.
-  InteractiveExperienceSupport? _interactiveExperienceSupport() {
-    final integration = config.interactiveExperience;
-    if (integration == null) return null;
+  /// only the keys. A provider that throws advertises support with no keys; the
+  /// exception is not logged because it could carry user data.
+  InteractiveExperienceCapability? _interactiveExperienceCapability() {
+    final provider = _leadFormValueProvider;
+    if (provider == null || !_canHostInteractiveExperience) return null;
     Set<StandardAttributeKey> keys;
     try {
-      keys = integration.valueProvider.availableKeys;
+      keys = provider.availableKeys;
     } catch (_) {
       config.logger.fine(
         'availableKeys threw; advertising support with no prefill keys',
       );
       keys = const <StandardAttributeKey>{};
     }
-    return InteractiveExperienceSupport(keys);
+    return InteractiveExperienceCapability(availableAttributeKeys: keys);
   }
 
   /// Lead Generation ads are version-routed like Journey: without
   /// [SDKConfig.apiVersion] the engine ignores the opt-in. Warn during
   /// integration.
   void _warnIfInteractiveExperienceWithoutApiVersion() {
-    if (config.interactiveExperience == null || config.apiVersion != null) {
+    if (_leadFormValueProvider == null || config.apiVersion != null) {
       return;
     }
     config.logger.warning(
-      'Interactive experience integration set but apiVersion is null; Lead '
+      'Interactive experiences enabled but apiVersion is null; Lead '
       'Generation ads are served only on 2025-11-01 or later.',
     );
   }

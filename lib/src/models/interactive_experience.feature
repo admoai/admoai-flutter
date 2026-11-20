@@ -5,7 +5,7 @@ Feature: Lead Generation opt-in and interactive experience descriptor
   So that no ad opens a form my app cannot show, and no user data leaves the app before a form is opened
 
   Scenario: An SDK update alone does not advertise Lead Generation
-    Given an app that has not set an interactive experience integration
+    Given an app that has not enabled interactive experiences
     When the app requests ads
     Then the request carries no interactiveExperience field
 
@@ -19,15 +19,25 @@ Feature: Lead Generation opt-in and interactive experience descriptor
     When the app requests ads
     Then the request says Lead Generation is supported with no keys
 
-  Scenario: Building and sending a request never reads a value
+  Scenario: Building and sending a request reads only the keys
     Given an app that hosts the form and can fill email
     When the app builds and sends decision requests
-    Then no user value was read
+    Then the keys were read once per request and building never failed
 
   Scenario: A provider that fails to list keys does not block the request
     Given an app whose provider fails when asked for its keys
     When the app requests ads
     Then the request says Lead Generation is supported with no keys
+
+  Scenario: An app that turns Lead Generation off stops advertising it
+    Given an app that hosts the form and then turns interactive experiences off
+    When the app requests ads
+    Then the request carries no interactiveExperience field
+
+  Scenario: A device that cannot host the form does not advertise Lead Generation
+    Given an app that hosts the form on a device with no secure form surface
+    When the app requests ads
+    Then the request carries no interactiveExperience field and the only warning is about the API version
 
   Scenario: Each creative carries its own experience
     Given a response with three creatives and an experience on only one
