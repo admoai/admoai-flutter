@@ -15,6 +15,20 @@
   token is redacted from `toString()`. Lead Generation ads are served on
   `apiVersion` `2025-11-01` or later; the SDK warns when opted in without one.
 
+## 0.8.0 - 2026-11-18
+
+### Added
+
+- **Typed audience signals.** One setter per Standard key on the request
+  builder (`setAgeGroup`, `setGender`, `setAccountType`,
+  `setSubscriptionStatus`, `setAccountTenure`, `setActivityFrequency30d`,
+  `setLastActivityRecency`), each taking an enum of the catalog's values, and
+  `setPublisherSegments` (always an array; duplicates dropped; codes checked
+  against `^[a-zA-Z0-9_]+$`). `null` removes a key. `Device` gains `carrier`
+  and `category` (`DeviceCategory.phone`, `.tablet`, `.other`). An app that
+  sets none of them sends exactly what it sent before. Audience signals need
+  Audience Signals enabled on the workspace and `apiVersion` `2025-11-01` to be
+  recorded in reporting. (#105)
 - **Device carrier and category, opt-in.** `SDKConfig(collectDeviceSignals: true)`
   reads the mobile carrier (Android only, from the default data subscription)
   and the device category (`phone`, `tablet` or `other`) and sends them as
@@ -34,7 +48,9 @@
   reset; 1–32 character codes; at most 20 per request), device carrier and
   category (opt-in collection, a value set by hand, or absent), one request
   example per audience surface, and the validation codes the engine can return.
-  (#112)
+  (#112) The guide states that the Standard keys and publisher segments also
+  need Audience Signals enabled on the workspace (otherwise 422, code 10028).
+  (#115)
 - **docs: README sections for Carousel and Branded Assets.** Carousel: render
   `creative.slides` in the order given (never re-sorted by `position`), read
   each slide's `contents`, and report with `trackSlideView` / `trackSlideViews`
@@ -42,32 +58,32 @@
   `metadata.assetContext` (`vehicle_marker`), `branded_image`,
   `accessible_label` and `destination_url` through the content lookup, and
   `fireAssetTap`, which is not a click. Sponsored Pin Locations now says
-  `pinImage` is a creative-level content key read the same way.
+  `pinImage` is a creative-level content key read the same way. (#122)
 - **The engine's error code on every 4xx.** `ClientError` and
   `UnexpectedStatusError` gain `errors`: the engine's `{code, message}` entries
   from the response body (empty when it has none), also in the error's
   message. A device `carrier` or `category` sent to a workspace without
   Audience Signals now shows code 10009 on the 400 instead of only "Client
   error: 400". A 422 with errors is still a `ValidationError`, and a malformed
-  entry is dropped instead of failing the whole parse. (#123, fixes #113)
+  entry is dropped instead of failing the whole parse. (#124, fixes #113)
 - **A warning when audience signals are sent without `apiVersion`.** Like the
   Journey warning: a request that carries a Standard key, publisher segments,
   or a device carrier or category while `SDKConfig.apiVersion` is null logs one
   warning, because the default route matches the values but does not record
-  them as audience dimensions. (#123)
+  them as audience dimensions. (#124)
 - **A debug line when a native read fails.** A failed carrier/category read
   logs one `fine` line on `SDKConfig.logger` (Dart) and a `Log.d` line tagged
   `AdMoai` (Android), with the failure's type only, never a device value.
-  `DeviceConfig.systemDefault` takes an optional `logger`. (#123)
+  `DeviceConfig.systemDefault` takes an optional `logger`. (#124)
 - **The iOS plugin is tested.** An XCTest runs the category rule (idiom, iPad
   app on a Mac, Catalyst) and checks that no carrier is ever returned, on an
-  iPhone and an iPad simulator in CI. (#123)
+  iPhone and an iPad simulator in CI. (#124)
 - **docs: what each audience value means**, in the README and the dartdoc
   (completed years, a recorded choice, the account's age, one completed
   activity, the 30 x 24 h window, elapsed days, and what `never`, `none`,
   `zero` and `other` mean); carrier and category are not targetable yet; the
   README example shows all seven setters; the refusal table gives the HTTP
-  status and the thrown type, with 10028 (422) and 10009 (400). (#123)
+  status and the thrown type, with 10028 (422) and 10009 (400). (#124)
 
 ### Changed
 
@@ -80,16 +96,19 @@
   `setLastActivityRecency(LastActivityRecency)`, with `times1To2`, `times3To9`
   and `times10Plus` in place of `trips1To2`, `trips3To9` and `trips10Plus`. The
   wire values are unchanged. These setters have not shipped in a release, so
-  there is no deprecated alias.
+  there is no deprecated alias. (#122)
 - The contract tests adopt `@admoai/sdk-scenarios` 2.0.0 (schemaVersion 6): the
   runner sends a scenario's manual `device` and list values in `custom`. (#112)
 - The contract tests adopt `@admoai/sdk-scenarios` 3.0.0 (still schemaVersion
   6): the live audience scenarios send `activity_frequency_30d` and
-  `last_activity_recency`.
+  `last_activity_recency`. (#122)
 - The contract tests adopt `@admoai/sdk-scenarios` 3.1.0 (still schemaVersion
   6): AS1, AS20 (device) and AS21 (segments) run with no version header
   (`"apiVersion": "none"`, which the runner already sends as no header), and
-  AS6/AS9 pin 2025-11-01. (#123)
+  AS6/AS9 pin 2025-11-01. (#124)
+- The contract tests adopt `@admoai/sdk-scenarios` 3.2.0 (still schemaVersion
+  6): SP16, a Journey screen on a template based on Sponsored Pin Location
+  serves the advertiser's matched shops. (#125)
 
 ## 0.7.0 - 2026-11-10
 
