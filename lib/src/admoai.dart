@@ -11,6 +11,10 @@ import 'models/audience_signals.dart';
 import 'models/decision_request.dart';
 import 'models/decision_response.dart';
 import 'models/decision_request_builder.dart';
+import 'interactive/form_presentation.dart';
+import 'interactive/lead_form_controller.dart';
+import 'interactive/lead_form_host.dart';
+import 'interactive/secure_form_surface.dart';
 import 'models/interactive_experience.dart';
 import 'utils/device_signals.dart';
 import 'utils/device_signals_state.dart';
@@ -308,6 +312,7 @@ class AdMoai {
     }
     _warnIfAudienceWithoutApiVersion(toSend);
     _warnIfInteractiveExperienceWithoutApiVersion();
+    await _awaitSurfaceCheck();
     return _client.requestDecision(toSend,
         interactiveExperience: _interactiveExperienceCapability());
   }
@@ -408,6 +413,8 @@ class AdMoai {
   /// support.
   void enableInteractiveExperiences(LeadFormValueProvider provider) {
     _leadFormValueProvider = provider;
+    // Warm the device check, so the first request already knows the answer.
+    unawaited(_awaitSurfaceCheck());
   }
 
   /// The next request carries no `interactiveExperience`.
@@ -415,20 +422,59 @@ class AdMoai {
     _leadFormValueProvider = null;
   }
 
-  static bool Function() _secureSurfaceAvailable = _noSecureSurface;
+  static bool Function() _secureSurfaceAvailable = _deviceHostsSecureSurface;
 
-  static bool _noSecureSurface() => false;
+  /// The real check: the answer the plugin gave (once per process) on whether
+  /// this device can host the secure form view. `false` until that answer
+  /// arrived, so a request never advertises support the device may lack.
+  static bool _deviceHostsSecureSurface() => LeadFormSurface.isSupportedCached;
 
   @visibleForTesting
   static set secureSurfaceAvailableForTesting(bool Function()? check) {
-    _secureSurfaceAvailable = check ?? _noSecureSurface;
+    _secureSurfaceAvailable = check ?? _deviceHostsSecureSurface;
   }
 
-  /// This SDK version has no secure form surface yet, so it never advertises
-  /// support, even when enabled; the surface and its device check arrive with
-  /// the form controller. This prevents an app on a release cut before the
-  /// controller from receiving ads it cannot open.
+  /// Whether this device can host the Lead Generation form: the secure web view
+  /// exists. An app on a device that cannot host it never advertises support,
+  /// so it is never served an ad it cannot open.
   bool get _canHostInteractiveExperience => _secureSurfaceAvailable();
+
+  /// Asks the plugin, once, whether the device can host the form, so the
+  /// synchronous capability check has an answer when a request is built.
+  Future<void> _awaitSurfaceCheck() async {
+    if (_leadFormValueProvider == null ||
+        !identical(_secureSurfaceAvailable, _deviceHostsSecureSurface)) {
+      return;
+    }
+    await LeadFormSurface.isSupported();
+  }
+
+  /// **Experimental.** Creates the controller that prepares and opens the Lead
+  /// Generation form of [creative], shown as [presentation] and reporting to
+  /// [host]. Returns `null` when the app has not opted in (see
+  /// [enableInteractiveExperiences]), the device has no secure form view, or the
+  /// creative has no usable Lead Generation experience: render that creative as
+  /// before, or not at all.
+  ///
+  /// Call it once per served creative and dispose the controller when its form
+  /// goes away.
+  LeadFormController? createLeadFormController(
+    Creative creative, {
+    required FormPresentation presentation,
+    required LeadFormHost host,
+  }) {
+    if (_leadFormValueProvider == null || !_canHostInteractiveExperience) {
+      return null;
+    }
+    final experience = creative.interactiveExperience;
+    if (experience is! LeadGenerationExperience) return null;
+    return buildLeadFormController(
+      descriptor: experience,
+      presentation: presentation,
+      host: host,
+      log: config.logger.fine,
+    );
+  }
 
   /// The request extension for an opted-in app, or `null` (field omitted). Reads
   /// only the keys. A provider that throws advertises support with no keys; the

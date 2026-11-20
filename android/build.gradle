@@ -59,5 +59,11 @@ android {
 }
 
 dependencies {
+    // The Lead Generation secure form view: a message listener bound to one origin, and the
+    // WebView profile. Same version as the native Android SDK.
+    implementation 'androidx.webkit:webkit:1.12.1'
+
     testImplementation 'junit:junit:4.13.2'
+    // Test only: the form view's settings and listener rules run on a JVM WebView shadow.
+    testImplementation 'org.robolectric:robolectric:4.14.1'
 }

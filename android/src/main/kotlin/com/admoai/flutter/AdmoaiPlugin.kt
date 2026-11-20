@@ -11,6 +11,8 @@ import android.telephony.TelephonyManager
 import android.util.DisplayMetrics
 import android.util.Log
 import android.view.Display
+import com.admoai.flutter.leadform.LeadFormChannel
+import com.admoai.flutter.leadform.LeadFormViewFactory
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
@@ -114,18 +116,26 @@ internal fun readCategoryWith(
 class AdmoaiPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
     private var channel: MethodChannel? = null
     private var appContext: Context? = null
+    private var leadForm: LeadFormChannel? = null
 
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         appContext = binding.applicationContext
         channel = MethodChannel(binding.binaryMessenger, CHANNEL).also {
             it.setMethodCallHandler(this)
         }
+        // The Lead Generation secure form view (channel `admoai/lead_form`, view type
+        // `admoai/lead_form_view`); independent of the device signals above.
+        val form = LeadFormChannel(binding.applicationContext, binding.binaryMessenger)
+        leadForm = form
+        binding.platformViewRegistry.registerViewFactory(LEAD_FORM_VIEW_TYPE, LeadFormViewFactory(form.views))
     }
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         channel?.setMethodCallHandler(null)
         channel = null
         appContext = null
+        leadForm?.detach()
+        leadForm = null
     }
 
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
@@ -211,6 +221,7 @@ class AdmoaiPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
 
     companion object {
         private const val CHANNEL = "admoai/device_signals"
+        private const val LEAD_FORM_VIEW_TYPE = "admoai/lead_form_view"
         private const val LOG_TAG = "AdMoai"
         private val hardwareClass = HardwareClassCache()
     }

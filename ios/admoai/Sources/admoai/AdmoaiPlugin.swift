@@ -18,6 +18,9 @@ public class AdmoaiPlugin: NSObject, FlutterPlugin {
       name: "admoai/device_signals", binaryMessenger: registrar.messenger())
     let instance = AdmoaiPlugin()
     registrar.addMethodCallDelegate(instance, channel: channel)
+    // The Lead Generation secure form view (channel `admoai/lead_form`, view type
+    // `admoai/lead_form_view`); independent of the device signals above.
+    LeadFormChannel.register(with: registrar)
   }
 
   public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
