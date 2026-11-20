@@ -2,6 +2,19 @@
 
 ### Added
 
+- **Lead Generation opt-in, keys-only availability and interactive experience
+  decode.** `SDKConfig(interactiveExperience: InteractiveExperienceIntegration(...))`
+  declares that the app hosts the Lead Generation form; a new SDK version alone
+  never advertises support, and without it the request carries no
+  `interactiveExperience` field. An optional `StandardValueProvider` lists the
+  `StandardAttributeKey`s the app could fill (keys only: values are never read
+  while a request is built or sent). Each `Creative` exposes
+  `interactiveExperience`: a `LeadGenerationExperience` descriptor, an
+  `UnsupportedInteractiveExperience` for an unknown or malformed one (treat the
+  creative as not openable), or `null` for an ordinary creative. The preparation
+  token is redacted from `toString()`. Lead Generation ads are served on
+  `apiVersion` `2025-11-01` or later; the SDK warns when opted in without one.
+
 - **Device carrier and category, opt-in.** `SDKConfig(collectDeviceSignals: true)`
   reads the mobile carrier (Android only, from the default data subscription)
   and the device category (`phone`, `tablet` or `other`) and sends them as

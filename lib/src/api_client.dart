@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:logging/logging.dart';
 
 import 'models/decision_request.dart';
+import 'models/interactive_experience.dart';
 import 'models/decision_response.dart';
 import 'version.dart';
 
@@ -131,7 +132,10 @@ class AdMoaiClient {
     }
   }
 
-  HTTPRequest getDecisionRequest(DecisionRequest request) {
+  HTTPRequest getDecisionRequest(
+    DecisionRequest request, {
+    InteractiveExperienceSupport? interactiveExperience,
+  }) {
     final headers = {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
@@ -150,13 +154,20 @@ class AdMoaiClient {
       path: '/v1/decision',
       method: HTTPMethod.post,
       headers: headers,
-      body: jsonEncode(request.toJson()),
+      body: jsonEncode({
+        ...request.toJson(),
+        if (interactiveExperience != null)
+          'interactiveExperience': interactiveExperience.toJson(),
+      }),
     );
   }
 
   Future<APIResponse<DecisionResponse>> requestDecision(
-      DecisionRequest request) async {
-    final httpRequest = getDecisionRequest(request);
+    DecisionRequest request, {
+    InteractiveExperienceSupport? interactiveExperience,
+  }) async {
+    final httpRequest = getDecisionRequest(request,
+        interactiveExperience: interactiveExperience);
     return send(httpRequest);
   }
 

@@ -11,6 +11,7 @@ import 'models/audience_signals.dart';
 import 'models/decision_request.dart';
 import 'models/decision_response.dart';
 import 'models/decision_request_builder.dart';
+import 'models/interactive_experience.dart';
 import 'utils/device_signals.dart';
 import 'utils/device_signals_state.dart';
 import 'view_beacon_ledger.dart';
@@ -306,7 +307,9 @@ class AdMoai {
       }
     }
     _warnIfAudienceWithoutApiVersion(toSend);
-    return _client.requestDecision(toSend);
+    _warnIfInteractiveExperienceWithoutApiVersion();
+    return _client.requestDecision(toSend,
+        interactiveExperience: _interactiveExperienceSupport());
   }
 
   /// Joins the native read in flight, or starts one. The result is written
@@ -343,7 +346,9 @@ class AdMoai {
   HTTPRequest getHttpRequest(DecisionRequest request) {
     _warnIfJourneyWithoutApiVersion(request);
     _warnIfAudienceWithoutApiVersion(request);
-    return _client.getDecisionRequest(request);
+    _warnIfInteractiveExperienceWithoutApiVersion();
+    return _client.getDecisionRequest(request,
+        interactiveExperience: _interactiveExperienceSupport());
   }
 
   /// The decision endpoint version-routes on `X-Decision-Version`; Journey fields
@@ -393,6 +398,37 @@ class AdMoai {
       'Audience signals set but apiVersion is null; they are matched but not '
       'recorded as audience dimensions in reporting. Set apiVersion '
       '"2025-11-01".',
+    );
+  }
+
+  /// The request extension for an opted-in app, or `null` (field omitted). Reads
+  /// only the keys, never a value. A provider that throws advertises support with
+  /// no keys; the exception is not logged because it could carry user data.
+  InteractiveExperienceSupport? _interactiveExperienceSupport() {
+    final integration = config.interactiveExperience;
+    if (integration == null) return null;
+    Set<StandardAttributeKey> keys;
+    try {
+      keys = integration.valueProvider.availableKeys;
+    } catch (_) {
+      config.logger.fine(
+        'availableKeys threw; advertising support with no prefill keys',
+      );
+      keys = const <StandardAttributeKey>{};
+    }
+    return InteractiveExperienceSupport(keys);
+  }
+
+  /// Lead Generation ads are version-routed like Journey: without
+  /// [SDKConfig.apiVersion] the engine ignores the opt-in. Warn during
+  /// integration.
+  void _warnIfInteractiveExperienceWithoutApiVersion() {
+    if (config.interactiveExperience == null || config.apiVersion != null) {
+      return;
+    }
+    config.logger.warning(
+      'Interactive experience integration set but apiVersion is null; Lead '
+      'Generation ads are served only on 2025-11-01 or later.',
     );
   }
 

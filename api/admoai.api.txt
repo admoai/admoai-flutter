@@ -80,10 +80,10 @@ AdMoaiClient.apiVersion  field: String? (read)
 AdMoaiClient.baseUrl  field: String (read)
 AdMoaiClient.defaultLanguage  field: String? (read)
 AdMoaiClient.dispose  method() -> void
-AdMoaiClient.getDecisionRequest  method(DecisionRequest request) -> HTTPRequest
+AdMoaiClient.getDecisionRequest  method(DecisionRequest request, {InteractiveExperienceSupport? interactiveExperience}) -> HTTPRequest
 AdMoaiClient.logger  field: Logger (read)
 AdMoaiClient.new  constructor({required String baseUrl, String? apiVersion, String? defaultLanguage, Duration requestTimeout, required Logger logger, Client? httpClient})
-AdMoaiClient.requestDecision  method(DecisionRequest request) -> Future<APIResponse<List<Decision>>>
+AdMoaiClient.requestDecision  method(DecisionRequest request, {InteractiveExperienceSupport? interactiveExperience}) -> Future<APIResponse<List<Decision>>>
 AdMoaiClient.requestTimeout  field: Duration (read)
 AdMoaiClient.send  method<T>(HTTPRequest request) -> Future<APIResponse<T>>
 AdMoaiError  type
@@ -177,9 +177,10 @@ Creative.advertiser  field: Advertiser (read)
 Creative.contents  field: List<Content> (read)
 Creative.delivery  field: String? (read)
 Creative.fromJson  constructor(Map<String, dynamic> json)
+Creative.interactiveExperience  field: InteractiveExperience? (read)
 Creative.journey  field: CreativeJourney? (read)
 Creative.metadata  field: Metadata? (read)
-Creative.new  constructor({required List<Content> contents, Metadata? metadata, required Advertiser advertiser, Template? template, required Tracking tracking, String? delivery, VastData? vast, List<VerificationScriptResource>? verificationScriptResources, CreativeJourney? journey, List<Slide> slides})
+Creative.new  constructor({required List<Content> contents, Metadata? metadata, required Advertiser advertiser, Template? template, required Tracking tracking, String? delivery, VastData? vast, List<VerificationScriptResource>? verificationScriptResources, CreativeJourney? journey, List<Slide> slides, InteractiveExperience? interactiveExperience})
 Creative.slides  field: List<Slide> (read)
 Creative.template  field: Template? (read)
 Creative.tracking  field: Tracking (read)
@@ -367,6 +368,17 @@ HTTPStatus.ok  static field: HTTPStatus (read)
 HTTPStatus.tooManyRequests  static field: HTTPStatus (read)
 HTTPStatus.unprocessableEntity  static field: HTTPStatus (read)
 HTTPStatus.values  static field: List<HTTPStatus> (read)
+InteractiveExperience  type
+InteractiveExperience.new  constructor()
+InteractiveExperience.tryFromJson  static method(dynamic raw) -> InteractiveExperience?
+InteractiveExperience.type  field: String? (read)
+InteractiveExperienceIntegration  type
+InteractiveExperienceIntegration.new  constructor({StandardValueProvider valueProvider})
+InteractiveExperienceIntegration.valueProvider  field: StandardValueProvider (read)
+InteractiveExperienceSupport  type
+InteractiveExperienceSupport.availableAttributeKeys  field: List<StandardAttributeKey> (read)
+InteractiveExperienceSupport.new  constructor(Iterable<StandardAttributeKey> keys)
+InteractiveExperienceSupport.toJson  method() -> Map<String, dynamic>
 InvalidURLError  type : APIError, Exception
 InvalidURLError.message  field: String (read)
 InvalidURLError.new  constructor()
@@ -398,6 +410,18 @@ LastActivityRecency.days91Plus  static field: LastActivityRecency (read)
 LastActivityRecency.never  static field: LastActivityRecency (read)
 LastActivityRecency.value  field: String (read)
 LastActivityRecency.values  static field: List<LastActivityRecency> (read)
+LeadGenerationExperience  type : InteractiveExperience
+LeadGenerationExperience.expiresAt  field: DateTime (read)
+LeadGenerationExperience.formId  field: String (read)
+LeadGenerationExperience.formInstanceId  field: String (read)
+LeadGenerationExperience.launchUrl  field: Uri (read)
+LeadGenerationExperience.new  constructor({required String formId, required String preparedVersionId, required String formInstanceId, required Uri launchUrl, required String preparationToken, required DateTime expiresAt, List<StandardAttributeKey> prefillAttributeKeys})
+LeadGenerationExperience.prefillAttributeKeys  field: List<StandardAttributeKey> (read)
+LeadGenerationExperience.preparationToken  field: String (read)
+LeadGenerationExperience.preparedVersionId  field: String (read)
+LeadGenerationExperience.tryFromJson  static method(dynamic raw) -> InteractiveExperience?
+LeadGenerationExperience.type  field: String (read)
+LeadGenerationExperience.wireType  static field: String (read)
 Location  type
 Location.latitude  field: double (read)
 Location.longitude  field: double (read)
@@ -470,8 +494,9 @@ SDKConfig.baseUrl  field: String (read)
 SDKConfig.collectDeviceSignals  field: bool (read)
 SDKConfig.connectTimeout  field: Duration (read)
 SDKConfig.defaultLanguage  field: String? (read)
+SDKConfig.interactiveExperience  field: InteractiveExperienceIntegration? (read)
 SDKConfig.logger  field: Logger (read)
-SDKConfig.new  constructor({required String baseUrl, String? apiVersion, String? defaultLanguage, Duration requestTimeout, Duration connectTimeout, Duration receiveTimeout, Logger? logger, bool collectDeviceSignals})
+SDKConfig.new  constructor({required String baseUrl, String? apiVersion, String? defaultLanguage, Duration requestTimeout, Duration connectTimeout, Duration receiveTimeout, Logger? logger, bool collectDeviceSignals, InteractiveExperienceIntegration? interactiveExperience})
 SDKConfig.receiveTimeout  field: Duration (read)
 SDKConfig.requestTimeout  field: Duration (read)
 ServerError  type : APIError, Exception
@@ -490,6 +515,22 @@ SlideTracking.clicks  field: List<TrackingItem>? (read)
 SlideTracking.new  constructor({List<TrackingItem>? views, List<TrackingItem>? clicks})
 SlideTracking.tryFromJson  static method(dynamic json) -> SlideTracking?
 SlideTracking.views  field: List<TrackingItem>? (read)
+StandardAttributeKey  type : Enum
+StandardAttributeKey.age  static field: StandardAttributeKey (read)
+StandardAttributeKey.email  static field: StandardAttributeKey (read)
+StandardAttributeKey.firstName  static field: StandardAttributeKey (read)
+StandardAttributeKey.fromWire  static method(String? value) -> StandardAttributeKey?
+StandardAttributeKey.fullName  static field: StandardAttributeKey (read)
+StandardAttributeKey.gender  static field: StandardAttributeKey (read)
+StandardAttributeKey.lastName  static field: StandardAttributeKey (read)
+StandardAttributeKey.phone  static field: StandardAttributeKey (read)
+StandardAttributeKey.values  static field: List<StandardAttributeKey> (read)
+StandardAttributeKey.wireName  field: String (read)
+StandardValueProvider  type
+StandardValueProvider.availableKeys  field: Set<StandardAttributeKey> (read)
+StandardValueProvider.new  constructor()
+StandardValueProvider.none  static field: StandardValueProvider (read)
+StandardValueProvider.valueFor  method(StandardAttributeKey key) -> Future<String?>
 SubscriptionStatus  type : Enum
 SubscriptionStatus.active  static field: SubscriptionStatus (read)
 SubscriptionStatus.expired  static field: SubscriptionStatus (read)
@@ -554,6 +595,10 @@ UnexpectedStatusError.errors  field: List<AdMoaiError> (read)
 UnexpectedStatusError.message  field: String (read)
 UnexpectedStatusError.new  constructor(int statusCode, {List<AdMoaiError> errors})
 UnexpectedStatusError.statusCode  field: int (read)
+UnsupportedInteractiveExperience  type : InteractiveExperience
+UnsupportedInteractiveExperience.new  constructor({required String? type})
+UnsupportedInteractiveExperience.tryFromJson  static method(dynamic raw) -> InteractiveExperience?
+UnsupportedInteractiveExperience.type  field: String? (read)
 User  type
 User.consent  field: Consent? (read)
 User.id  field: String? (read)
