@@ -70,6 +70,10 @@
   order checks read from the shared contract), plus the channel minting. Nothing
   is exported and no behaviour changes.
 
+- **Docs: Lead Generation how-to.** README: Lead Generation, a step-by-step
+  integration guide (opt-in with and without prefill, controller, tap, visibility,
+  host, state, dispose) whose examples are compile-checked.
+
 ## 0.8.0 - 2026-11-18
 
 ### Added
