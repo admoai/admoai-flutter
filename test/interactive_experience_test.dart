@@ -318,10 +318,20 @@ class _Provider implements LeadFormValueProvider {
     keyReads++;
     return _keys;
   }
+
+  @override
+  Future<Map<StandardAttributeKey, String>> lookUpValues(
+          Set<StandardAttributeKey> keys) async =>
+      const {};
 }
 
 class _ThrowingKeys implements LeadFormValueProvider {
   @override
   Set<StandardAttributeKey> get availableKeys =>
       throw StateError('secret-user-data');
+
+  @override
+  Future<Map<StandardAttributeKey, String>> lookUpValues(
+          Set<StandardAttributeKey> keys) async =>
+      const {};
 }

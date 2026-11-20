@@ -49,6 +49,7 @@ AdMoai.createRequestBuilder  method() -> DecisionRequestBuilder
 AdMoai.deviceConfig  field: DeviceConfig (read/write)
 AdMoai.disableInteractiveExperiences  method() -> void
 AdMoai.dispose  method() -> void
+AdMoai.disposeAllLeadForms  method() -> void
 AdMoai.enableInteractiveExperiences  method(LeadFormValueProvider provider) -> void
 AdMoai.fireAssetTap  method(Tracking tracking) -> void
 AdMoai.fireClick  method(Tracking tracking, {String key}) -> void
@@ -63,6 +64,7 @@ AdMoai.fireVideoEvent  method(Tracking tracking, String key) -> void
 AdMoai.forTesting  static method({required SDKConfig config, AppConfig? appConfig, DeviceConfig? deviceConfig, UserConfig? userConfig, Client? httpClient}) -> AdMoai
 AdMoai.getHttpRequest  method(DecisionRequest request) -> HTTPRequest
 AdMoai.initialize  static method({required SDKConfig config, UserConfig? userConfig, Client? httpClient, String? sessionId}) -> Future<AdMoai>
+AdMoai.leadFormSurfaceFactoryForTesting  field: LeadFormSurface Function()? (read/write)
 AdMoai.requestAds  method(DecisionRequest request) -> Future<APIResponse<List<Decision>>>
 AdMoai.resetAppConfig  method() -> Future<void>
 AdMoai.resetDeviceConfig  method() -> Future<void>
@@ -465,6 +467,7 @@ LeadFormSubmitting  type : LeadFormState
 LeadFormSubmitting.new  constructor()
 LeadFormValueProvider  type
 LeadFormValueProvider.availableKeys  field: Set<StandardAttributeKey> (read)
+LeadFormValueProvider.lookUpValues  method(Set<StandardAttributeKey> keys) -> Future<Map<StandardAttributeKey, String>>
 LeadFormValueProvider.new  constructor()
 LeadFormView  type : Diagnosticable, DiagnosticableTree, StatefulWidget, Widget
 LeadFormView.controller  field: LeadFormController (read)

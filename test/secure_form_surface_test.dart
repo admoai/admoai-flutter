@@ -10,6 +10,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'support/lead_form_support.dart' show NoPrefill;
+
 /// Binds `lib/src/interactive/secure_form_surface.feature` to the places its
 /// scenarios are proven. The web view is native code, so most scenarios run in
 /// the plugin's JVM tests (Robolectric, over a fake message listener); this file
@@ -244,6 +246,7 @@ class _Controller {
       presentation: FormPresentation.inline,
       host: _Host(),
       surface: _Surface(),
+      valueProvider: NoPrefill(),
     );
   }
 
