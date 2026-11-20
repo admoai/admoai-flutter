@@ -19,6 +19,12 @@
   ordinary creative. Lead Generation ads are served on `apiVersion` `2025-11-01`
   or later; the SDK warns when enabled without one.
 
+- **Internal: Lead Generation bridge protocol validator.** Groundwork for the
+  form surface, not a public API: the message validator the SDK will use between
+  the app and the hosted form (size, envelope, instance, channel, payload and
+  order checks read from the shared contract), plus the channel minting. Nothing
+  is exported and no behaviour changes.
+
 ## 0.8.0 - 2026-11-18
 
 ### Added
