@@ -8,9 +8,8 @@ import 'package:http/testing.dart';
 import 'e2e/manifest_runner.dart';
 
 /// Offline proof that the live runner sends `request.interactiveExperience` through the SDK's
-/// opt-in. The three requests are copied verbatim from scenarios IE1, IE2 and IE3 of adhub branch
-/// `feat/lead-generation-ads-engine-g1` (`sdk/scenarios/scenarios.json`, @admoai/sdk-scenarios
-/// 4.0.0 changelog). No network: the HTTP client is a mock.
+/// opt-in. The three requests are copied verbatim from scenarios IE1, IE2 and IE3 of the published
+/// @admoai/sdk-scenarios 4.0.0 (schemaVersion 7). No network: the HTTP client is a mock.
 void main() {
   const ie1 = {
     'apiVersion': '2025-11-01',
