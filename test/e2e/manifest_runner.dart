@@ -765,6 +765,12 @@ class _ManifestKeysProvider implements LeadFormValueProvider {
 
   @override
   final Set<StandardAttributeKey> availableKeys;
+
+  /// The manifest claims keys only; a live scenario never opens a form, so no value is ever read.
+  @override
+  Future<Map<StandardAttributeKey, String>> lookUpValues(
+          Set<StandardAttributeKey> keys) async =>
+      const <StandardAttributeKey, String>{};
 }
 
 /// Applies a scenario's `request.interactiveExperience` through the SDK's public opt-in
