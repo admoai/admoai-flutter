@@ -2,6 +2,14 @@
 
 ### Added
 
+- **Platform suite: secure form surface on a real Android WebView (CI).**
+  `integration_test/secure_form_surface_test.dart` runs the scenarios of the
+  secure form surface (a frame cannot post, no navigation or popup, no file
+  access, destroy removes the bridge) against real pages over https, on an
+  emulator, in `.github/workflows/interactive-instrumented.yml`. The pages are
+  served by a fixture hook that exists only in the plugin's debug build; release
+  and profile builds compile a no-op, so a publisher's app is unchanged.
+
 - **Experimental: Lead Generation opt-in, keys-only availability and
   interactive experience decode.** `AdMoai.enableInteractiveExperiences(provider)`
   declares that the app hosts the Lead Generation form and

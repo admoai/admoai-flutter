@@ -142,6 +142,11 @@ internal class SecureFormWebView(
         // view makes is the launch URL, which goes through loadUrl and never reaches this method.
         override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean = true
 
+        // Debug-only fixture server for the on-device test; in release and profile builds
+        // FormTestHooks (src/nonDebug) always answers null, so the WebView loads from the network.
+        override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? =
+            FormTestHooks.intercept(request)
+
         override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
             if (request.isForMainFrame) fail()
         }

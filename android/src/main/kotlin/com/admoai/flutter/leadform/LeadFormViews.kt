@@ -71,7 +71,7 @@ internal class LeadFormChannel(
                 call.argument<String>("id")?.let { views.remove(it) }
                 result.success(null)
             }
-            else -> result.notImplemented()
+            else -> if (!FormTestHooks.handle(call, result, appContext, views)) result.notImplemented()
         }
     }
 

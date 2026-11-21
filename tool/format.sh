@@ -14,7 +14,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-paths=(lib test tool)
+paths=(lib test tool integration_test)
 
 if [[ "${1:-}" == "--check" ]]; then
   dart format --output=none --set-exit-if-changed "${paths[@]}"

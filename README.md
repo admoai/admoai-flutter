@@ -1857,7 +1857,7 @@ void signOut(AdMoai sdk) {
 **I get no Lead Generation ads.** In order of likelihood: you did not call
 `enableInteractiveExperiences`; `apiVersion` is not `2025-11-01`; the device cannot host the form
 (Android WebView without support, iOS below 14), in which case the SDK does not advertise support;
-or the workspace is not enabled for Lead Generation. It is an ordinary no-fill otherwise.
+or Lead Generation is not yet turned on for your organization (ask your Admoai contact). It is an ordinary no-fill otherwise.
 
 **The form is ready but never becomes visible.** `setVisible(true)` was not called, or was called
 before the view was on screen. Call it from the frame after `LeadFormView` is attached.

@@ -1,0 +1,42 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>form</title></head>
+<body>
+<script>
+  // Test fixture for integration_test/secure_form_surface_test.dart. The page reads its
+  // instance and channel from the fragment, talks to the app through AdmoaiBridge, and on
+  // command tries what a hostile form would: leave the page, open a window, read files.
+  var params = new URLSearchParams(location.hash.slice(1));
+  var foreignFrame = (params.get("foreign") || "") + "/frame.html";
+  AdmoaiBridge.addEventListener("message", function (e) {
+    var data = e.data;
+    if (data === "navigate") { location.href = foreignFrame; return; }
+    if (data === "open") {
+      var w = window.open(foreignFrame);
+      AdmoaiBridge.postMessage("open:" + (w === null ? "null" : "window"));
+      return;
+    }
+    if (data === "files") {
+      var attempts = [
+        fetch("file:///android_asset/flutter_assets/integration_test/assets/form.html"),
+        fetch("content://com.admoai.flutter.test/anything"),
+        new Promise(function (resolve, reject) {
+          var x = new XMLHttpRequest();
+          x.open("GET", "file:///android_asset/flutter_assets/integration_test/assets/form.html");
+          x.onload = function () { resolve(); };
+          x.onerror = function () { reject(new Error("blocked")); };
+          x.send();
+        })
+      ];
+      Promise.all(attempts.map(function (p) {
+        return p.then(function () { return "loaded"; }, function () { return "refused"; });
+      })).then(function (r) { AdmoaiBridge.postMessage("files:" + r.join(",")); });
+      return;
+    }
+    if (data === "tick") { setInterval(function () { AdmoaiBridge.postMessage("tick"); }, 100); return; }
+    AdmoaiBridge.postMessage("echo:" + data);
+  });
+  AdmoaiBridge.postMessage("hello");
+  AdmoaiBridge.postMessage("address:" + (location.search === "" ? "no-query" : "query") +
+    ":" + (params.get("instanceId") || "") + ":" + (params.get("channel") || ""));
+</script>
+</body></html>

@@ -19,3 +19,11 @@ tags:
   #
   #   flutter test --exclude-tags "live || e2e"
   e2e:
+
+  # The `device` tag marks the on-device suite in integration_test/ (a real web view, over
+  # https). `flutter test` over test/ never reaches that directory; the tag keeps it out of any
+  # run that selects by tag. CI runs it on an emulator through tool/host_app.sh
+  # (.github/workflows/interactive-instrumented.yml); it is not part of the deterministic gate:
+  #
+  #   flutter test --exclude-tags "live || e2e || device"
+  device:

@@ -47,6 +47,15 @@ android {
 
     sourceSets {
         main.java.srcDirs += 'src/main/kotlin'
+        // FormTestHooks has two halves: the real one (a fixture server for the on-device test) in
+        // src/debug, and a no-op in src/nonDebug for release and for profile, which Flutter adds to
+        // plugin builds. A build that ships to users never compiles the real one.
+        debug.java.srcDirs += 'src/debug/kotlin'
+        configureEach { sourceSet ->
+            if (sourceSet.name == 'release' || sourceSet.name == 'profile') {
+                sourceSet.java.srcDirs += 'src/nonDebug/kotlin'
+            }
+        }
     }
 
     defaultConfig {
