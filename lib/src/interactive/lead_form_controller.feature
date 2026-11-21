@@ -72,6 +72,12 @@ Feature: An app prepares and opens a Lead Generation form through one controller
     Then the controller is expired
     And nothing was sent to the form
 
+  Scenario: a preparation that expires while the form is loading never opens
+    Given a controller still preparing that the app opened before it expired
+    When the form reports it is ready after the deadline
+    Then the controller is expired
+    And the form was never activated
+
   Scenario: a retryable preparation failure can be retried in the same view
     Given a controller whose preparation failed with a retryable error
     When the app retries

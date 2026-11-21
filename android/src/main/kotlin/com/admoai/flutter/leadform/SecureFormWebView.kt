@@ -29,6 +29,13 @@ internal enum class SurfaceEventKind(val wire: String) {
     LOAD_FAILED("loadFailed"),
 }
 
+/**
+ * The string of a page message, or null for any other type. The data is read only for a text: an
+ * ArrayBuffer message has no string data and reading it throws.
+ */
+internal fun textOf(message: WebMessageCompat): String? =
+    if (message.type == WebMessageCompat.TYPE_STRING) message.data else null
+
 /** Binds the page's bridge object. The real one is [WebViewCompat]; tests replace it. */
 internal fun interface BridgeBinder {
     fun bind(
@@ -41,12 +48,8 @@ internal fun interface BridgeBinder {
     companion object {
         val Real = BridgeBinder { webView, name, origins, onMessage ->
             WebViewCompat.addWebMessageListener(webView, name, origins) { _, message, sourceOrigin, isMainFrame, proxy ->
-                onMessage(
-                    sourceOrigin.toString(),
-                    isMainFrame,
-                    message.type == WebMessageCompat.TYPE_STRING,
-                    message.data,
-                ) { text -> proxy.postMessage(text) }
+                val text = textOf(message)
+                onMessage(sourceOrigin.toString(), isMainFrame, text != null, text) { text -> proxy.postMessage(text) }
             }
         }
     }
@@ -141,6 +144,10 @@ internal class SecureFormWebView(
         // Every navigation the page starts (link, redirect, script) is blocked: the one load this
         // view makes is the launch URL, which goes through loadUrl and never reaches this method.
         override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean = true
+
+        // API 21-23 call this overload instead of the one above.
+        @Suppress("OVERRIDE_DEPRECATION", "DEPRECATION")
+        override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean = true
 
         // Debug-only fixture server for the on-device test; in release and profile builds
         // FormTestHooks (src/nonDebug) always answers null, so the WebView loads from the network.

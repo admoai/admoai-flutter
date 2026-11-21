@@ -50,7 +50,8 @@ Feature: The form runs in a web view that only the form's own origin can talk to
 
   Scenario: the form view is locked down
     Given a form view
-    Then file access, content access, mixed content, multiple windows and DOM storage are off
+    Then file access, content access, mixed content and multiple windows are off
+    And nothing the page stores outlives the form: Android disables DOM storage, iOS uses a non-persistent in-memory data store
 
   Scenario: destroying the view removes the bridge
     Given a form view whose page has posted a message
