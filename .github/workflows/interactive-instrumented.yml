@@ -1,0 +1,81 @@
+# Runs the on-device suite of the Lead Generation form view (integration_test/secure_form_surface_test.dart)
+# on a real Android WebView, in an emulator. It proves lib/src/interactive/secure_form_surface.feature
+# with real pages over https: a frame cannot post, the page cannot navigate away or open a popup,
+# files are out of reach, destroying the view removes the bridge.
+#
+# Not a required check yet. Planner decision: it becomes required after ten consecutive green runs
+# on main. To make it required then: Settings > Rules (the branch ruleset of main) > Require status
+# checks to pass > add "SecureFormSurface on an emulator". Because the workflow is filtered by
+# `paths:`, a required check that never starts would block unrelated PRs: before requiring it, remove
+# the `paths:` filters (and let the job skip itself instead), or make the check conditional in the ruleset.
+#
+# Bounded on purpose: one job, 30 minutes, one emulator, Android only. iOS is run by hand
+# (the iOS section of the B7 Flutter runbook).
+name: Interactive instrumented tests
+
+on:
+  pull_request:
+    paths:
+      - 'lib/src/interactive/**'
+      - 'android/src/main/kotlin/com/admoai/flutter/leadform/**'
+      - 'integration_test/**'
+      - '.github/workflows/interactive-instrumented.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'lib/src/interactive/**'
+      - 'android/src/main/kotlin/com/admoai/flutter/leadform/**'
+      - 'integration_test/**'
+      - '.github/workflows/interactive-instrumented.yml'
+
+concurrency:
+  group: interactive-instrumented-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # Same pin as ci.yml: bump both on purpose, in the same PR.
+  FLUTTER_VERSION: 3.47.7
+
+jobs:
+  instrumented:
+    name: SecureFormSurface on an emulator
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      # Copies integration_test/ into the generated host app, with its fixture pages as assets.
+      - name: Generate the host app
+        run: tool/host_app.sh build/host_app
+
+      - name: Secure form surface on a real WebView (API 34)
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          working-directory: build/host_app
+          script: flutter test integration_test/secure_form_surface_test.dart -d emulator-5554

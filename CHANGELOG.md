@@ -2,6 +2,14 @@
 
 ### Added
 
+- **Platform suite: secure form surface on a real Android WebView (CI).**
+  `integration_test/secure_form_surface_test.dart` runs the scenarios of the
+  secure form surface (a frame cannot post, no navigation or popup, no file
+  access, destroy removes the bridge) against real pages over https, on an
+  emulator, in `.github/workflows/interactive-instrumented.yml`. The pages are
+  served by a fixture hook that exists only in the plugin's debug build; release
+  and profile builds compile a no-op, so a publisher's app is unchanged.
+
 - **Experimental: the system Back goes back one Lead Generation form stage.** `LeadFormController.handleBack()` hands the press to the visible form (it goes back one stage with answers kept, or asks to close through `LeadFormHost.onRequestClose`) and returns `false`, sending nothing, before the form is visible, while hidden and after dispose. `LeadFormView` wires Android's system Back through it with a `PopScope`. Contract re-synced for the `back` message.
 - E2E runner: scenarios schemaVersion 7 — `request.interactiveExperience` sent through the opt-in.
 - **Experimental: Lead Generation opt-in, keys-only availability and
@@ -71,6 +79,10 @@
   the app and the hosted form (size, envelope, instance, channel, payload and
   order checks read from the shared contract), plus the channel minting. Nothing
   is exported and no behaviour changes.
+
+- **Docs: Lead Generation how-to.** README: Lead Generation, a step-by-step
+  integration guide (opt-in with and without prefill, controller, tap, visibility,
+  host, state, dispose) whose examples are compile-checked.
 
 ## 0.8.0 - 2026-11-18
 

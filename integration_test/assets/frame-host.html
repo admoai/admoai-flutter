@@ -1,0 +1,15 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>frame host</title></head>
+<body>
+<script>
+  // Embeds frame.html from the same origin (frame=same) or from the foreign base (frame=other).
+  var params = new URLSearchParams(location.hash.slice(1));
+  function embed(src) {
+    var f = document.createElement("iframe");
+    f.onload = function () { AdmoaiBridge.postMessage("frame-loaded"); };
+    f.src = src;
+    document.body.appendChild(f);
+  }
+  embed(params.get("frame") === "same" ? "frame.html" : (params.get("foreign") || "") + "/frame.html");
+</script>
+</body></html>
