@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'decision_request.dart' show JourneyOpt;
+import 'interactive_experience.dart';
 
 typedef DecisionResponse = List<Decision>;
 
@@ -98,6 +99,10 @@ class Creative {
   /// paging, scroll position or which slide is on screen.
   final List<Slide> slides;
 
+  /// The interactive experience (Lead Generation) this creative carries, or
+  /// `null` for an ordinary creative. Per creative: one response can mix both.
+  final InteractiveExperience? interactiveExperience;
+
   Creative({
     required this.contents,
     this.metadata,
@@ -109,6 +114,7 @@ class Creative {
     this.verificationScriptResources,
     this.journey,
     this.slides = const <Slide>[],
+    this.interactiveExperience,
   });
 
   /// Tolerant Reader parse: never throws. Missing/retyped required blocks fall
@@ -148,6 +154,8 @@ class Creative {
           ? null
           : CreativeJourney.fromJson(_asMap(json['journey'])!),
       slides: _slidesFrom(rawContents),
+      interactiveExperience:
+          InteractiveExperience.tryFromJson(json['interactiveExperience']),
     );
   }
 
