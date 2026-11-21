@@ -2494,6 +2494,49 @@ response.body.data?.forEach((decision) {
 
 ---
 
+## Lead Generation forms
+
+### System Back (Android)
+
+`LeadFormView` takes the system Back press while the form is visible and hands it to the form
+through `LeadFormController.handleBack()`. The form does what its own Back arrow does: it returns
+to the previous stage with every answer kept, or, on the first stage and on Confirmation, asks the
+app to close through `LeadFormHost.onRequestClose` (inline and full screen alike). While a
+submission is in progress the form ignores the press. Before the form is visible, while you have
+it hidden (`setVisible(false)`), and after `dispose()`, `handleBack()` returns `false`, sends
+nothing, and the press stays yours. Back never reloads or disposes the form: close it only in
+`onRequestClose`.
+
+```dart
+class _FormHost implements LeadFormHost {
+  _FormHost(this.close);
+  final void Function(LeadFormController) close;
+
+  @override
+  void onRequestClose(LeadFormController controller) => close(controller);
+
+  @override
+  void onOpenExternalLink(
+      LeadFormController controller, ExternalLinkPurpose purpose, Uri url) {
+    // Open the URL in a separate browser surface.
+  }
+}
+
+// Full screen: a route that shows the form. Android's Back is handled by the
+// LeadFormView inside it; onRequestClose pops the route.
+Widget fullScreenForm(LeadFormController controller) =>
+    Scaffold(body: SafeArea(child: LeadFormView(controller: controller)));
+
+// Inline: the same widget in your layout. onRequestClose removes it.
+Widget inlineForm(LeadFormController controller) =>
+    SizedBox(height: 480, child: LeadFormView(controller: controller));
+
+// Your own Back control (for example an app bar) can hand its press over too:
+bool handled(LeadFormController controller) => controller.handleBack();
+```
+
+---
+
 ## Contributing
 
 We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details on:

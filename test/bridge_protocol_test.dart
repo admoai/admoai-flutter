@@ -348,7 +348,7 @@ void main() {
     expect(standardFieldsJson,
         File('$dir/standard-fields.json').readAsStringSync());
     expect(contract.maxMessageBytes, 16384);
-    expect(contract.messages.length, 19);
+    expect(contract.messages.length, 20);
     expect(contract.prefillKeys, contains('email'));
 
     final changed = decode(bridgeMessagesJson);

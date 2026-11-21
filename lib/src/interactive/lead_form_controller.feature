@@ -101,6 +101,49 @@ Feature: An app prepares and opens a Lead Generation form through one controller
     When the form asks to close
     Then the app's close callback is called with the controller
 
+  Scenario: the system back goes back one stage inside the same form
+    Given a visible controller
+    When the viewer presses the system back
+    Then the form received back with no stage
+    And the controller still shows the same form, not reloaded
+
+  Scenario: the system back is not handled before the form is visible
+    Given a controller that is ready to show but not visible
+    When the viewer presses the system back
+    Then the controller does not handle it
+    And nothing is sent to the form
+
+  Scenario: the system back is ignored after the controller is disposed
+    Given a visible controller
+    When the app disposes it
+    And the viewer presses the system back
+    Then the controller does not handle it
+    And nothing more is sent to the form
+
+  Scenario: the form asks to close in answer to back
+    Given a visible controller
+    When the viewer presses the system back
+    And the form answers with a request to close
+    Then the app's close callback is called with the controller
+
+  Scenario: the system back leaves a form the app has hidden to the app
+    Given a visible controller
+    When the app hides the form
+    And the viewer presses the system back
+    Then the controller does not handle it
+
+  Scenario: the system back on a visible form goes to the form and does not leave the screen
+    Given a visible controller shown by the form view on a screen the viewer opened
+    When the viewer presses the system back
+    Then the form received back
+    And the screen is still showing
+
+  Scenario: the system back on a form that is not visible leaves the screen
+    Given a controller that is ready to show but not visible, shown by the form view on a screen the viewer opened
+    When the viewer presses the system back
+    Then nothing is sent to the form
+    And the screen is closed
+
   Scenario: the privacy policy link goes to the app, never inside the form
     Given a visible controller
     When the form asks to open its privacy policy

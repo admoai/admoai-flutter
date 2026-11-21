@@ -3,6 +3,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter/services.dart';
 
 import 'lead_form_controller.dart';
+import 'lead_form_state.dart';
 import 'secure_form_surface.dart';
 
 /// Shows the native secure form view of a [LeadFormController].
@@ -43,6 +44,22 @@ class _LeadFormViewState extends State<LeadFormView> {
 
   @override
   Widget build(BuildContext context) {
+    // Only this PopScope rebuilds when the state changes: the platform view
+    // below sits in the child, which the state listener never rebuilds.
+    return ValueListenableBuilder<LeadFormState>(
+      valueListenable: widget.controller.state,
+      child: _surface(context),
+      builder: (context, _, child) => PopScope(
+        canPop: !leadFormHandlesBack(widget.controller),
+        onPopInvokedWithResult: (didPop, _) {
+          if (!didPop) widget.controller.handleBack();
+        },
+        child: child!,
+      ),
+    );
+  }
+
+  Widget _surface(BuildContext context) {
     final id = leadFormSurfaceId(widget.controller);
     return ValueListenableBuilder<bool>(
       valueListenable: _ready,

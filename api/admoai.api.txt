@@ -429,6 +429,7 @@ LeadFormActivating.new  constructor()
 LeadFormController  type
 LeadFormController.dispose  method() -> Future<void>
 LeadFormController.formInstanceId  field: String (read)
+LeadFormController.handleBack  method() -> bool
 LeadFormController.open  method() -> Future<void>
 LeadFormController.prepare  method() -> Future<void>
 LeadFormController.presentation  field: FormPresentation (read)

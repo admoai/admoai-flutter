@@ -3,16 +3,42 @@
 // publisher's first integration.
 // ignore_for_file: unused_local_variable, avoid_print
 import 'package:admoai/admoai.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 class _Settings {
   bool personalisedJourneys = true;
 }
 
+class _FormHost implements LeadFormHost {
+  _FormHost(this.close);
+  final void Function(LeadFormController) close;
+
+  @override
+  void onRequestClose(LeadFormController controller) => close(controller);
+
+  @override
+  void onOpenExternalLink(
+      LeadFormController controller, ExternalLinkPurpose purpose, Uri url) {}
+}
+
+// README, "Lead Generation forms / System Back": the full screen, inline and own
+// Back control snippets.
+Widget fullScreenForm(LeadFormController controller) =>
+    Scaffold(body: SafeArea(child: LeadFormView(controller: controller)));
+
+Widget inlineForm(LeadFormController controller) =>
+    SizedBox(height: 480, child: LeadFormView(controller: controller));
+
+bool handled(LeadFormController controller) => controller.handleBack();
+
+LeadFormHost formHost() => _FormHost((controller) {});
+
 // Never invoked: this is a compile-time check, not a behavioural test. Calling it
 // would hit the network. The value is entirely in the analyzer resolving every
 // symbol the README tells a publisher to call.
 Future<void> readmeExamples() async {
+  final host = formHost();
   final sdk = await AdMoai.initialize(
     config: SDKConfig(baseUrl: '...', apiVersion: '2025-11-01'),
     sessionId: 'sess_abc123',

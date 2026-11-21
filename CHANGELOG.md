@@ -2,6 +2,7 @@
 
 ### Added
 
+- **Experimental: the system Back goes back one Lead Generation form stage.** `LeadFormController.handleBack()` hands the press to the visible form (it goes back one stage with answers kept, or asks to close through `LeadFormHost.onRequestClose`) and returns `false`, sending nothing, before the form is visible, while hidden and after dispose. `LeadFormView` wires Android's system Back through it with a `PopScope`. Contract re-synced for the `back` message.
 - E2E runner: scenarios schemaVersion 7 — `request.interactiveExperience` sent through the opt-in.
 - **Experimental: Lead Generation opt-in, keys-only availability and
   interactive experience decode.** `AdMoai.enableInteractiveExperiences(provider)`
