@@ -33,6 +33,22 @@ Feature: Lead Generation form bridge
     When the form sends a message before the one it must follow
     Then the app refuses it
 
+  Scenario: A submit answer with no open submitting is refused
+    Given a form opened by the app
+    When the form sends submitted or submit_failed without a submitting that is still unanswered
+    Then the app refuses it as out of order, and a retry that starts with a new submitting is accepted
+
+  Scenario Outline: A failed submit names a reason the app accepts
+    Given a form opened by the app
+    When the form sends submitting and then submit_failed with the error code <code>
+    Then the app accepts the failure
+
+    Examples:
+      | code               |
+      | unauthorized       |
+      | form_not_available |
+      | invalid_request    |
+
   Scenario: A page speaking an unknown bridge version gets no answer
     Given a form opened by the app
     When the page announces a bridge version the SDK does not know

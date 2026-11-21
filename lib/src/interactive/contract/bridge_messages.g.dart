@@ -306,7 +306,10 @@ const String bridgeMessagesJson = r'''{
             "expired",
             "revoked",
             "rate_limited",
-            "temporary_failure"
+            "temporary_failure",
+            "unauthorized",
+            "form_not_available",
+            "invalid_request"
           ]
         },
         "retryable": {

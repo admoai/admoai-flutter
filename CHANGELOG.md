@@ -79,6 +79,9 @@
   the app and the hosted form (size, envelope, instance, channel, payload and
   order checks read from the shared contract), plus the channel minting. Nothing
   is exported and no behaviour changes.
+  A `submitted` or `submit_failed` with no unanswered `submitting` is refused as
+  out of order, and `submit_failed` accepts the codes `unauthorized`,
+  `form_not_available` and `invalid_request`.
 
 - **Docs: Lead Generation how-to.** README: Lead Generation, a step-by-step
   integration guide (opt-in with and without prefill, controller, tap, visibility,
