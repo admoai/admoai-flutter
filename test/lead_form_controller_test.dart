@@ -678,6 +678,36 @@ void main() {
     expect(r.sent.where((t) => t == 'initialize'), hasLength(1));
   });
 
+  scenario('A form that is navigated away after it opened fails', () async {
+    final r = await visible();
+
+    r.surface.emit(SurfaceEvent(
+        leadFormSurfaceId(r.controller), SurfaceEventKind.loadFailed));
+
+    expect(r.state, const LeadFormFailed('load_failed', false));
+    expect(r.surface.destroyed, [leadFormSurfaceId(r.controller)]);
+    await r.controller.retry();
+    expect(r.state, const LeadFormFailed('load_failed', false));
+    expect(r.surface.created, hasLength(1));
+  });
+
+  const backFollowsVisibility =
+      "the system back follows the form's visibility while it is shown";
+  scenarios.add(backFollowsVisibility);
+  testWidgets(backFollowsVisibility, (tester) async {
+    final r = (await tester.runAsync(visible))!;
+    await tester.pumpWidget(routes(r.controller));
+    expect(find.text('home'), findsNothing, reason: 'the form screen is top');
+
+    r.controller.setVisible(false);
+    await tester.pump();
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+
+    expect(find.byType(LeadFormView), findsNothing);
+    await tester.runAsync(r.controller.dispose);
+  });
+
   scenario('disposing ends the form and ignores everything after', () async {
     final r = await visible();
     final seen = <LeadFormState>[];

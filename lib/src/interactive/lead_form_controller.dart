@@ -82,6 +82,9 @@ class LeadFormController {
   final ValueNotifier<LeadFormState> _state =
       ValueNotifier<LeadFormState>(const LeadFormIdle());
   final ValueNotifier<bool> _surfaceReady = ValueNotifier<bool>(false);
+  // True exactly when handleBack() would hand the press to the form: it follows
+  // the state AND the visibility the form has on the wire.
+  final ValueNotifier<bool> _backHandled = ValueNotifier<bool>(false);
   StreamSubscription<SurfaceEvent>? _events;
 
   bool _surfaceStarted = false;
@@ -95,7 +98,6 @@ class LeadFormController {
   bool _submittedReceived = false;
   bool _loadFailed = false;
   bool _disposed = false;
-  bool _loadStarted = false;
   bool _everVisible = false;
   Map<String, Object?>? _activation;
 
@@ -133,7 +135,6 @@ class LeadFormController {
       return;
     }
     if (!force && _registry?.mayPrepare(this) == false) return;
-    _loadStarted = true;
     _set(const LeadFormPreparing());
     await _createSurface();
   }
@@ -257,7 +258,14 @@ class LeadFormController {
 
   bool _expired() => !_clock().toUtc().isBefore(_descriptor.expiresAt);
 
-  void _set(LeadFormState next) => _state.value = next;
+  void _set(LeadFormState next) {
+    _state.value = next;
+    _syncBackHandled();
+  }
+
+  void _syncBackHandled() {
+    _backHandled.value = _handlesBack;
+  }
 
   bool get _ended {
     final s = _state.value;
@@ -322,6 +330,7 @@ class LeadFormController {
     _activatedReceived = false;
     _submittedReceived = false;
     _visibleOnWire = false;
+    _syncBackHandled();
     _activation = null;
     _endLookup();
     _set(const LeadFormPreparing());
@@ -347,6 +356,16 @@ class LeadFormController {
         if (s is LeadFormPreparing && !_activatedReceived) {
           _loadFailed = true;
           _set(const LeadFormFailed('load_failed', true));
+        } else if (s is LeadFormActivating ||
+            s is LeadFormReadyToShow ||
+            s is LeadFormVisible ||
+            s is LeadFormSubmitting ||
+            s is LeadFormSubmitted) {
+          // The page was navigated away after the form activated (the platform
+          // blocked or stopped the load). The activated instance cannot be
+          // trusted to be on screen: fail for good, a new controller is the
+          // way back. Destroying the surface frees its preparation slot.
+          _failTerminal('load_failed');
         }
     }
   }
@@ -551,6 +570,7 @@ class LeadFormController {
     if (_visibleRequested == _visibleOnWire) return;
     if (_send(_visibleRequested ? 'became_visible' : 'became_hidden')) {
       _visibleOnWire = _visibleRequested;
+      _syncBackHandled();
     }
   }
 
@@ -653,18 +673,21 @@ ValueListenable<bool> leadFormSurfaceReady(LeadFormController controller) =>
 Map<String, Object?>? leadFormActivation(LeadFormController controller) =>
     controller._activation;
 
-/// SDK-internal: whether [controller.handleBack] would hand the press to the
-/// form right now, from its state. [LeadFormView] listens to [controller.state]
-/// to follow it.
-bool leadFormHandlesBack(LeadFormController controller) =>
-    controller._handlesBack;
+/// SDK-internal: true exactly when [controller.handleBack] would hand the press
+/// to the form right now. It changes with the state and with the visibility the
+/// app told the form, so [LeadFormView] listens to it rather than to the state.
+ValueListenable<bool> leadFormBackHandled(LeadFormController controller) =>
+    controller._backHandled;
 
 /// SDK-internal: whether [controller] was disposed.
 bool leadFormIsDisposed(LeadFormController controller) => controller._disposed;
 
-/// SDK-internal: whether [controller] is loaded but has never been shown, so it
-/// counts toward the bound on hidden prepared forms.
+/// SDK-internal: whether [controller] holds a native surface (created or being
+/// created) that has never been shown, so it counts toward the bound on hidden
+/// prepared forms. A destroyed surface (creation or load failure, restart,
+/// dispose) releases its place.
 bool leadFormCountsAsHidden(LeadFormController controller) =>
     !controller._disposed &&
-    controller._loadStarted &&
+    controller._surfaceStarted &&
+    !controller._surfaceDestroyed &&
     !controller._everVisible;

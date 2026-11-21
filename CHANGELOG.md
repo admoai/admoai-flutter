@@ -11,6 +11,8 @@
   and profile builds compile a no-op, so a publisher's app is unchanged.
 
 - **The system Back goes back one Lead Generation form stage.** `LeadFormController.handleBack()` hands the press to the visible form (it goes back one stage with answers kept, or asks to close through `LeadFormHost.onRequestClose`) and returns `false`, sending nothing, before the form is visible, while hidden and after dispose. `LeadFormView` wires Android's system Back through it with a `PopScope`. Contract re-synced for the `back` message.
+- A form that is navigated away after it opened now fails (not retryable) instead of staying on screen; system Back follows the form's visibility; failed hidden forms no longer hold preparation capacity.
+- **Experimental: the system Back goes back one Lead Generation form stage.** `LeadFormController.handleBack()` hands the press to the visible form (it goes back one stage with answers kept, or asks to close through `LeadFormHost.onRequestClose`) and returns `false`, sending nothing, before the form is visible, while hidden and after dispose. `LeadFormView` wires Android's system Back through it with a `PopScope`. Contract re-synced for the `back` message.
 - On Android the form's web view also refuses a form submission or any other page load than the form itself, and the form fails instead of showing another page.
 - E2E runner: scenarios schemaVersion 7 — `request.interactiveExperience` sent through the opt-in.
 - **Lead Generation opt-in, keys-only availability and
