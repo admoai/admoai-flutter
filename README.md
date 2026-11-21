@@ -21,7 +21,7 @@ AdMoai Flutter SDK is a cross-platform advertising solution that enables seamles
   Read [Sponsored Pin Locations](#sponsored-pin-locations) before integrating: the SDK
   renders nothing and never infers that a pin was seen, so the measurement contract is
   yours to honour
-- **Lead Generation** (experimental) - A native creative that opens a hosted lead form in an SDK-owned secure web view; read [Lead Generation](#lead-generation) (requires `apiVersion: "2025-11-01"`)
+- **Lead Generation** - A native creative that opens a hosted lead form in an SDK-owned secure web view; read [Lead Generation](#lead-generation) (requires `apiVersion: "2025-11-01"`)
 - **Rich Targeting** - Geo, current-location, destination, and custom key-value targeting
 - **GDPR Compliance** - Built-in user consent management
 - **Event Tracking** - Impressions, clicks, video quartiles, and custom events
@@ -1356,10 +1356,6 @@ eligible for that placement.
 level and are not duplicated per pin.
 
 ## Lead Generation
-
-> **Experimental.** The Lead Generation API (`enableInteractiveExperiences`,
-> `createLeadFormController`, `LeadFormController`, `LeadFormView`, `LeadFormHost`) may change in a
-> minor release. Nothing changes for an app that does not opt in.
 
 A Lead Generation ad is a **native creative that your app renders**. When the viewer taps it, a
 hosted form opens inside an SDK-owned secure web view. The form handles its own stages, validation,

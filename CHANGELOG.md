@@ -10,9 +10,9 @@
   served by a fixture hook that exists only in the plugin's debug build; release
   and profile builds compile a no-op, so a publisher's app is unchanged.
 
-- **Experimental: the system Back goes back one Lead Generation form stage.** `LeadFormController.handleBack()` hands the press to the visible form (it goes back one stage with answers kept, or asks to close through `LeadFormHost.onRequestClose`) and returns `false`, sending nothing, before the form is visible, while hidden and after dispose. `LeadFormView` wires Android's system Back through it with a `PopScope`. Contract re-synced for the `back` message.
+- **The system Back goes back one Lead Generation form stage.** `LeadFormController.handleBack()` hands the press to the visible form (it goes back one stage with answers kept, or asks to close through `LeadFormHost.onRequestClose`) and returns `false`, sending nothing, before the form is visible, while hidden and after dispose. `LeadFormView` wires Android's system Back through it with a `PopScope`. Contract re-synced for the `back` message.
 - E2E runner: scenarios schemaVersion 7 — `request.interactiveExperience` sent through the opt-in.
-- **Experimental: Lead Generation opt-in, keys-only availability and
+- **Lead Generation opt-in, keys-only availability and
   interactive experience decode.** `AdMoai.enableInteractiveExperiences(provider)`
   declares that the app hosts the Lead Generation form and
   `disableInteractiveExperiences()` withdraws it. The `LeadFormValueProvider`
@@ -29,7 +29,7 @@
   ordinary creative. Lead Generation ads are served on `apiVersion` `2025-11-01`
   or later; the SDK warns when enabled without one.
 
-- **Experimental: Lead Generation form controller and secure web view.**
+- **Lead Generation form controller and secure web view.**
   `AdMoai.createLeadFormController(creative, presentation:, host:)` returns a
   `LeadFormController` for a creative that carries a Lead Generation experience,
   or `null` when the app has not opted in, the device cannot host the form, or the
@@ -53,7 +53,7 @@
   Android dependency: `androidx.webkit:webkit:1.12.1`. iOS: the form needs iOS 14
   or later; below that the SDK does not advertise support.
 
-- **Experimental: Lead Generation prefill, form events, hidden-form bound and
+- **Lead Generation prefill, form events, hidden-form bound and
   user-change disposal.** `LeadFormValueProvider.lookUpValues(keys)` is called
   only after the viewer opened a form and it activated, only with the standard
   keys that form requests; answer from what the app already holds, never from a
@@ -86,6 +86,8 @@
 - **Docs: Lead Generation how-to.** README: Lead Generation, a step-by-step
   integration guide (opt-in with and without prefill, controller, tap, visibility,
   host, state, dispose) whose examples are compile-checked.
+  The Lead Generation API is public and stable, the same as in the iOS and
+  Android SDKs.
 
 ## 0.8.0 - 2026-11-18
 
