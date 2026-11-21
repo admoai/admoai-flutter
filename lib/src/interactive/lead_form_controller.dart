@@ -176,6 +176,28 @@ class LeadFormController {
     }
   }
 
+  /// Hands the viewer's system Back press to the form while it is visible, and
+  /// returns whether it did. The form decides what Back means: it goes back one
+  /// stage with every answer kept, or asks to close (answered through
+  /// [LeadFormHost.onRequestClose]) where its own Back would close it, and it
+  /// ignores the press while submitting. This never reloads the form and never
+  /// disposes the controller.
+  ///
+  /// Returns false and sends nothing before the form is visible, while the app
+  /// has it hidden, and after it failed, expired or was disposed: the press then
+  /// belongs to the app. [LeadFormView] calls this for Android's system back.
+  bool handleBack() {
+    if (!_handlesBack) return false;
+    return _send('back');
+  }
+
+  bool get _handlesBack =>
+      !_disposed &&
+      _visibleOnWire &&
+      (_state.value is LeadFormVisible ||
+          _state.value is LeadFormSubmitting ||
+          _state.value is LeadFormSubmitted);
+
   /// Retries after a failure that reported `retryable`. Does nothing in any
   /// other state. Never reloads a page that loaded: it asks the form to prepare
   /// or activate again.
@@ -612,6 +634,12 @@ ValueListenable<bool> leadFormSurfaceReady(LeadFormController controller) =>
 /// requestedAttributeKeys, events), or null before activation.
 Map<String, Object?>? leadFormActivation(LeadFormController controller) =>
     controller._activation;
+
+/// SDK-internal: whether [controller.handleBack] would hand the press to the
+/// form right now, from its state. [LeadFormView] listens to [controller.state]
+/// to follow it.
+bool leadFormHandlesBack(LeadFormController controller) =>
+    controller._handlesBack;
 
 /// SDK-internal: whether [controller] was disposed.
 bool leadFormIsDisposed(LeadFormController controller) => controller._disposed;

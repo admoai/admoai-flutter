@@ -7,6 +7,7 @@ import 'package:admoai/src/interactive/lead_form_controller.dart'
     show leadFormActivation, leadFormSurfaceId;
 import 'package:admoai/src/interactive/secure_form_surface.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -486,6 +487,119 @@ void main() {
 
     expect(r.host.closes, [r.controller]);
     expect(r.state, isA<LeadFormVisible>());
+  });
+
+  scenario('the system back goes back one stage inside the same form',
+      () async {
+    final r = await visible();
+
+    expect(r.controller.handleBack(), isTrue);
+
+    expect(r.sent.last, 'back');
+    expect(r.posted('back')['payload'], isEmpty,
+        reason: 'the app never names a stage');
+    expect(r.surface.created, hasLength(1));
+    expect(r.surface.destroyed, isEmpty);
+    expect(r.state, isA<LeadFormVisible>());
+    expect(r.host.closes, isEmpty);
+    r.say('submitting');
+    expect(r.controller.handleBack(), isTrue, reason: 'the page ignores it');
+    r.say('submitted');
+    expect(r.controller.handleBack(), isTrue);
+    expect(r.sent.where((t) => t == 'back'), hasLength(3));
+  });
+
+  scenario('the system back is not handled before the form is visible',
+      () async {
+    final r = await readyToShow();
+    final before = List<String>.of(r.sent);
+
+    expect(r.controller.handleBack(), isFalse);
+
+    expect(r.sent, before);
+    expect(r.state, isA<LeadFormReadyToShow>());
+  });
+
+  scenario('the system back is ignored after the controller is disposed',
+      () async {
+    final r = await visible();
+    await r.controller.dispose();
+    final before = List<String>.of(r.sent);
+
+    expect(r.controller.handleBack(), isFalse);
+
+    expect(r.sent, before);
+    expect(r.sent.last, 'dispose');
+  });
+
+  scenario('the form asks to close in answer to back', () async {
+    final r = await visible();
+
+    expect(r.controller.handleBack(), isTrue);
+    r.say('request_close');
+
+    expect(r.host.closes, [r.controller]);
+    expect(r.state, isA<LeadFormVisible>());
+    expect(r.surface.destroyed, isEmpty);
+  });
+
+  scenario('the system back leaves a form the app has hidden to the app',
+      () async {
+    final r = await visible();
+    r.controller.setVisible(false);
+    final before = List<String>.of(r.sent);
+
+    expect(r.controller.handleBack(), isFalse);
+
+    expect(r.sent, before);
+    expect(before.last, 'became_hidden');
+  });
+
+  Widget routes(LeadFormController controller) => WidgetsApp(
+        color: const Color(0xFFFFFFFF),
+        pageRouteBuilder: <T>(settings, builder) => PageRouteBuilder<T>(
+            settings: settings, pageBuilder: (c, _, __) => builder(c)),
+        onGenerateRoute: (_) => null,
+        onGenerateInitialRoutes: (_) => [
+          PageRouteBuilder<void>(
+              pageBuilder: (_, __, ___) => const Text('home')),
+          PageRouteBuilder<void>(
+              pageBuilder: (_, __, ___) =>
+                  LeadFormView(controller: controller)),
+        ],
+      );
+
+  const backOnVisible =
+      'the system back on a visible form goes to the form and does not leave the screen';
+  scenarios.add(backOnVisible);
+  testWidgets(backOnVisible, (tester) async {
+    final r = (await tester.runAsync(visible))!;
+    await tester.pumpWidget(routes(r.controller));
+    expect(find.text('home'), findsNothing, reason: 'the form screen is top');
+    final before = r.sent.length;
+
+    await tester.binding.handlePopRoute();
+    await tester.pump();
+
+    expect(r.sent.skip(before), ['back']);
+    expect(find.byType(LeadFormView), findsOneWidget);
+    await tester.runAsync(r.controller.dispose);
+  });
+
+  const backOnHidden =
+      'the system back on a form that is not visible leaves the screen';
+  scenarios.add(backOnHidden);
+  testWidgets(backOnHidden, (tester) async {
+    final r = (await tester.runAsync(readyToShow))!;
+    await tester.pumpWidget(routes(r.controller));
+    final before = r.sent.length;
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+
+    expect(r.sent.length, before);
+    expect(find.byType(LeadFormView), findsNothing);
+    await tester.runAsync(r.controller.dispose);
   });
 
   scenario('the privacy policy link goes to the app, never inside the form',
