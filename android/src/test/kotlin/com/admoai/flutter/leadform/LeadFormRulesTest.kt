@@ -77,4 +77,11 @@ class LeadFormRulesTest {
         assertTrue(LeadFormRules.isAllowedMainFrameLoad("https://forms.example.com:443/runtime/index.html", "GET", launch, false))
         assertFalse(LeadFormRules.isAllowedMainFrameLoad("https://forms.example.com:8443/runtime/index.html", "GET", launch, false))
     }
+
+    @Test fun `a launch URL with an empty path allows the slash path Chromium reports`() {
+        val bare = "https://forms.example.com#instanceId=a&channel=b"
+        assertTrue(LeadFormRules.isAllowedMainFrameLoad("https://forms.example.com/", "GET", bare, false))
+        assertTrue(LeadFormRules.isAllowedMainFrameLoad("https://forms.example.com", "GET", "https://forms.example.com/", false))
+        assertFalse(LeadFormRules.isAllowedMainFrameLoad("https://forms.example.com/x", "GET", bare, false))
+    }
 }

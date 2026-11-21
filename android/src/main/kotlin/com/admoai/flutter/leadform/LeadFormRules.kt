@@ -41,7 +41,9 @@ internal object LeadFormRules {
     private fun normalized(url: String): String? {
         val origin = originOf(url) ?: return null
         val uri = try { URI(url.substringBefore('#')) } catch (_: Exception) { return null }
-        return origin + (uri.rawPath ?: "") + (uri.rawQuery?.let { "?$it" } ?: "")
+        // An empty https path is "/": Chromium reports `https://host/` for a launch URL written `https://host`.
+        val path = uri.rawPath.orEmpty().ifEmpty { "/" }
+        return origin + path + (uri.rawQuery?.let { "?$it" } ?: "")
     }
 
     /** True when two origins are the same, ignoring case and a trailing slash. */

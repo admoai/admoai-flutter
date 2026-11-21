@@ -170,6 +170,18 @@ Feature: An app prepares and opens a Lead Generation form through one controller
     When the form reports it is ready again
     Then the controller has failed without retry
 
+  Scenario: A form that is navigated away after it opened fails
+    Given a visible controller
+    When the form's page is navigated away and the load fails
+    Then the controller has failed without retry
+    And the form's view is destroyed
+
+  Scenario: the system back follows the form's visibility while it is shown
+    Given a visible controller shown by the form view on a screen the viewer opened
+    When the app hides the form
+    And the viewer presses the system back
+    Then the screen is closed
+
   Scenario: disposing ends the form and ignores everything after
     Given a visible controller
     When the app disposes it

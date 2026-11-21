@@ -220,6 +220,23 @@ void main() {
     expect(extra.controller.state.value, isA<LeadFormPreparing>());
   });
 
+  scenario('a form whose view failed to load frees its place', () async {
+    final w = world();
+    for (var i = 0; i < bound; i++) {
+      final f = form(w);
+      f.page.surface.failCreate = true;
+      await f.controller.prepare();
+      expect(f.controller.state.value,
+          const LeadFormFailed('surface_error', false));
+    }
+    final extra = form(w);
+
+    await extra.controller.prepare();
+
+    expect(extra.controller.state.value, isA<LeadFormPreparing>());
+    expect(extra.page.surface.created, hasLength(1));
+  });
+
   scenario('a disposed form frees its place', () async {
     final w = world();
     final forms = await hiddenForms(w);

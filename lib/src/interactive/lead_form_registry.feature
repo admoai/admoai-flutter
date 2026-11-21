@@ -46,3 +46,8 @@ Feature: Lead Generation forms are bounded and never outlive the user they were 
     Given as many hidden prepared forms as the contract allows
     When one of them is disposed
     Then another form can prepare
+
+  Scenario: a form whose view failed to load frees its place
+    Given as many hidden forms as the contract allows whose views could not be created
+    When another form prepares
+    Then that form loads
