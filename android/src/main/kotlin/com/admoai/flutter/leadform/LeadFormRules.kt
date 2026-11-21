@@ -26,6 +26,24 @@ internal object LeadFormRules {
         null
     }
 
+    /**
+     * True when a main-frame load may go ahead: a GET of exactly the launch URL, and only the first
+     * time. Any other URL, any other method, or the launch URL a second time is refused. The URL is
+     * compared as the launch URL is, except that the fragment (never sent) and a default `:443` are
+     * ignored, like [originOf] ignores the port.
+     */
+    fun isAllowedMainFrameLoad(url: String, method: String, launchUrl: String, launchConsumed: Boolean): Boolean {
+        if (launchConsumed || !"GET".equals(method, ignoreCase = true)) return false
+        val requested = normalized(url) ?: return false
+        return requested == normalized(launchUrl)
+    }
+
+    private fun normalized(url: String): String? {
+        val origin = originOf(url) ?: return null
+        val uri = try { URI(url.substringBefore('#')) } catch (_: Exception) { return null }
+        return origin + (uri.rawPath ?: "") + (uri.rawQuery?.let { "?$it" } ?: "")
+    }
+
     /** True when two origins are the same, ignoring case and a trailing slash. */
     fun sameOrigin(a: String, b: String): Boolean =
         a.trimEnd('/').equals(b.trimEnd('/'), ignoreCase = true)
