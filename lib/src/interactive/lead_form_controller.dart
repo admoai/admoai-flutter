@@ -87,6 +87,7 @@ class LeadFormController {
   bool _surfaceStarted = false;
   bool _surfaceDestroyed = false;
   bool _pendingOpen = false;
+  int _surfaceGeneration = 0;
   bool _visibleRequested = false;
   bool _visibleOnWire = false;
   bool _activateSent = false;
@@ -276,6 +277,9 @@ class LeadFormController {
   }
 
   Future<void> _createSurface() async {
+    // A new native surface is a new generation, so the widget always recreates
+    // its platform view, even when no frame saw the surface go away.
+    _surfaceGeneration++;
     _surfaceStarted = true;
     _surfaceDestroyed = false;
     _events ??= _surface.events.listen(_onSurfaceEvent);
@@ -423,14 +427,23 @@ class LeadFormController {
 
   void _onPrepared() {
     if (_state.value is! LeadFormPreparing) return;
+    // Clear the pending open before listeners run: one that calls open() on
+    // Prepared activates once, and so do we only if it did not.
+    final openWasPending = _pendingOpen;
+    _pendingOpen = false;
     _set(const LeadFormPrepared());
-    if (_pendingOpen) {
-      _pendingOpen = false;
+    if (openWasPending && !_disposed && _state.value is LeadFormPrepared) {
       _activate();
     }
   }
 
   void _activate() {
+    // The one boundary every activation passes: a form past its deadline is
+    // never activated, whatever path got here.
+    if (_expired()) {
+      _set(const LeadFormExpired());
+      return;
+    }
     if (_send('activate')) {
       _activateSent = true;
       _set(const LeadFormActivating());
@@ -625,6 +638,11 @@ LeadFormController buildLeadFormController({
 
 /// SDK-internal: the id of the native view [controller] owns.
 String leadFormSurfaceId(LeadFormController controller) => controller._id;
+
+/// SDK-internal: which native surface [controller] is on; it increases every time
+/// a surface is created, so a view keyed by it is recreated with the surface.
+int leadFormSurfaceGeneration(LeadFormController controller) =>
+    controller._surfaceGeneration;
 
 /// SDK-internal: whether [controller]'s native view exists and can be attached.
 ValueListenable<bool> leadFormSurfaceReady(LeadFormController controller) =>

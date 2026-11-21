@@ -119,6 +119,14 @@ class SecureFormWebViewTest {
         }
 
         assertTrue(client.shouldOverrideUrlLoading(b.view.webView, request))
+        // API 21-23 call the String overload.
+        @Suppress("DEPRECATION")
+        assertTrue(client.shouldOverrideUrlLoading(b.view.webView, "https://evil.example.com/"))
+    }
+
+    @Test fun `a binary message from the page is not a text and never throws`() {
+        assertNull(textOf(androidx.webkit.WebMessageCompat(byteArrayOf(1, 2, 3))))
+        assertEquals("hi", textOf(androidx.webkit.WebMessageCompat("hi")))
     }
 
     @Test fun `the form cannot open windows or popups`() {
