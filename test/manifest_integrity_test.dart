@@ -15,57 +15,100 @@ void main() {
     final root = jsonDecode(file.readAsStringSync()) as Map<String, dynamic>;
     final scenarios = (root['scenarios'] as List).cast<Map<String, dynamic>>();
 
-    expect(scenarios, isNotEmpty,
-        reason: 'the manifest declares at least one scenario');
-    final ids =
-        scenarios.map((s) => s['id'] as String?).whereType<String>().toList();
-    expect(ids.length, equals(scenarios.length),
-        reason: 'every scenario has an id');
-    expect(ids.toSet().length, equals(ids.length),
-        reason: 'scenario ids are unique');
+    expect(
+      scenarios,
+      isNotEmpty,
+      reason: 'the manifest declares at least one scenario',
+    );
+    final ids = scenarios
+        .map((s) => s['id'] as String?)
+        .whereType<String>()
+        .toList();
+    expect(
+      ids.length,
+      equals(scenarios.length),
+      reason: 'every scenario has an id',
+    );
+    expect(
+      ids.toSet().length,
+      equals(ids.length),
+      reason: 'scenario ids are unique',
+    );
     for (final s in scenarios) {
-      expect((s['title'] as String?) ?? '', isNotEmpty,
-          reason: '${s['id']} has a title');
-      expect(s['request'], isA<Map<String, dynamic>>(),
-          reason: '${s['id']} has a request block');
-      expect(s['expect'], isA<Map<String, dynamic>>(),
-          reason: '${s['id']} has an expect block');
+      expect(
+        (s['title'] as String?) ?? '',
+        isNotEmpty,
+        reason: '${s['id']} has a title',
+      );
+      expect(
+        s['request'],
+        isA<Map<String, dynamic>>(),
+        reason: '${s['id']} has a request block',
+      );
+      expect(
+        s['expect'],
+        isA<Map<String, dynamic>>(),
+        reason: '${s['id']} has an expect block',
+      );
     }
   });
 
-  /// `schemaVersion` 2 added `fixtureScenarios` (3 added their `slideTracking`, 4 the live standard-format keys, 5 the live Carousel keys, 6 request.device and list values in request.custom); the live runner refuses any other version and
+  /// `schemaVersion` 2 added `fixtureScenarios` (3 added their `slideTracking`, 4 the live standard-format keys, 5 the live Carousel keys, 6 request.device and list values in request.custom, 7 request.interactiveExperience); the live runner refuses any other version and
   /// fixture_scenarios_test.dart interprets them, so both are pinned here against the vendored copy.
   test('the fixture scenarios are structurally valid', () {
     final root = jsonDecode(file.readAsStringSync()) as Map<String, dynamic>;
-    expect(root['schemaVersion'], equals(6),
-        reason: 'this SDK vendors a schemaVersion 6 manifest');
+    expect(
+      root['schemaVersion'],
+      equals(7),
+      reason: 'this SDK vendors a schemaVersion 7 manifest',
+    );
 
-    final fixtureScenarios =
-        (root['fixtureScenarios'] as List).cast<Map<String, dynamic>>();
-    expect(fixtureScenarios, isNotEmpty,
-        reason: 'the manifest declares fixture scenarios');
+    final fixtureScenarios = (root['fixtureScenarios'] as List)
+        .cast<Map<String, dynamic>>();
+    expect(
+      fixtureScenarios,
+      isNotEmpty,
+      reason: 'the manifest declares fixture scenarios',
+    );
     final ids = fixtureScenarios
         .map((s) => s['id'] as String?)
         .whereType<String>()
         .toList();
-    expect(ids.length, equals(fixtureScenarios.length),
-        reason: 'every fixture scenario has an id');
-    expect(ids.toSet().length, equals(ids.length),
-        reason: 'fixture scenario ids are unique');
+    expect(
+      ids.length,
+      equals(fixtureScenarios.length),
+      reason: 'every fixture scenario has an id',
+    );
+    expect(
+      ids.toSet().length,
+      equals(ids.length),
+      reason: 'fixture scenario ids are unique',
+    );
     for (final s in fixtureScenarios) {
       final id = s['id'];
-      expect((s['title'] as String?) ?? '', isNotEmpty,
-          reason: '$id has a title');
+      expect(
+        (s['title'] as String?) ?? '',
+        isNotEmpty,
+        reason: '$id has a title',
+      );
       final golden = (s['fixture'] as Map<String, dynamic>?)?['golden'];
-      expect(golden is String && golden.isNotEmpty, isTrue,
-          reason: '$id names a golden file');
+      expect(
+        golden is String && golden.isNotEmpty,
+        isTrue,
+        reason: '$id names a golden file',
+      );
       if (golden is String) {
-        expect(File('test/e2e/fixtures/golden-wire/$golden.json').existsSync(),
-            isTrue,
-            reason: '$id: $golden.json is vendored');
+        expect(
+          File('test/e2e/fixtures/golden-wire/$golden.json').existsSync(),
+          isTrue,
+          reason: '$id: $golden.json is vendored',
+        );
       }
-      expect(s['expect'], isA<Map<String, dynamic>>(),
-          reason: '$id has an expect block');
+      expect(
+        s['expect'],
+        isA<Map<String, dynamic>>(),
+        reason: '$id has an expect block',
+      );
     }
   });
 }
