@@ -54,4 +54,27 @@ class LeadFormRulesTest {
 
         assertEquals(listOf("one"), got)
     }
+
+    private val launch = "https://forms.example.com/runtime/index.html#instanceId=i&channel=c"
+
+    @Test fun `the launch GET is allowed once and a second launch is refused`() {
+        assertTrue(LeadFormRules.isAllowedMainFrameLoad(launch, "GET", launch, false))
+        assertFalse(LeadFormRules.isAllowedMainFrameLoad(launch, "GET", launch, true))
+    }
+
+    @Test fun `a POST to the launch URL is refused`() {
+        assertFalse(LeadFormRules.isAllowedMainFrameLoad(launch, "POST", launch, false))
+    }
+
+    @Test fun `a GET to another URL is refused`() {
+        assertFalse(LeadFormRules.isAllowedMainFrameLoad("https://evil.example.com/", "GET", launch, false))
+        assertFalse(LeadFormRules.isAllowedMainFrameLoad("https://forms.example.com/runtime/other.html", "GET", launch, false))
+        assertFalse(LeadFormRules.isAllowedMainFrameLoad("https://forms.example.com/runtime/index.html?x=1", "GET", launch, false))
+        assertFalse(LeadFormRules.isAllowedMainFrameLoad("http://forms.example.com/runtime/index.html", "GET", launch, false))
+    }
+
+    @Test fun `the launch URL matches with a default port and no fragment`() {
+        assertTrue(LeadFormRules.isAllowedMainFrameLoad("https://forms.example.com:443/runtime/index.html", "GET", launch, false))
+        assertFalse(LeadFormRules.isAllowedMainFrameLoad("https://forms.example.com:8443/runtime/index.html", "GET", launch, false))
+    }
 }

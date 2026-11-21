@@ -42,6 +42,7 @@ void main() {
     'a frame from another origin cannot reach the app': 'kotlin',
     'a frame from the same origin cannot reach the app': 'kotlin',
     'the form cannot navigate away': 'kotlin',
+    'A form submission cannot navigate the form away': 'kotlin',
     'the form cannot open windows or popups': 'kotlin',
     'files and content providers are out of reach': 'kotlin',
     'the form view is locked down': 'kotlin',

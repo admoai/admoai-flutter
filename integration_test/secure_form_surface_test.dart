@@ -195,6 +195,32 @@ void main() {
     }
   });
 
+  testWidgets('A form submission cannot navigate the form away',
+      (tester) async {
+    final form = await open(tester, page: 'post.html');
+    await form.waitFor(1);
+    if (Platform.isAndroid) {
+      await _hooks.invokeMethod<void>('testClearRequests');
+    }
+    await form.quiet();
+    if (Platform.isAndroid) {
+      // Blocked, and the form fails; the page never changes and the other origin is never asked.
+      expect(form.failed, isTrue);
+      expect(
+          await _hooks.invokeMethod<String>('testCurrentUrl', {'id': form.id}),
+          form.url.toString());
+      final requests =
+          await _hooks.invokeListMethod<String>('testRequests') ?? <String>[];
+      expect(requests.where((r) => r.contains('other.appassets.example')),
+          isEmpty);
+    } else {
+      // iOS cancels the navigation: the same document still answers.
+      await form.send('still-here');
+      await form.waitFor(2);
+      expect(form.received.last, 'echo:still-here');
+    }
+  });
+
   testWidgets('the form cannot open windows or popups', (tester) async {
     final form = await open(tester);
     await form.waitFor(2);
@@ -243,6 +269,7 @@ class _Form {
       if (e.kind == SurfaceEventKind.message && e.text != null) {
         received.add(e.text!);
       }
+      if (e.kind == SurfaceEventKind.loadFailed) failed = true;
     });
   }
 
@@ -250,6 +277,7 @@ class _Form {
   final Uri url;
   final LeadFormSurface _surface;
   final received = <String>[];
+  var failed = false;
   late final StreamSubscription<SurfaceEvent> _sub;
   var _closed = false;
 
