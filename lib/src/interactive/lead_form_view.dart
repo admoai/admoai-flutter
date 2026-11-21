@@ -48,8 +48,11 @@ class _LeadFormViewState extends State<LeadFormView> {
       valueListenable: _ready,
       builder: (context, ready, _) {
         if (!ready) return const SizedBox.shrink();
-        final params = <String, Object?>{'id': id};
-        final key = ValueKey<String>('admoai_lead_form_$id');
+        final generation = leadFormSurfaceGeneration(widget.controller);
+        final params = <String, Object?>{'id': id, 'generation': generation};
+        // The generation is part of the key: a replacement native surface (a
+        // retry after a load failure) always gets a new platform view.
+        final key = ValueKey<String>('admoai_lead_form_${id}_$generation');
         if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
           return AndroidView(
             key: key,

@@ -386,6 +386,22 @@ void main() {
     expect(prepareLate.surface.created, isEmpty);
   });
 
+  scenario('a preparation that expires while the form is loading never opens',
+      () async {
+    var now = beforeExpiry;
+    final r = _Rig(descriptor(), fixtures, beforeExpiry, clock: () => now);
+    await r.controller.prepare();
+    await r.controller.open();
+    expect(r.state, isA<LeadFormPreparing>());
+
+    r.say('bridge_ready');
+    now = afterExpiry;
+    r.say('prepared');
+
+    expect(r.state, isA<LeadFormExpired>());
+    expect(r.sent, ['initialize']);
+  });
+
   scenario('a retryable preparation failure can be retried in the same view',
       () async {
     final r = rig();
@@ -607,6 +623,22 @@ void main() {
   });
 
   // --- behaviour beyond the scenarios -----------------------------------------
+
+  test('a listener that opens the form on Prepared causes one activation',
+      () async {
+    final r = rig();
+    await r.controller.prepare();
+    await r.controller.open();
+    r.controller.state.addListener(() {
+      if (r.state is LeadFormPrepared) unawaited(r.controller.open());
+    });
+
+    r.say('bridge_ready');
+    r.say('prepared');
+
+    expect(r.state, isA<LeadFormActivating>());
+    expect(r.sent.where((t) => t == 'activate'), hasLength(1));
+  });
 
   group('hostile or broken pages', () {
     test('messages the contract refuses are dropped and logged by reason only',

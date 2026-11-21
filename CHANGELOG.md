@@ -55,6 +55,16 @@
   out of order, and `submit_failed` accepts the codes `unauthorized`,
   `form_not_available` and `invalid_request`.
 
+### Fixed
+
+- The Android plugin now declares minSdk 21, matching the documented minimum.
+- Lead Generation form review follow-ups: an explicit `:443` no longer makes the
+  form's origin differ from the page's; a binary (ArrayBuffer) message from the
+  page is ignored instead of throwing; page navigation is also blocked on
+  Android 5.0 to 5.1 and 6.0; a retry after a load failure always shows the
+  replacement form view; a listener that opens the form on `LeadFormPrepared`
+  activates it once; a form that expires while it loads is never activated.
+
 ## 0.8.0 - 2026-11-18
 
 ### Added

@@ -12,6 +12,12 @@ class LeadFormRulesTest {
         assertEquals("https://forms.example.com:8443", LeadFormRules.originOf("https://Forms.Example.com:8443/x"))
     }
 
+    @Test fun `an explicit default port is dropped and any other port is kept`() {
+        assertEquals("https://forms.example", LeadFormRules.originOf("https://Forms.Example:443/x"))
+        assertEquals("https://forms.example:8443", LeadFormRules.originOf("https://forms.example:8443/x"))
+        assertFalse(LeadFormRules.sameOrigin(LeadFormRules.originOf("https://forms.example:8443/x")!!, LeadFormRules.originOf("https://forms.example/x")!!))
+    }
+
     @Test fun `anything that is not an https URL with a host has no origin`() {
         for (url in listOf(
             "http://forms.example.com/",

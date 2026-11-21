@@ -11,7 +11,7 @@ internal object LeadFormRules {
     const val PROFILE = "admoai_interactive_experience"
 
     /**
-     * The origin (`https://host[:port]`) of [url], or null when [url] is not an https URL with a
+     * The origin (`https://host[:port]`, the default port 443 dropped) of [url], or null when [url] is not an https URL with a
      * host and no user info. The page's origin is the only one the bridge ever listens to.
      */
     fun originOf(url: String): String? = try {
@@ -20,7 +20,7 @@ internal object LeadFormRules {
         if (!"https".equals(uri.scheme, ignoreCase = true) || host.isNullOrEmpty() || uri.userInfo != null) {
             null
         } else {
-            "https://${host.lowercase()}" + if (uri.port != -1) ":${uri.port}" else ""
+            "https://${host.lowercase()}" + if (uri.port != -1 && uri.port != 443) ":${uri.port}" else ""
         }
     } catch (_: Exception) {
         null

@@ -3,7 +3,11 @@ import 'dart:io';
 
 import 'package:admoai/admoai.dart';
 import 'package:admoai/src/interactive/lead_form_controller.dart'
-    show buildLeadFormController, leadFormSurfaceReady;
+    show
+        buildLeadFormController,
+        leadFormSurfaceGeneration,
+        leadFormSurfaceId,
+        leadFormSurfaceReady;
 import 'package:admoai/src/interactive/secure_form_surface.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -226,11 +230,47 @@ void main() {
         await tester.runAsync(c.controller.dispose);
       });
     }
+
+    testWidgets(
+        'a retry after a load failure attaches a platform view of the new '
+        'generation even when no frame saw the surface go away',
+        (tester) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.android;
+      final c = _Controller(surface: _Surface(sync: true));
+      await tester.runAsync(c.controller.prepare);
+      await tester.pumpWidget(Directionality(
+        textDirection: TextDirection.ltr,
+        child: SizedBox(
+            width: 100,
+            height: 100,
+            child: LeadFormView(controller: c.controller)),
+      ));
+      final first = tester.widget<AndroidView>(find.byType(AndroidView));
+      final firstGeneration = leadFormSurfaceGeneration(c.controller);
+
+      c.surface.emit(SurfaceEvent(
+          leadFormSurfaceId(c.controller), SurfaceEventKind.loadFailed));
+      expect(
+          c.controller.state.value, const LeadFormFailed('load_failed', true));
+      // The restart destroys and recreates the surface with no frame between.
+      await tester.runAsync(c.controller.retry);
+      await tester.pump();
+
+      final second = tester.widget<AndroidView>(find.byType(AndroidView));
+      expect(leadFormSurfaceGeneration(c.controller),
+          greaterThan(firstGeneration));
+      expect(second.key, isNot(first.key));
+      expect((second.creationParams as Map)['generation'],
+          leadFormSurfaceGeneration(c.controller));
+      await tester.pumpWidget(const SizedBox());
+      debugDefaultTargetPlatformOverride = null;
+      await tester.runAsync(c.controller.dispose);
+    });
   });
 }
 
 class _Controller {
-  _Controller() {
+  _Controller({_Surface? surface}) : surface = surface ?? _Surface() {
     controller = buildLeadFormController(
       descriptor: InteractiveExperience.tryFromJson({
         'type': 'lead_generation',
@@ -243,10 +283,11 @@ class _Controller {
       }) as LeadGenerationExperience,
       presentation: FormPresentation.inline,
       host: _Host(),
-      surface: _Surface(),
+      surface: this.surface,
     );
   }
 
+  final _Surface surface;
   late final LeadFormController controller;
 }
 
@@ -260,8 +301,15 @@ class _Host implements LeadFormHost {
 }
 
 class _Surface extends LeadFormSurface {
+  _Surface({bool sync = false})
+      : _events = StreamController<SurfaceEvent>.broadcast(sync: sync);
+
+  final StreamController<SurfaceEvent> _events;
+
+  void emit(SurfaceEvent e) => _events.add(e);
+
   @override
-  Stream<SurfaceEvent> get events => const Stream.empty();
+  Stream<SurfaceEvent> get events => _events.stream;
 
   @override
   Future<void> create(String id, Uri url) async {}

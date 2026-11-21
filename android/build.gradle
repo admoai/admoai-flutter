@@ -1,9 +1,10 @@
 group 'com.admoai.flutter'
 version '1.0-SNAPSHOT'
 
-// Toolchain levels deliberately mirror device_info_plus 11.x (minSdk 19,
-// Kotlin 1.7.22, AGP 8.3.1) so that adding this plugin never raises what a
-// host app already needs to build with the existing dependencies.
+// Toolchain levels deliberately mirror device_info_plus 11.x (Kotlin 1.7.22, AGP 8.3.1) so that
+// adding this plugin never raises what a host app already needs to build. minSdk is the exception:
+// device_info_plus declares 19, but androidx.webkit 1.12.1 requires 21, which is also the documented
+// minimum and the default of Flutter 3.27, our floor.
 buildscript {
     ext.kotlin_version = '1.7.22'
     repositories {
@@ -32,7 +33,7 @@ android {
 
     // 35, not device_info_plus's 34: flutter_timezone 4.1.x (already a dependency of this package)
     // declares minCompileSdk 35 in its AAR metadata, so every module that depends on it must compile
-    // against 35. compileSdk is not a runtime floor: minSdk stays 19, and host apps already need 35
+    // against 35. compileSdk is not a runtime floor: minSdk is 21, and host apps already need 35
     // because of flutter_timezone.
     compileSdk 35
 
@@ -50,7 +51,7 @@ android {
     }
 
     defaultConfig {
-        minSdk 19
+        minSdk 21
     }
 
     lintOptions {
