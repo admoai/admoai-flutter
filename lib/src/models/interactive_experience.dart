@@ -49,19 +49,18 @@ class InteractiveExperienceCapability {
 
   InteractiveExperienceCapability({
     required Iterable<StandardAttributeKey> availableAttributeKeys,
-  }) : supported = true,
-       availableAttributeKeys = List.unmodifiable(
-         StandardAttributeKey.values.where(
-           availableAttributeKeys.toSet().contains,
-         ),
-       );
+  })  : supported = true,
+        availableAttributeKeys = List.unmodifiable(
+          StandardAttributeKey.values
+              .where(availableAttributeKeys.toSet().contains),
+        );
 
   Map<String, dynamic> toJson() => {
-    'supported': supported,
-    'availableAttributeKeys': [
-      for (final key in availableAttributeKeys) key.wireName,
-    ],
-  };
+        'supported': supported,
+        'availableAttributeKeys': [
+          for (final key in availableAttributeKeys) key.wireName,
+        ],
+      };
 }
 
 /// The interactive experience a creative carries. `null` on a creative means an
@@ -112,8 +111,8 @@ final class LeadGenerationExperience extends InteractiveExperience {
     required String preparationToken,
     required this.expiresAt,
     this.prefillAttributeKeys = const <StandardAttributeKey>[],
-  }) : _launchUrl = launchUrl,
-       _preparationToken = preparationToken;
+  })  : _launchUrl = launchUrl,
+        _preparationToken = preparationToken;
 
   @override
   String get type => wireType;
@@ -159,8 +158,7 @@ final class LeadGenerationExperience extends InteractiveExperience {
   }
 
   @override
-  String toString() =>
-      'LeadGenerationExperience(formId: $formId, '
+  String toString() => 'LeadGenerationExperience(formId: $formId, '
       'formInstanceId: $formInstanceId, '
       'expiresAt: ${expiresAt.toIso8601String()})';
 }
@@ -168,11 +166,11 @@ final class LeadGenerationExperience extends InteractiveExperience {
 /// SDK-internal: the launch URL and preparation token of [experience]. Not part
 /// of the public API (hidden from the package export).
 ({Uri launchUrl, String preparationToken}) leadGenerationLaunch(
-  LeadGenerationExperience experience,
-) => (
-  launchUrl: experience._launchUrl,
-  preparationToken: experience._preparationToken,
-);
+        LeadGenerationExperience experience) =>
+    (
+      launchUrl: experience._launchUrl,
+      preparationToken: experience._preparationToken,
+    );
 
 /// An experience this SDK cannot open: an unknown `type`, or a `lead_generation`
 /// descriptor that is malformed. The app must treat the creative as not

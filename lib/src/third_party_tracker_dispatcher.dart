@@ -66,9 +66,9 @@ class ThirdPartyTrackerDispatcher {
   /// [httpClient] is a test seam; when omitted the dispatcher builds its own
   /// dedicated client so nothing is shared with the SDK's API client.
   ThirdPartyTrackerDispatcher({required Logger logger, http.Client? httpClient})
-    : _logger = logger,
-      _client = httpClient ?? _defaultClient(),
-      _ownsClient = httpClient == null;
+      : _logger = logger,
+        _client = httpClient ?? _defaultClient(),
+        _ownsClient = httpClient == null;
 
   static http.Client _defaultClient() {
     final ioHttpClient = io.HttpClient()
@@ -88,9 +88,7 @@ class ThirdPartyTrackerDispatcher {
   /// count of VALID entries; matching and per-invocation exact-URL dedupe
   /// decide what actually fires.
   void dispatch(
-    List<ThirdPartyTracker> trackers,
-    ThirdPartyTrackerEvent event,
-  ) {
+      List<ThirdPartyTracker> trackers, ThirdPartyTrackerEvent event) {
     final valid = <ThirdPartyTracker>[];
     for (final tracker in trackers) {
       final reason = rejectionReason(tracker);
@@ -214,10 +212,9 @@ class ThirdPartyTrackerDispatcher {
   static bool matches(ThirdPartyTracker tracker, ThirdPartyTrackerEvent event) {
     return switch (event) {
       ThirdPartyImpressionEvent() => tracker.eventType == 'impression',
-      ThirdPartyClickEvent(:final key) =>
-        tracker.eventType == 'click' &&
-            (tracker.matchType == 'any' ||
-                (tracker.matchType == 'specific' && tracker.eventKey == key)),
+      ThirdPartyClickEvent(:final key) => tracker.eventType == 'click' &&
+          (tracker.matchType == 'any' ||
+              (tracker.matchType == 'specific' && tracker.eventKey == key)),
     };
   }
 }

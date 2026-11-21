@@ -41,40 +41,40 @@ void main() {
   }
 
   Creative creative(List<Map<String, dynamic>> slides) => Creative.fromJson({
-    'contents': [
-      {'key': 'slides', 'type': 'slides', 'value': slides},
-    ],
-    'advertiser': {'name': 'Acme'},
-    'tracking': {
-      'thirdPartyTrackers': [
-        {
-          'trackerId': 'any',
-          'eventType': 'click',
-          'matchType': 'any',
-          'url': 'https://agency.example/any',
+        'contents': [
+          {'key': 'slides', 'type': 'slides', 'value': slides},
+        ],
+        'advertiser': {'name': 'Acme'},
+        'tracking': {
+          'thirdPartyTrackers': [
+            {
+              'trackerId': 'any',
+              'eventType': 'click',
+              'matchType': 'any',
+              'url': 'https://agency.example/any',
+            },
+            {
+              'trackerId': 'default',
+              'eventType': 'click',
+              'matchType': 'specific',
+              'eventKey': 'default',
+              'url': 'https://agency.example/default',
+            },
+            {
+              'trackerId': 'other',
+              'eventType': 'click',
+              'matchType': 'specific',
+              'eventKey': 'save',
+              'url': 'https://agency.example/other',
+            },
+            {
+              'trackerId': 'imp',
+              'eventType': 'impression',
+              'url': 'https://agency.example/imp',
+            },
+          ],
         },
-        {
-          'trackerId': 'default',
-          'eventType': 'click',
-          'matchType': 'specific',
-          'eventKey': 'default',
-          'url': 'https://agency.example/default',
-        },
-        {
-          'trackerId': 'other',
-          'eventType': 'click',
-          'matchType': 'specific',
-          'eventKey': 'save',
-          'url': 'https://agency.example/other',
-        },
-        {
-          'trackerId': 'imp',
-          'eventType': 'impression',
-          'url': 'https://agency.example/imp',
-        },
-      ],
-    },
-  });
+      });
 
   (AdMoai, DispatchRecordingClient, List<String>) sdkWithCapture() {
     final received = <String>[];
@@ -193,11 +193,10 @@ void main() {
         hasLength(7),
         reason: 'view, 2 clicks, 4 fan-out',
       );
-      final thirdParty =
-          client.dispatched
-              .where((u) => u.startsWith('https://agency.example/'))
-              .toList()
-            ..sort();
+      final thirdParty = client.dispatched
+          .where((u) => u.startsWith('https://agency.example/'))
+          .toList()
+        ..sort();
       expect(thirdParty, [
         'https://agency.example/any',
         'https://agency.example/any',
@@ -288,10 +287,13 @@ void main() {
     sdk.trackSlideView(c.slides[0]);
     await settle();
 
-    expect(client.dispatched, [
-      'https://t/shared',
-      'https://t/shared',
-    ], reason: 'once as a pin, once as a slide');
+    expect(
+        client.dispatched,
+        [
+          'https://t/shared',
+          'https://t/shared',
+        ],
+        reason: 'once as a pin, once as a slide');
   });
 
   /// The Carousel has no creative-level click: `fireClick` records nothing for it, and the
@@ -307,20 +309,20 @@ void main() {
   });
 
   Map<String, dynamic> richSlide({bool withDefault = true}) => {
-    'slideId': 'slide_rich',
-    'position': 1,
-    'contents': <dynamic>[],
-    'tracking': {
-      'views': [
-        {'key': 'slide_view', 'url': 'https://t/rich/view'},
-        {'key': 'slide_shown_custom', 'url': 'https://t/rich/shown'},
-      ],
-      'clicks': [
-        {'key': 'save_offer', 'url': 'https://t/rich/save'},
-        if (withDefault) {'key': 'default', 'url': 'https://t/rich/click'},
-      ],
-    },
-  };
+        'slideId': 'slide_rich',
+        'position': 1,
+        'contents': <dynamic>[],
+        'tracking': {
+          'views': [
+            {'key': 'slide_view', 'url': 'https://t/rich/view'},
+            {'key': 'slide_shown_custom', 'url': 'https://t/rich/shown'},
+          ],
+          'clicks': [
+            {'key': 'save_offer', 'url': 'https://t/rich/save'},
+            if (withDefault) {'key': 'default', 'url': 'https://t/rich/click'},
+          ],
+        },
+      };
 
   test(
     'a slide view sends only its slide_view, never a template-added view',
@@ -335,7 +337,8 @@ void main() {
     },
   );
 
-  test('a tap sends the pending slide_view then only the default click, '
+  test(
+      'a tap sends the pending slide_view then only the default click, '
       'and fans out only default and any trackers', () async {
     final c = creative([richSlide()]);
     final (sdk, client, _) = sdkWithCapture();

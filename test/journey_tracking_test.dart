@@ -10,7 +10,7 @@ const baseUrl = 'https://mock.api.admoai.com';
 Tracking trackingWith({List<Map<String, String>>? completions}) {
   return Tracking.fromJson({
     'impressions': [
-      {'key': 'default', 'url': 'https://t.example/v1/tracking?e=imp'},
+      {'key': 'default', 'url': 'https://t.example/v1/tracking?e=imp'}
     ],
     if (completions != null) 'completions': completions,
   });
@@ -24,32 +24,24 @@ void main() {
     const MethodChannel channel = MethodChannel('flutter_timezone');
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (MethodCall methodCall) async {
-          if (methodCall.method == 'getLocalTimezone') return 'UTC';
-          return null;
-        });
+      if (methodCall.method == 'getLocalTimezone') return 'UTC';
+      return null;
+    });
   });
 
   group('Tracking.completions parsing', () {
     test('parses completions array and resolves URL by key', () {
-      final tracking = trackingWith(
-        completions: [
-          {'key': 'purchase', 'url': 'https://t.example/v1/tracking?e=cmp'},
-        ],
-      );
+      final tracking = trackingWith(completions: [
+        {'key': 'purchase', 'url': 'https://t.example/v1/tracking?e=cmp'},
+      ]);
 
       expect(tracking.completions, isNotNull);
+      expect(tracking.getCompletionUrl(key: 'purchase'),
+          equals('https://t.example/v1/tracking?e=cmp'));
       expect(
-        tracking.getCompletionUrl(key: 'purchase'),
-        equals('https://t.example/v1/tracking?e=cmp'),
-      );
-      expect(
-        tracking.hasTrackingFor(TrackingType.completion, 'purchase'),
-        isTrue,
-      );
-      expect(
-        tracking.getTrackingUrl(TrackingType.completion, 'purchase'),
-        equals('https://t.example/v1/tracking?e=cmp'),
-      );
+          tracking.hasTrackingFor(TrackingType.completion, 'purchase'), isTrue);
+      expect(tracking.getTrackingUrl(TrackingType.completion, 'purchase'),
+          equals('https://t.example/v1/tracking?e=cmp'));
     });
 
     test('completions absent is backward compatible', () {
@@ -75,9 +67,7 @@ void main() {
 
       expect(tracking.completions!.length, equals(1));
       expect(
-        tracking.getCompletionUrl(key: 'purchase'),
-        equals('https://t/ok'),
-      );
+          tracking.getCompletionUrl(key: 'purchase'), equals('https://t/ok'));
     });
 
     test('completions as wrong type (not a list) → null, no throw', () {
@@ -103,16 +93,16 @@ void main() {
 
       final creative = Creative.fromJson({
         'contents': [
-          {'key': 'h', 'value': 'x', 'type': 'text'},
+          {'key': 'h', 'value': 'x', 'type': 'text'}
         ],
         'advertiser': {'name': 'Acme'},
         'template': {'key': 'native'},
         'tracking': {
           'impressions': [
-            {'key': 'default', 'url': 'https://t.example/v1/tracking?e=imp'},
+            {'key': 'default', 'url': 'https://t.example/v1/tracking?e=imp'}
           ],
           'completions': [
-            {'key': 'purchase', 'url': 'https://t.example/v1/tracking?e=cmp'},
+            {'key': 'purchase', 'url': 'https://t.example/v1/tracking?e=cmp'}
           ],
         },
         'journey': {'dealId': 'jad_1', 'isCompletion': false},
@@ -140,13 +130,13 @@ void main() {
 
       final creative = Creative.fromJson({
         'contents': [
-          {'key': 'h', 'value': 'x', 'type': 'text'},
+          {'key': 'h', 'value': 'x', 'type': 'text'}
         ],
         'advertiser': {'name': 'Acme'},
         'template': {'key': 'native'},
         'tracking': {
           'impressions': [
-            {'key': 'default', 'url': 'https://t.example/v1/tracking?e=imp'},
+            {'key': 'default', 'url': 'https://t.example/v1/tracking?e=imp'}
           ],
           // no completions array
         },
@@ -167,43 +157,35 @@ void main() {
   });
 
   group('fireCompletion key-miss is not silent for billing', () {
-    test(
-      'non-empty completions but wrong key → warns, fires nothing',
-      () async {
-        final records = <LogRecord>[];
-        final logger = Logger('jt-firecmp')
-          ..level = Level.ALL
-          ..onRecord.listen(records.add);
-        final fired = <String>[];
-        final sdk = AdMoai.forTesting(
-          config: SDKConfig(
-            baseUrl: baseUrl,
-            apiVersion: '2025-11-01',
-            logger: logger,
-          ),
-          httpClient: MockClient((r) async {
-            fired.add(r.url.toString());
-            return http.Response('', 200);
-          }),
-        );
+    test('non-empty completions but wrong key → warns, fires nothing',
+        () async {
+      final records = <LogRecord>[];
+      final logger = Logger('jt-firecmp')
+        ..level = Level.ALL
+        ..onRecord.listen(records.add);
+      final fired = <String>[];
+      final sdk = AdMoai.forTesting(
+        config: SDKConfig(
+            baseUrl: baseUrl, apiVersion: '2025-11-01', logger: logger),
+        httpClient: MockClient((r) async {
+          fired.add(r.url.toString());
+          return http.Response('', 200);
+        }),
+      );
 
-        final tracking = trackingWith(
-          completions: [
-            {'key': 'purchase', 'url': 'https://t/cmp'},
-          ],
-        );
-        sdk.fireCompletion(tracking, key: 'wrong_key');
-        await Future.delayed(Duration.zero);
+      final tracking = trackingWith(completions: [
+        {'key': 'purchase', 'url': 'https://t/cmp'},
+      ]);
+      sdk.fireCompletion(tracking, key: 'wrong_key');
+      await Future.delayed(Duration.zero);
 
-        expect(fired, isEmpty);
-        expect(
-          records.where(
-            (r) => r.level >= Level.WARNING && r.message.contains('wrong_key'),
-          ),
-          isNotEmpty,
-        );
-      },
-    );
+      expect(fired, isEmpty);
+      expect(
+        records.where(
+            (r) => r.level >= Level.WARNING && r.message.contains('wrong_key')),
+        isNotEmpty,
+      );
+    });
 
     test('no completions (final_stage) → no warning, no fire', () async {
       final records = <LogRecord>[];
@@ -213,10 +195,7 @@ void main() {
       final fired = <String>[];
       final sdk = AdMoai.forTesting(
         config: SDKConfig(
-          baseUrl: baseUrl,
-          apiVersion: '2025-11-01',
-          logger: logger,
-        ),
+            baseUrl: baseUrl, apiVersion: '2025-11-01', logger: logger),
         httpClient: MockClient((r) async {
           fired.add(r.url.toString());
           return http.Response('', 200);
@@ -253,31 +232,29 @@ void main() {
   });
 
   group('fireTracking is null-safe on malformed URLs', () {
-    test(
-      'a URL Uri.tryParse rejects → warns, no throw, nothing fired',
-      () async {
-        final records = <LogRecord>[];
-        final logger = Logger('jt-badurl')
-          ..level = Level.ALL
-          ..onRecord.listen(records.add);
-        final fired = <String>[];
-        final sdk = AdMoai.forTesting(
-          config: SDKConfig(baseUrl: baseUrl, logger: logger),
-          httpClient: MockClient((r) async {
-            fired.add(r.url.toString());
-            return http.Response('', 200);
-          }),
-        );
+    test('a URL Uri.tryParse rejects → warns, no throw, nothing fired',
+        () async {
+      final records = <LogRecord>[];
+      final logger = Logger('jt-badurl')
+        ..level = Level.ALL
+        ..onRecord.listen(records.add);
+      final fired = <String>[];
+      final sdk = AdMoai.forTesting(
+        config: SDKConfig(baseUrl: baseUrl, logger: logger),
+        httpClient: MockClient((r) async {
+          fired.add(r.url.toString());
+          return http.Response('', 200);
+        }),
+      );
 
-        // Malformed / schemeless inputs must not crash the guard.
-        for (final bad in const ['::::', 'not a url', 'ftp-no-scheme', '']) {
-          expect(() => sdk.fireTracking(bad), returnsNormally);
-        }
-        await Future.delayed(Duration.zero);
+      // Malformed / schemeless inputs must not crash the guard.
+      for (final bad in const ['::::', 'not a url', 'ftp-no-scheme', '']) {
+        expect(() => sdk.fireTracking(bad), returnsNormally);
+      }
+      await Future.delayed(Duration.zero);
 
-        expect(fired, isEmpty);
-        expect(records.where((r) => r.level >= Level.WARNING), isNotEmpty);
-      },
-    );
+      expect(fired, isEmpty);
+      expect(records.where((r) => r.level >= Level.WARNING), isNotEmpty);
+    });
   });
 }

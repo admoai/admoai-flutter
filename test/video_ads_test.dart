@@ -7,7 +7,7 @@ void main() {
     test('testVastDataDeserialization', () {
       final json = {
         'tagUrl': 'https://example.com/vast.xml',
-        'xmlBase64': 'PD94bWw+PC94bWw+',
+        'xmlBase64': 'PD94bWw+PC94bWw+'
       };
 
       final vastData = VastData.fromJson(json);
@@ -21,25 +21,25 @@ void main() {
         'contents': [
           {'key': 'title', 'value': 'Test Ad', 'type': 'text'},
           {'key': 'isSkippable', 'value': true, 'type': 'boolean'},
-          {'key': 'skipOffset', 'value': '00:00:05', 'type': 'text'},
+          {'key': 'skipOffset', 'value': '00:00:05', 'type': 'text'}
         ],
         'advertiser': {
           'name': 'Test Advertiser',
           'legalName': 'Test Legal',
-          'logoUrl': 'https://example.com/logo.png',
+          'logoUrl': 'https://example.com/logo.png'
         },
         'template': {'key': 'video_ad', 'style': 'fullscreen'},
         'tracking': {
           'impressions': [
-            {'key': 'default', 'url': 'https://example.com/impression'},
+            {'key': 'default', 'url': 'https://example.com/impression'}
           ],
           'videoEvents': [
             {'key': 'start', 'url': 'https://example.com/video/start'},
-            {'key': 'complete', 'url': 'https://example.com/video/complete'},
-          ],
+            {'key': 'complete', 'url': 'https://example.com/video/complete'}
+          ]
         },
         'delivery': 'vast_tag',
-        'vast': {'tagUrl': 'https://example.com/vast.xml', 'xmlBase64': null},
+        'vast': {'tagUrl': 'https://example.com/vast.xml', 'xmlBase64': null}
       };
 
       final creative = Creative.fromJson(json);
@@ -54,18 +54,18 @@ void main() {
     test('testTrackingWithVideoEvents', () {
       final json = {
         'impressions': [
-          {'key': 'default', 'url': 'https://example.com/impression'},
+          {'key': 'default', 'url': 'https://example.com/impression'}
         ],
         'clicks': [
-          {'key': 'default', 'url': 'https://example.com/click'},
+          {'key': 'default', 'url': 'https://example.com/click'}
         ],
         'videoEvents': [
           {'key': 'start', 'url': 'https://example.com/video/start'},
           {'key': 'firstQuartile', 'url': 'https://example.com/video/q1'},
           {'key': 'midpoint', 'url': 'https://example.com/video/mid'},
           {'key': 'thirdQuartile', 'url': 'https://example.com/video/q3'},
-          {'key': 'complete', 'url': 'https://example.com/video/complete'},
-        ],
+          {'key': 'complete', 'url': 'https://example.com/video/complete'}
+        ]
       };
 
       final tracking = Tracking.fromJson(json);
@@ -73,10 +73,8 @@ void main() {
       expect(tracking.videoEvents, isNotNull);
       expect(tracking.videoEvents!.length, equals(5));
       expect(tracking.hasTrackingFor(TrackingType.videoEvent, 'start'), isTrue);
-      expect(
-        tracking.getVideoEventUrl(key: 'midpoint'),
-        equals('https://example.com/video/mid'),
-      );
+      expect(tracking.getVideoEventUrl(key: 'midpoint'),
+          equals('https://example.com/video/mid'));
     });
   });
 
@@ -89,19 +87,14 @@ void main() {
       vastTagCreative = Creative(
         contents: [
           Content(key: 'isSkippable', value: true, type: 'boolean'),
-          Content(key: 'skipOffset', value: '00:00:05', type: 'text'),
+          Content(key: 'skipOffset', value: '00:00:05', type: 'text')
         ],
         advertiser: Advertiser(
-          name: 'Test',
-          legalName: 'Test Legal',
-          logoUrl: 'https://test.com',
-        ),
+            name: 'Test', legalName: 'Test Legal', logoUrl: 'https://test.com'),
         template: Template(key: 'video', style: 'fullscreen'),
-        tracking: Tracking(
-          impressions: [
-            TrackingItem(key: 'default', url: 'https://example.com/impression'),
-          ],
-        ),
+        tracking: Tracking(impressions: [
+          TrackingItem(key: 'default', url: 'https://example.com/impression')
+        ]),
         delivery: 'vast_tag',
         vast: VastData(tagUrl: 'https://example.com/vast.xml', xmlBase64: null),
       );
@@ -109,37 +102,26 @@ void main() {
       vastXmlCreative = Creative(
         contents: [],
         advertiser: Advertiser(
-          name: 'Test',
-          legalName: 'Test Legal',
-          logoUrl: 'https://test.com',
-        ),
+            name: 'Test', legalName: 'Test Legal', logoUrl: 'https://test.com'),
         template: Template(key: 'video', style: 'fullscreen'),
-        tracking: Tracking(
-          impressions: [
-            TrackingItem(key: 'default', url: 'https://example.com/impression'),
-          ],
-        ),
+        tracking: Tracking(impressions: [
+          TrackingItem(key: 'default', url: 'https://example.com/impression')
+        ]),
         delivery: 'vast_xml',
         vast: VastData(
-          tagUrl: null,
-          xmlBase64:
-              'PFZBU1Q+PE1lZGlhRmlsZSB0eXBlPSJ2aWRlby9tcDQiPnRlc3Q8L01lZGlhRmlsZT48L1ZBU1Q+',
-        ),
+            tagUrl: null,
+            xmlBase64:
+                'PFZBU1Q+PE1lZGlhRmlsZSB0eXBlPSJ2aWRlby9tcDQiPnRlc3Q8L01lZGlhRmlsZT48L1ZBU1Q+'),
       );
 
       jsonCreative = Creative(
         contents: [],
         advertiser: Advertiser(
-          name: 'Test',
-          legalName: 'Test Legal',
-          logoUrl: 'https://test.com',
-        ),
+            name: 'Test', legalName: 'Test Legal', logoUrl: 'https://test.com'),
         template: Template(key: 'video', style: 'fullscreen'),
-        tracking: Tracking(
-          impressions: [
-            TrackingItem(key: 'default', url: 'https://example.com/impression'),
-          ],
-        ),
+        tracking: Tracking(impressions: [
+          TrackingItem(key: 'default', url: 'https://example.com/impression')
+        ]),
         delivery: 'json',
       );
     });
@@ -171,9 +153,7 @@ void main() {
 
     test('testGetVastTagUrlWithBothParams', () {
       final url = vastTagCreative.getVastTagUrl(
-        mediaType: 'video/mp4',
-        mediaDelivery: 'progressive',
-      );
+          mediaType: 'video/mp4', mediaDelivery: 'progressive');
       expect(url, contains('mediaType=video%2Fmp4'));
       expect(url, contains('mediaDelivery=progressive'));
       expect(url, contains('&'));
@@ -183,21 +163,15 @@ void main() {
       final creativeWithParams = Creative(
         contents: [],
         advertiser: Advertiser(
-          name: 'Test',
-          legalName: 'Test Legal',
-          logoUrl: 'https://test.com',
-        ),
+            name: 'Test', legalName: 'Test Legal', logoUrl: 'https://test.com'),
         template: Template(key: 'video', style: 'fullscreen'),
-        tracking: Tracking(
-          impressions: [
-            TrackingItem(key: 'default', url: 'https://example.com/impression'),
-          ],
-        ),
+        tracking: Tracking(impressions: [
+          TrackingItem(key: 'default', url: 'https://example.com/impression')
+        ]),
         delivery: 'vast_tag',
         vast: VastData(
-          tagUrl: 'https://example.com/vast.xml?existing=param',
-          xmlBase64: null,
-        ),
+            tagUrl: 'https://example.com/vast.xml?existing=param',
+            xmlBase64: null),
       );
 
       final url = creativeWithParams.getVastTagUrl(mediaType: 'video/mp4');
@@ -208,11 +182,9 @@ void main() {
     test('testGetVastXmlBase64WithoutParams', () {
       final base64 = vastXmlCreative.getVastXmlBase64();
       expect(
-        base64,
-        equals(
-          'PFZBU1Q+PE1lZGlhRmlsZSB0eXBlPSJ2aWRlby9tcDQiPnRlc3Q8L01lZGlhRmlsZT48L1ZBU1Q+',
-        ),
-      );
+          base64,
+          equals(
+              'PFZBU1Q+PE1lZGlhRmlsZSB0eXBlPSJ2aWRlby9tcDQiPnRlc3Q8L01lZGlhRmlsZT48L1ZBU1Q+'));
     });
 
     test('testGetVastXmlBase64WithMediaType', () {
@@ -256,25 +228,24 @@ void main() {
 // identical change is applied to the Android SDK, which had the same mismatch.
 // ───────────────────────────────────────────────────────────────────────────────
 void skippabilityParityTests() {
-  Creative creativeWithContents(
-    List<Map<String, dynamic>> contents, {
-    Map<String, dynamic>? metadata,
-  }) => Creative.fromJson({
-    'contents': contents,
-    'advertiser': const <String, dynamic>{},
-    'template': const <String, dynamic>{},
-    'tracking': const <String, dynamic>{},
-    if (metadata != null) 'metadata': metadata,
-  });
+  Creative creativeWithContents(List<Map<String, dynamic>> contents,
+          {Map<String, dynamic>? metadata}) =>
+      Creative.fromJson({
+        'contents': contents,
+        'advertiser': const <String, dynamic>{},
+        'template': const <String, dynamic>{},
+        'tracking': const <String, dynamic>{},
+        if (metadata != null) 'metadata': metadata,
+      });
 
   Map<String, dynamic> baseMetadata(Map<String, dynamic> extra) => {
-    'adId': 'a',
-    'creativeId': 'c',
-    'templateId': 't',
-    'placementId': 'p',
-    'priority': 'standard',
-    ...extra,
-  };
+        'adId': 'a',
+        'creativeId': 'c',
+        'templateId': 't',
+        'placementId': 'p',
+        'priority': 'standard',
+        ...extra,
+      };
 
   group('skippability — snake_case content keys (the live engine shape)', () {
     test('is_skippable as an integer 1 is skippable', () {
@@ -303,25 +274,23 @@ void skippabilityParityTests() {
       expect(creative.isSkippable(), isTrue);
     });
 
-    test(
-      'a non-numeric placeholder value is not skippable, and never throws',
-      () {
-        // The mock seed fills these fields with placeholder text, so the helper
-        // must degrade rather than throw or guess.
-        final creative = creativeWithContents([
-          {
-            'key': 'is_skippable',
-            'value': 'is_skippable (demo)',
-            'type': 'integer',
-          },
-          {'key': 'skip_offset', 'value': 'Journey Ad demo', 'type': 'text'},
-        ]);
+    test('a non-numeric placeholder value is not skippable, and never throws',
+        () {
+      // The mock seed fills these fields with placeholder text, so the helper
+      // must degrade rather than throw or guess.
+      final creative = creativeWithContents([
+        {
+          'key': 'is_skippable',
+          'value': 'is_skippable (demo)',
+          'type': 'integer'
+        },
+        {'key': 'skip_offset', 'value': 'Journey Ad demo', 'type': 'text'},
+      ]);
 
-        expect(() => creative.isSkippable(), returnsNormally);
-        expect(creative.isSkippable(), isFalse);
-        expect(creative.getSkipOffset(), equals('Journey Ad demo'));
-      },
-    );
+      expect(() => creative.isSkippable(), returnsNormally);
+      expect(creative.isSkippable(), isFalse);
+      expect(creative.getSkipOffset(), equals('Journey Ad demo'));
+    });
   });
 
   group('skippability — camelCase content keys still work', () {
@@ -340,26 +309,35 @@ void skippabilityParityTests() {
 
   group('skippability — engine metadata wins over content', () {
     test('metadata.isSkippable takes precedence', () {
-      final creative = creativeWithContents([
-        {'key': 'is_skippable', 'value': 0, 'type': 'integer'},
-      ], metadata: baseMetadata({'isSkippable': true}));
+      final creative = creativeWithContents(
+        [
+          {'key': 'is_skippable', 'value': 0, 'type': 'integer'},
+        ],
+        metadata: baseMetadata({'isSkippable': true}),
+      );
 
       expect(creative.isSkippable(), isTrue);
     });
 
     test('metadata.skipOffsetSeconds takes precedence', () {
-      final creative = creativeWithContents([
-        {'key': 'skip_offset', 'value': '99', 'type': 'text'},
-      ], metadata: baseMetadata({'skipOffsetSeconds': 5}));
+      final creative = creativeWithContents(
+        [
+          {'key': 'skip_offset', 'value': '99', 'type': 'text'},
+        ],
+        metadata: baseMetadata({'skipOffsetSeconds': 5}),
+      );
 
       expect(creative.getSkipOffset(), equals('5'));
     });
 
     test('content is used when metadata omits the fields', () {
-      final creative = creativeWithContents([
-        {'key': 'is_skippable', 'value': 1, 'type': 'integer'},
-        {'key': 'skip_offset', 'value': '7', 'type': 'text'},
-      ], metadata: baseMetadata(const {}));
+      final creative = creativeWithContents(
+        [
+          {'key': 'is_skippable', 'value': 1, 'type': 'integer'},
+          {'key': 'skip_offset', 'value': '7', 'type': 'text'},
+        ],
+        metadata: baseMetadata(const {}),
+      );
 
       expect(creative.isSkippable(), isTrue);
       expect(creative.getSkipOffset(), equals('7'));

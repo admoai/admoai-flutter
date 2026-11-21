@@ -29,7 +29,11 @@ class AdMoaiClient {
 
     try {
       final response = await _client
-          .post(uri, headers: request.headers, body: request.body)
+          .post(
+            uri,
+            headers: request.headers,
+            body: request.body,
+          )
           .timeout(requestTimeout);
 
       _warnIfDeprecated(response);
@@ -44,9 +48,9 @@ class AdMoaiClient {
           final rawData = jsonBody['data'];
           final decisions = rawData is List
               ? rawData
-                    .whereType<Map<String, dynamic>>()
-                    .map(Decision.fromJson)
-                    .toList()
+                  .whereType<Map<String, dynamic>>()
+                  .map(Decision.fromJson)
+                  .toList()
               : <Decision>[];
 
           // Parse errors/warnings rather than hardcoding them empty. The engine returns
@@ -59,10 +63,8 @@ class AdMoaiClient {
             success: jsonBody['success'] == true,
             data: decisions as T,
             errors: _messageList(jsonBody['errors'], AdMoaiError.tryFromJson),
-            warnings: _messageList(
-              jsonBody['warnings'],
-              AdMoaiWarning.tryFromJson,
-            ),
+            warnings:
+                _messageList(jsonBody['warnings'], AdMoaiWarning.tryFromJson),
           );
 
           return APIResponse<T>(
@@ -164,10 +166,8 @@ class AdMoaiClient {
     DecisionRequest request, {
     InteractiveExperienceCapability? interactiveExperience,
   }) async {
-    final httpRequest = getDecisionRequest(
-      request,
-      interactiveExperience: interactiveExperience,
-    );
+    final httpRequest = getDecisionRequest(request,
+        interactiveExperience: interactiveExperience);
     return send(httpRequest);
   }
 
@@ -181,7 +181,11 @@ class APIResponse<T> {
   final APIResponseBody<T> body;
   final String? rawBody;
 
-  APIResponse({required this.response, required this.body, this.rawBody});
+  APIResponse({
+    required this.response,
+    required this.body,
+    this.rawBody,
+  });
 }
 
 class APIResponseBody<T> {
@@ -310,12 +314,8 @@ class ClientError extends APIError {
   final List<AdMoaiError> errors;
 
   ClientError(this.status, {this.errors = const []})
-    : super(
-        _clientMessage(
-          'Client error: ${status.code} - ${status.description}',
-          errors,
-        ),
-      );
+      : super(_clientMessage(
+            'Client error: ${status.code} - ${status.description}', errors));
 }
 
 /// A status the SDK does not map. For a 4xx, [errors] carries the engine's
@@ -327,7 +327,8 @@ class UnexpectedStatusError extends APIError {
   final List<AdMoaiError> errors;
 
   UnexpectedStatusError(this.statusCode, {this.errors = const []})
-    : super(_clientMessage('Unexpected HTTP status code: $statusCode', errors));
+      : super(
+            _clientMessage('Unexpected HTTP status code: $statusCode', errors));
 }
 
 String _clientMessage(String head, List<AdMoaiError> errors) => errors.isEmpty

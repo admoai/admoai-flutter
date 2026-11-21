@@ -14,19 +14,27 @@ void main() {
   setUp(() async {
     const MethodChannel channel = MethodChannel('flutter_timezone');
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(channel, (MethodCall methodCall) async {
-          if (methodCall.method == 'getLocalTimezone') {
-            return 'UTC';
-          }
-          return null;
-        });
+        .setMockMethodCallHandler(
+      channel,
+      (MethodCall methodCall) async {
+        if (methodCall.method == 'getLocalTimezone') {
+          return 'UTC';
+        }
+        return null;
+      },
+    );
 
     final config = SDKConfig(baseUrl: baseUrl);
-    sdk = await AdMoai.initialize(config: config);
+    sdk = await AdMoai.initialize(
+      config: config,
+    );
   });
 
   test('testSDKInitialization', () async {
-    final config = SDKConfig(baseUrl: baseUrl, logger: Logger('AdMoaiSDK'));
+    final config = SDKConfig(
+      baseUrl: baseUrl,
+      logger: Logger('AdMoaiSDK'),
+    );
 
     final sdk = await AdMoai.initialize(config: config);
 
@@ -118,7 +126,8 @@ void main() {
   });
 
   group('fireTracking version header', () {
-    test('sends X-Tracking-Version header (not X-Decision-Version) when '
+    test(
+        'sends X-Tracking-Version header (not X-Decision-Version) when '
         'apiVersion is set', () async {
       http.Request? captured;
       final mockClient = MockClient((request) async {
@@ -142,35 +151,35 @@ void main() {
       expect(captured!.headers.containsKey('X-Decision-Version'), isFalse);
     });
 
-    test(
-      'omits X-Tracking-Version header when apiVersion is not set',
-      () async {
-        http.Request? captured;
-        final mockClient = MockClient((request) async {
-          captured = request;
-          return http.Response('', 200);
-        });
+    test('omits X-Tracking-Version header when apiVersion is not set',
+        () async {
+      http.Request? captured;
+      final mockClient = MockClient((request) async {
+        captured = request;
+        return http.Response('', 200);
+      });
 
-        final sdk = AdMoai.forTesting(
-          config: SDKConfig(baseUrl: baseUrl),
-          httpClient: mockClient,
-        );
+      final sdk = AdMoai.forTesting(
+        config: SDKConfig(baseUrl: baseUrl),
+        httpClient: mockClient,
+      );
 
-        sdk.fireTracking('https://tracking.example.com/event');
-        await Future.delayed(Duration.zero);
+      sdk.fireTracking('https://tracking.example.com/event');
+      await Future.delayed(Duration.zero);
 
-        expect(captured, isNotNull);
-        expect(captured!.headers.containsKey('X-Tracking-Version'), isFalse);
-        expect(captured!.headers.containsKey('X-Decision-Version'), isFalse);
-      },
-    );
+      expect(captured, isNotNull);
+      expect(captured!.headers.containsKey('X-Tracking-Version'), isFalse);
+      expect(captured!.headers.containsKey('X-Decision-Version'), isFalse);
+    });
   });
 
   group('User-Agent header', () {
     test('decision request carries User-Agent: AdMoaiSDK/{sdkVersion}', () {
-      final sdk = AdMoai.forTesting(config: SDKConfig(baseUrl: baseUrl));
-      final request = (sdk.createRequestBuilder()..addPlacement(key: 'home'))
-          .build();
+      final sdk = AdMoai.forTesting(
+        config: SDKConfig(baseUrl: baseUrl),
+      );
+      final request =
+          (sdk.createRequestBuilder()..addPlacement(key: 'home')).build();
       final httpRequest = sdk.getHttpRequest(request);
 
       expect(httpRequest.headers!['User-Agent'], startsWith('AdMoaiSDK/'));
@@ -225,7 +234,10 @@ void main() {
       http.Request? captured;
       final mockClient = MockClient((request) async {
         captured = request;
-        return http.Response('{"success": true, "data": []}', 200);
+        return http.Response(
+          '{"success": true, "data": []}',
+          200,
+        );
       });
 
       final sdk = AdMoai.forTesting(
@@ -233,8 +245,8 @@ void main() {
         httpClient: mockClient,
       );
 
-      final request = (sdk.createRequestBuilder()..addPlacement(key: 'home'))
-          .build();
+      final request =
+          (sdk.createRequestBuilder()..addPlacement(key: 'home')).build();
       await sdk.requestAds(request);
 
       expect(captured, isNotNull);
@@ -260,27 +272,29 @@ void main() {
     });
 
     test(
-      'decision request throws NetworkError on requestTimeout (TimeoutException)',
-      () async {
-        final stallingClient = MockClient((request) async {
-          await Future.delayed(const Duration(seconds: 5));
-          return http.Response('{}', 200);
-        });
+        'decision request throws NetworkError on requestTimeout (TimeoutException)',
+        () async {
+      final stallingClient = MockClient((request) async {
+        await Future.delayed(const Duration(seconds: 5));
+        return http.Response('{}', 200);
+      });
 
-        final sdk = AdMoai.forTesting(
-          config: SDKConfig(
-            baseUrl: baseUrl,
-            requestTimeout: const Duration(milliseconds: 200),
-          ),
-          httpClient: stallingClient,
-        );
+      final sdk = AdMoai.forTesting(
+        config: SDKConfig(
+          baseUrl: baseUrl,
+          requestTimeout: const Duration(milliseconds: 200),
+        ),
+        httpClient: stallingClient,
+      );
 
-        final request = (sdk.createRequestBuilder()..addPlacement(key: 'home'))
-            .build();
+      final request =
+          (sdk.createRequestBuilder()..addPlacement(key: 'home')).build();
 
-        expect(() => sdk.requestAds(request), throwsA(isA<NetworkError>()));
-      },
-    );
+      expect(
+        () => sdk.requestAds(request),
+        throwsA(isA<NetworkError>()),
+      );
+    });
 
     test('tracking request is fire-and-forget on timeout (no throw)', () async {
       var completed = false;
@@ -313,8 +327,8 @@ void main() {
         ),
       );
 
-      final request = (sdk.createRequestBuilder()..addPlacement(key: 'home'))
-          .build();
+      final request =
+          (sdk.createRequestBuilder()..addPlacement(key: 'home')).build();
       final httpRequest = sdk.getHttpRequest(request);
       expect(httpRequest.path, equals('/v1/decision'));
       expect(httpRequest.method, equals(HTTPMethod.post));
@@ -330,84 +344,75 @@ void main() {
       expect(set.defaultLanguage, equals('en-US'));
     });
 
-    test(
-      'decision request carries Accept-Language when defaultLanguage is set',
-      () {
-        final sdk = AdMoai.forTesting(
-          config: SDKConfig(baseUrl: baseUrl, defaultLanguage: 'en-US'),
-        );
+    test('decision request carries Accept-Language when defaultLanguage is set',
+        () {
+      final sdk = AdMoai.forTesting(
+        config: SDKConfig(baseUrl: baseUrl, defaultLanguage: 'en-US'),
+      );
 
-        final builder = sdk.createRequestBuilder()..addPlacement(key: 'home');
-        final httpRequest = sdk.getHttpRequest(builder.build());
+      final builder = sdk.createRequestBuilder()..addPlacement(key: 'home');
+      final httpRequest = sdk.getHttpRequest(builder.build());
 
-        expect(httpRequest.headers!['Accept-Language'], equals('en-US'));
-        expect(
-          httpRequest.headers!['Content-Type'],
-          equals('application/json'),
-        );
-        expect(httpRequest.headers!['Accept'], equals('application/json'));
-      },
-    );
+      expect(httpRequest.headers!['Accept-Language'], equals('en-US'));
+      expect(httpRequest.headers!['Content-Type'], equals('application/json'));
+      expect(httpRequest.headers!['Accept'], equals('application/json'));
+    });
 
-    test(
-      'decision request omits Accept-Language when defaultLanguage is null',
-      () {
-        final sdk = AdMoai.forTesting(config: SDKConfig(baseUrl: baseUrl));
+    test('decision request omits Accept-Language when defaultLanguage is null',
+        () {
+      final sdk = AdMoai.forTesting(
+        config: SDKConfig(baseUrl: baseUrl),
+      );
 
-        final builder = sdk.createRequestBuilder()..addPlacement(key: 'home');
-        final httpRequest = sdk.getHttpRequest(builder.build());
+      final builder = sdk.createRequestBuilder()..addPlacement(key: 'home');
+      final httpRequest = sdk.getHttpRequest(builder.build());
 
-        expect(httpRequest.headers!.containsKey('Accept-Language'), isFalse);
-      },
-    );
+      expect(httpRequest.headers!.containsKey('Accept-Language'), isFalse);
+    });
 
-    test(
-      'tracking request carries Accept-Language and X-Tracking-Version',
-      () async {
-        http.Request? captured;
-        final mockClient = MockClient((request) async {
-          captured = request;
-          return http.Response('', 200);
-        });
+    test('tracking request carries Accept-Language and X-Tracking-Version',
+        () async {
+      http.Request? captured;
+      final mockClient = MockClient((request) async {
+        captured = request;
+        return http.Response('', 200);
+      });
 
-        final sdk = AdMoai.forTesting(
-          config: SDKConfig(
-            baseUrl: baseUrl,
-            apiVersion: '2025-11-01',
-            defaultLanguage: 'es-ES',
-          ),
-          httpClient: mockClient,
-        );
+      final sdk = AdMoai.forTesting(
+        config: SDKConfig(
+          baseUrl: baseUrl,
+          apiVersion: '2025-11-01',
+          defaultLanguage: 'es-ES',
+        ),
+        httpClient: mockClient,
+      );
 
-        sdk.fireTracking('https://tracking.example.com/event');
-        await Future.delayed(Duration.zero);
+      sdk.fireTracking('https://tracking.example.com/event');
+      await Future.delayed(Duration.zero);
 
-        expect(captured, isNotNull);
-        expect(captured!.headers['Accept-Language'], equals('es-ES'));
-        expect(captured!.headers['X-Tracking-Version'], equals('2025-11-01'));
-      },
-    );
+      expect(captured, isNotNull);
+      expect(captured!.headers['Accept-Language'], equals('es-ES'));
+      expect(captured!.headers['X-Tracking-Version'], equals('2025-11-01'));
+    });
 
-    test(
-      'tracking request omits Accept-Language when defaultLanguage is null',
-      () async {
-        http.Request? captured;
-        final mockClient = MockClient((request) async {
-          captured = request;
-          return http.Response('', 200);
-        });
+    test('tracking request omits Accept-Language when defaultLanguage is null',
+        () async {
+      http.Request? captured;
+      final mockClient = MockClient((request) async {
+        captured = request;
+        return http.Response('', 200);
+      });
 
-        final sdk = AdMoai.forTesting(
-          config: SDKConfig(baseUrl: baseUrl),
-          httpClient: mockClient,
-        );
+      final sdk = AdMoai.forTesting(
+        config: SDKConfig(baseUrl: baseUrl),
+        httpClient: mockClient,
+      );
 
-        sdk.fireTracking('https://tracking.example.com/event');
-        await Future.delayed(Duration.zero);
+      sdk.fireTracking('https://tracking.example.com/event');
+      await Future.delayed(Duration.zero);
 
-        expect(captured, isNotNull);
-        expect(captured!.headers.containsKey('Accept-Language'), isFalse);
-      },
-    );
+      expect(captured, isNotNull);
+      expect(captured!.headers.containsKey('Accept-Language'), isFalse);
+    });
   });
 }

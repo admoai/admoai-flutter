@@ -93,8 +93,7 @@ extension VideoHelper on Creative {
     final fromMetadata = metadata?.isSkippable;
     if (fromMetadata != null) return fromMetadata;
 
-    final content =
-        contents.getContent('isSkippable') ??
+    final content = contents.getContent('isSkippable') ??
         contents.getContent('is_skippable');
     return _asFlag(content?.value);
   }

@@ -24,10 +24,12 @@ void main() {
 
   group('Unexpected HTTP status codes are preserved', () {
     test('401 surfaces as UnexpectedStatusError(401)', () async {
-      final sdk = await _sdkWithResponse(() => http.Response('', 401));
+      final sdk = await _sdkWithResponse(
+        () => http.Response('', 401),
+      );
 
-      final request = (sdk.createRequestBuilder()..addPlacement(key: 'home'))
-          .build();
+      final request =
+          (sdk.createRequestBuilder()..addPlacement(key: 'home')).build();
 
       try {
         await sdk.requestAds(request);
@@ -38,10 +40,12 @@ void main() {
     });
 
     test('418 surfaces as UnexpectedStatusError(418)', () async {
-      final sdk = await _sdkWithResponse(() => http.Response('', 418));
+      final sdk = await _sdkWithResponse(
+        () => http.Response('', 418),
+      );
 
-      final request = (sdk.createRequestBuilder()..addPlacement(key: 'home'))
-          .build();
+      final request =
+          (sdk.createRequestBuilder()..addPlacement(key: 'home')).build();
 
       try {
         await sdk.requestAds(request);
@@ -52,10 +56,12 @@ void main() {
     });
 
     test('451 is catchable as APIError', () async {
-      final sdk = await _sdkWithResponse(() => http.Response('', 451));
+      final sdk = await _sdkWithResponse(
+        () => http.Response('', 451),
+      );
 
-      final request = (sdk.createRequestBuilder()..addPlacement(key: 'home'))
-          .build();
+      final request =
+          (sdk.createRequestBuilder()..addPlacement(key: 'home')).build();
 
       try {
         await sdk.requestAds(request);
@@ -69,10 +75,12 @@ void main() {
 
   group('5xx range maps to ServerError', () {
     test('502 surfaces as ServerError(502)', () async {
-      final sdk = await _sdkWithResponse(() => http.Response('', 502));
+      final sdk = await _sdkWithResponse(
+        () => http.Response('', 502),
+      );
 
-      final request = (sdk.createRequestBuilder()..addPlacement(key: 'home'))
-          .build();
+      final request =
+          (sdk.createRequestBuilder()..addPlacement(key: 'home')).build();
 
       try {
         await sdk.requestAds(request);
@@ -83,10 +91,12 @@ void main() {
     });
 
     test('503 surfaces as ServerError(503)', () async {
-      final sdk = await _sdkWithResponse(() => http.Response('', 503));
+      final sdk = await _sdkWithResponse(
+        () => http.Response('', 503),
+      );
 
-      final request = (sdk.createRequestBuilder()..addPlacement(key: 'home'))
-          .build();
+      final request =
+          (sdk.createRequestBuilder()..addPlacement(key: 'home')).build();
 
       try {
         await sdk.requestAds(request);
@@ -99,9 +109,11 @@ void main() {
 
   group('Mapped statuses keep their dedicated typed errors', () {
     test('400 still throws ClientError(badRequest)', () async {
-      final sdk = await _sdkWithResponse(() => http.Response('', 400));
-      final request = (sdk.createRequestBuilder()..addPlacement(key: 'home'))
-          .build();
+      final sdk = await _sdkWithResponse(
+        () => http.Response('', 400),
+      );
+      final request =
+          (sdk.createRequestBuilder()..addPlacement(key: 'home')).build();
       try {
         await sdk.requestAds(request);
         fail('expected ClientError');
@@ -112,10 +124,13 @@ void main() {
 
     test('422 with errors body still throws ValidationError', () async {
       final sdk = await _sdkWithResponse(
-        () => http.Response('{"errors": [{"code": 1, "message": "bad"}]}', 422),
+        () => http.Response(
+          '{"errors": [{"code": 1, "message": "bad"}]}',
+          422,
+        ),
       );
-      final request = (sdk.createRequestBuilder()..addPlacement(key: 'home'))
-          .build();
+      final request =
+          (sdk.createRequestBuilder()..addPlacement(key: 'home')).build();
       try {
         await sdk.requestAds(request);
         fail('expected ValidationError');
@@ -126,36 +141,35 @@ void main() {
       }
     });
 
-    test('400 with the engine error body exposes code 10009 and its message '
+    test(
+        '400 with the engine error body exposes code 10009 and its message '
         '(gate OFF, device carrier sent)', () async {
       // The exact body the engine answered in B5-flutter QA item 1.2.
-      const body =
-          '{"success":false,"data":null,"errors":[{"code":10009,'
+      const body = '{"success":false,"data":null,"errors":[{"code":10009,'
           '"message":"The body contains an unknown field `\\"carrier\\"`"}],'
           '"warnings":null}';
       final sdk = await _sdkWithResponse(() => http.Response(body, 400));
-      final request = (sdk.createRequestBuilder()..addPlacement(key: 'home'))
-          .build();
+      final request =
+          (sdk.createRequestBuilder()..addPlacement(key: 'home')).build();
       try {
         await sdk.requestAds(request);
         fail('expected ClientError');
       } on ClientError catch (e) {
         expect(e.status, equals(HTTPStatus.badRequest));
         expect(e.errors.map((x) => x.code), equals([10009]));
-        expect(
-          e.errors.single.message,
-          equals('The body contains an unknown field `"carrier"`'),
-        );
+        expect(e.errors.single.message,
+            equals('The body contains an unknown field `"carrier"`'));
         expect(e.message, contains('[10009]'));
       }
     });
 
-    test('400 with an empty or non-JSON body has no errors and stays a '
+    test(
+        '400 with an empty or non-JSON body has no errors and stays a '
         'ClientError', () async {
       for (final body in ['', 'Bad Request', '[]', '{"errors":"x"}']) {
         final sdk = await _sdkWithResponse(() => http.Response(body, 400));
-        final request = (sdk.createRequestBuilder()..addPlacement(key: 'home'))
-            .build();
+        final request =
+            (sdk.createRequestBuilder()..addPlacement(key: 'home')).build();
         try {
           await sdk.requestAds(request);
           fail('expected ClientError for body "$body"');
@@ -168,14 +182,10 @@ void main() {
     });
 
     test('a malformed entry is dropped and the valid one kept', () async {
-      final sdk = await _sdkWithResponse(
-        () => http.Response(
-          '{"errors":[{"code":"x"},{"code":10009,"message":"m"}]}',
-          400,
-        ),
-      );
-      final request = (sdk.createRequestBuilder()..addPlacement(key: 'home'))
-          .build();
+      final sdk = await _sdkWithResponse(() => http.Response(
+          '{"errors":[{"code":"x"},{"code":10009,"message":"m"}]}', 400));
+      final request =
+          (sdk.createRequestBuilder()..addPlacement(key: 'home')).build();
       try {
         await sdk.requestAds(request);
         fail('expected ClientError');
@@ -186,12 +196,10 @@ void main() {
 
     test('other mapped 4xx (404, 429) carry the body errors too', () async {
       for (final status in [404, 429]) {
-        final sdk = await _sdkWithResponse(
-          () =>
-              http.Response('{"errors":[{"code":42,"message":"why"}]}', status),
-        );
-        final request = (sdk.createRequestBuilder()..addPlacement(key: 'home'))
-            .build();
+        final sdk = await _sdkWithResponse(() =>
+            http.Response('{"errors":[{"code":42,"message":"why"}]}', status));
+        final request =
+            (sdk.createRequestBuilder()..addPlacement(key: 'home')).build();
         try {
           await sdk.requestAds(request);
           fail('expected ClientError for $status');
@@ -202,13 +210,13 @@ void main() {
       }
     });
 
-    test('an unmapped 4xx (401) keeps UnexpectedStatusError and carries the '
+    test(
+        'an unmapped 4xx (401) keeps UnexpectedStatusError and carries the '
         'body errors', () async {
-      final sdk = await _sdkWithResponse(
-        () => http.Response('{"errors":[{"code":7,"message":"no key"}]}', 401),
-      );
-      final request = (sdk.createRequestBuilder()..addPlacement(key: 'home'))
-          .build();
+      final sdk = await _sdkWithResponse(() =>
+          http.Response('{"errors":[{"code":7,"message":"no key"}]}', 401));
+      final request =
+          (sdk.createRequestBuilder()..addPlacement(key: 'home')).build();
       try {
         await sdk.requestAds(request);
         fail('expected UnexpectedStatusError');
@@ -218,16 +226,13 @@ void main() {
       }
     });
 
-    test('422 with a malformed entry beside a valid one is a ValidationError '
+    test(
+        '422 with a malformed entry beside a valid one is a ValidationError '
         'with the valid one', () async {
-      final sdk = await _sdkWithResponse(
-        () => http.Response(
-          '{"errors":[{"code":null},{"code":10028,"message":"m"}]}',
-          422,
-        ),
-      );
-      final request = (sdk.createRequestBuilder()..addPlacement(key: 'home'))
-          .build();
+      final sdk = await _sdkWithResponse(() => http.Response(
+          '{"errors":[{"code":null},{"code":10028,"message":"m"}]}', 422));
+      final request =
+          (sdk.createRequestBuilder()..addPlacement(key: 'home')).build();
       try {
         await sdk.requestAds(request);
         fail('expected ValidationError');
@@ -236,19 +241,19 @@ void main() {
       }
     });
 
-    test(
-      '422 with empty body still throws ClientError(unprocessableEntity)',
-      () async {
-        final sdk = await _sdkWithResponse(() => http.Response('', 422));
-        final request = (sdk.createRequestBuilder()..addPlacement(key: 'home'))
-            .build();
-        try {
-          await sdk.requestAds(request);
-          fail('expected ClientError');
-        } on ClientError catch (e) {
-          expect(e.status, equals(HTTPStatus.unprocessableEntity));
-        }
-      },
-    );
+    test('422 with empty body still throws ClientError(unprocessableEntity)',
+        () async {
+      final sdk = await _sdkWithResponse(
+        () => http.Response('', 422),
+      );
+      final request =
+          (sdk.createRequestBuilder()..addPlacement(key: 'home')).build();
+      try {
+        await sdk.requestAds(request);
+        fail('expected ClientError');
+      } on ClientError catch (e) {
+        expect(e.status, equals(HTTPStatus.unprocessableEntity));
+      }
+    });
   });
 }

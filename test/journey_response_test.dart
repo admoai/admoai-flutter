@@ -13,11 +13,10 @@ Map<String, dynamic> creativeJson({
     ],
     'advertiser': {'name': 'Acme'},
     'template': {'key': 'native_banner'},
-    'tracking':
-        tracking ??
+    'tracking': tracking ??
         {
           'impressions': [
-            {'key': 'default', 'url': 'https://t.example/v1/tracking?e=imp'},
+            {'key': 'default', 'url': 'https://t.example/v1/tracking?e=imp'}
           ],
         },
     if (journey != null) 'journey': journey,
@@ -102,15 +101,11 @@ void main() {
     });
 
     test('omitted optional journey fields degrade to null, no throw', () {
-      final c = Creative.fromJson(
-        creativeJson(
-          journey: {
-            'dealId': 'jad_1',
-            'instanceId': 'jinst_1',
-            // everything else omitted
-          },
-        ),
-      );
+      final c = Creative.fromJson(creativeJson(journey: {
+        'dealId': 'jad_1',
+        'instanceId': 'jinst_1',
+        // everything else omitted
+      }));
       expect(c.isJourneyAd(), isTrue);
       expect(c.journeyDealId, equals('jad_1'));
       expect(c.journeyStageId, isNull);
@@ -120,15 +115,11 @@ void main() {
     });
 
     test('retyped journey fields degrade to null instead of throwing', () {
-      final c = Creative.fromJson(
-        creativeJson(
-          journey: {
-            'dealId': 123, // wrong type
-            'optStatus': true, // wrong type
-            'isCompletion': 'yes', // wrong type
-          },
-        ),
-      );
+      final c = Creative.fromJson(creativeJson(journey: {
+        'dealId': 123, // wrong type
+        'optStatus': true, // wrong type
+        'isCompletion': 'yes', // wrong type
+      }));
       expect(c.journeyDealId, isNull);
       expect(c.journeyOptStatus, isNull);
       expect(c.isJourneyCompletion, isFalse);
@@ -143,9 +134,10 @@ void main() {
 
   group('Completion flag', () {
     test('final_stage completion serve exposes isJourneyCompletion true', () {
-      final c = Creative.fromJson(
-        creativeJson(journey: {...fullJourney, 'isCompletion': true}),
-      );
+      final c = Creative.fromJson(creativeJson(journey: {
+        ...fullJourney,
+        'isCompletion': true,
+      }));
       expect(c.isJourneyCompletion, isTrue);
     });
   });

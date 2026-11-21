@@ -45,14 +45,13 @@ void main() {
 
 ({List<_Json> scenarios, String? error}) _loadScenarios() {
   try {
-    final root = jsonDecode(
-      File('$_e2eDirectory/scenarios.json').readAsStringSync(),
-    );
+    final root =
+        jsonDecode(File('$_e2eDirectory/scenarios.json').readAsStringSync());
     final entries = root is Map ? root['fixtureScenarios'] : null;
     if (entries is! List || entries.isEmpty) {
       return (
         scenarios: const [],
-        error: 'the manifest has no fixtureScenarios',
+        error: 'the manifest has no fixtureScenarios'
       );
     }
     return (scenarios: entries.cast<_Json>(), error: null);
@@ -178,9 +177,8 @@ Future<void> _runSlideTracking(String id, _Json wire, _Json block) async {
   }
   final thirdParty = <String>[];
   for (final trackerId in _strings(expected['thirdPartyBeacons'])) {
-    final tracker = thirdPartyTrackers
-        .where((t) => t.trackerId == trackerId)
-        .firstOrNull;
+    final tracker =
+        thirdPartyTrackers.where((t) => t.trackerId == trackerId).firstOrNull;
     if (tracker == null) {
       fail('$id: thirdPartyBeacons names unknown tracker $trackerId');
     }
@@ -240,19 +238,17 @@ String? _resolveBeacon(_Json beacon, Creative creative) {
 /// Decoded exactly as a real 200 is: through `AdMoai.requestAds`, so the API client's tolerant
 /// envelope parse and `Decision.fromJson` / `Creative.fromJson` are the code under test.
 Future<Creative> _decode(String id, _Json wire) async {
-  final client = MockClient(
-    (_) async => http.Response(
-      jsonEncode(wire),
-      200,
-      headers: {'content-type': 'application/json; charset=utf-8'},
-    ),
-  );
+  final client = MockClient((_) async => http.Response(
+        jsonEncode(wire),
+        200,
+        headers: {'content-type': 'application/json; charset=utf-8'},
+      ));
   final sdk = AdMoai.forTesting(
     config: SDKConfig(baseUrl: 'https://mock.api.admoai.com'),
     httpClient: client,
   );
-  final request = (sdk.createRequestBuilder()..addPlacement(key: 'home'))
-      .build();
+  final request =
+      (sdk.createRequestBuilder()..addPlacement(key: 'home')).build();
   final response = await sdk.requestAds(request);
   final creatives = response.body.data?.firstOrNull?.creatives ?? const [];
   expect(creatives, hasLength(1), reason: '$id: exactly one creative');
@@ -291,11 +287,10 @@ void _applyEdits(String id, List<_Json> edits, _Json root) {
           change(entry as _Json);
         }
       case 'slide':
-        final contents = (creative['contents'] as List? ?? const [])
-            .cast<_Json>();
-        final slidesEntry = contents
-            .where((c) => c['key'] == 'slides')
-            .firstOrNull;
+        final contents =
+            (creative['contents'] as List? ?? const []).cast<_Json>();
+        final slidesEntry =
+            contents.where((c) => c['key'] == 'slides').firstOrNull;
         if (slidesEntry == null) {
           fail('$id: edit at slide: the creative has no slides entry');
         }
@@ -342,46 +337,28 @@ void _check(String id, String key, dynamic value, Creative creative) {
       checkContentKeys(id, value, creative);
     case 'contentKeysAbsent':
       for (final absent in _strings(value)) {
-        expect(
-          creative.contents.getContent(absent),
-          isNull,
-          reason: '$id: $absent is absent',
-        );
+        expect(creative.contents.getContent(absent), isNull,
+            reason: '$id: $absent is absent');
       }
     case 'clickKeys':
       checkClickKeys(id, value, creative);
     case 'customKeys':
-      expect(
-        _keys(creative.tracking.custom),
-        equals(_strings(value)),
-        reason: '$id: customKeys',
-      );
+      expect(_keys(creative.tracking.custom), equals(_strings(value)),
+          reason: '$id: customKeys');
     case 'videoEventKeys':
-      expect(
-        _keys(creative.tracking.videoEvents),
-        equals(_strings(value)),
-        reason: '$id: videoEventKeys',
-      );
+      expect(_keys(creative.tracking.videoEvents), equals(_strings(value)),
+          reason: '$id: videoEventKeys');
     case 'slides':
       checkSlides(id, value, creative);
     case 'noSkippableSetting':
       expect(value, isTrue, reason: '$id: noSkippableSetting is true');
-      expect(
-        creative.metadata?.isSkippable,
-        isNull,
-        reason: '$id: isSkippable is absent',
-      );
-      expect(
-        creative.metadata?.skipOffsetSeconds,
-        isNull,
-        reason: '$id: skipOffsetSeconds is absent',
-      );
+      expect(creative.metadata?.isSkippable, isNull,
+          reason: '$id: isSkippable is absent');
+      expect(creative.metadata?.skipOffsetSeconds, isNull,
+          reason: '$id: skipOffsetSeconds is absent');
     case 'matchedPoints':
-      expect(
-        creative.matchedPoints.length,
-        equals(value),
-        reason: '$id: matchedPoints count',
-      );
+      expect(creative.matchedPoints.length, equals(value),
+          reason: '$id: matchedPoints count');
     default:
       fail('$id: unknown expect key $key');
   }

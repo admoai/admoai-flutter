@@ -84,19 +84,19 @@ class AdMoai {
     required this.userConfig,
     required http.Client httpClient,
     http.Client? thirdPartyClient,
-  }) : _httpClient = httpClient,
-       _thirdPartyDispatcher = ThirdPartyTrackerDispatcher(
-         logger: config.logger,
-         httpClient: thirdPartyClient,
-       ),
-       _client = AdMoaiClient(
-         baseUrl: config.baseUrl,
-         apiVersion: config.apiVersion,
-         defaultLanguage: config.defaultLanguage,
-         requestTimeout: config.requestTimeout,
-         logger: config.logger,
-         httpClient: httpClient,
-       );
+  })  : _httpClient = httpClient,
+        _thirdPartyDispatcher = ThirdPartyTrackerDispatcher(
+          logger: config.logger,
+          httpClient: thirdPartyClient,
+        ),
+        _client = AdMoaiClient(
+          baseUrl: config.baseUrl,
+          apiVersion: config.apiVersion,
+          defaultLanguage: config.defaultLanguage,
+          requestTimeout: config.requestTimeout,
+          logger: config.logger,
+          httpClient: httpClient,
+        );
 
   static http.Client _defaultHttpClient(SDKConfig config) {
     final ioHttpClient = io.HttpClient()
@@ -248,7 +248,9 @@ class AdMoai {
   void setSessionId(String sessionId) {
     final reason = journeySessionIdRejectionReason(sessionId);
     if (reason != null) {
-      config.logger.warning('sessionId will disable Journey (reason: $reason)');
+      config.logger.warning(
+        'sessionId will disable Journey (reason: $reason)',
+      );
     }
     // Normalize so the stored value matches what is serialized: trim, and
     // treat blank-after-trim as "no session" (null). Over-length values are
@@ -273,8 +275,7 @@ class AdMoai {
   }
 
   Future<APIResponse<DecisionResponse>> requestAds(
-    DecisionRequest request,
-  ) async {
+      DecisionRequest request) async {
     _warnIfJourneyWithoutApiVersion(request);
     var toSend = request;
     if (autoStateOf(deviceConfig).auto) {
@@ -307,10 +308,8 @@ class AdMoai {
     }
     _warnIfAudienceWithoutApiVersion(toSend);
     _warnIfInteractiveExperienceWithoutApiVersion();
-    return _client.requestDecision(
-      toSend,
-      interactiveExperience: _interactiveExperienceCapability(),
-    );
+    return _client.requestDecision(toSend,
+        interactiveExperience: _interactiveExperienceCapability());
   }
 
   /// Joins the native read in flight, or starts one. The result is written
@@ -324,11 +323,10 @@ class AdMoai {
     final read =
         collectDeviceSignals(timeout: _nativeReadCap, logger: config.logger)
             .then((signals) {
-              if (signals != null && identical(deviceConfig, captured)) {
-                deviceConfig = applyAutoSignals(captured, signals);
-              }
-            })
-            .whenComplete(() => _signalsRead = null);
+      if (signals != null && identical(deviceConfig, captured)) {
+        deviceConfig = applyAutoSignals(captured, signals);
+      }
+    }).whenComplete(() => _signalsRead = null);
     _signalsRead = read;
     return read;
   }
@@ -349,10 +347,8 @@ class AdMoai {
     _warnIfJourneyWithoutApiVersion(request);
     _warnIfAudienceWithoutApiVersion(request);
     _warnIfInteractiveExperienceWithoutApiVersion();
-    return _client.getDecisionRequest(
-      request,
-      interactiveExperience: _interactiveExperienceCapability(),
-    );
+    return _client.getDecisionRequest(request,
+        interactiveExperience: _interactiveExperienceCapability());
   }
 
   /// The decision endpoint version-routes on `X-Decision-Version`; Journey fields
@@ -393,7 +389,7 @@ class AdMoai {
     if (config.apiVersion != null) return;
     final hasKey =
         request.targeting?.custom?.any((c) => _audienceKeys.contains(c.key)) ??
-        false;
+            false;
     final device = request.device;
     final hasDevice =
         device != null && (device.carrier != null || device.category != null);
@@ -490,7 +486,9 @@ class AdMoai {
       return;
     }
     final uri = Uri.parse(url);
-    final headers = <String, String>{'User-Agent': 'AdMoaiSDK/$sdkVersion'};
+    final headers = <String, String>{
+      'User-Agent': 'AdMoaiSDK/$sdkVersion',
+    };
     // The tracking endpoint (/v1/tracking) version-routes on X-Tracking-Version
     // and ignores X-Decision-Version. Journey enrichment + custom-event
     // completion only run on the versioned tracking handler, so the SDK must
@@ -518,7 +516,8 @@ class AdMoai {
           // Drain the body so the connection is released immediately instead
           // of pinning a socket until the idle timeout.
           await response.stream.drain<void>();
-        }().timeout(config.requestTimeout);
+        }()
+            .timeout(config.requestTimeout);
       } catch (error) {
         // PII-safe: log the error TYPE only, never the object. `http`'s ClientException
         // stringifies as "ClientException: <message>, uri=<uri>", so interpolating `$error`
@@ -662,9 +661,8 @@ class AdMoai {
     // A tap proves the slide was on screen, so its view counts (once) even when the slide
     // carries no click tracker; a click the slide cannot record sends no click and no fan-out.
     trackSlideView(slide);
-    final defaults = (slide.tracking?.clicks ?? const <TrackingItem>[]).where(
-      (c) => c.key == _slideClickKey,
-    );
+    final defaults = (slide.tracking?.clicks ?? const <TrackingItem>[])
+        .where((c) => c.key == _slideClickKey);
     if (defaults.isEmpty) return;
     for (final item in defaults) {
       fireTracking(item.url);
@@ -673,9 +671,7 @@ class AdMoai {
     // only when one was actually valid (same rule as [fireClick]).
     if (!defaults.any((c) => _isAbsoluteHttpUrl(c.url))) return;
     _fireThirdPartyTrackers(
-      creative.tracking,
-      const ThirdPartyClickEvent(_slideClickKey),
-    );
+        creative.tracking, const ThirdPartyClickEvent(_slideClickKey));
   }
 
   // ---- Standard format custom events ----
@@ -700,9 +696,7 @@ class AdMoai {
   }
 
   void _fireThirdPartyTrackers(
-    Tracking tracking,
-    ThirdPartyTrackerEvent event,
-  ) {
+      Tracking tracking, ThirdPartyTrackerEvent event) {
     final trackers = tracking.thirdPartyTrackers;
     if (trackers == null || trackers.isEmpty) return;
     _thirdPartyDispatcher.dispatch(trackers, event);
@@ -718,10 +712,8 @@ class AdMoai {
   /// Deprecated alias for [fireCustomEvent], kept so existing integrations keep
   /// compiling. iOS still exposes `fireCustom`; all three SDKs are converging on
   /// `fireCustomEvent`.
-  @Deprecated(
-    'Renamed to fireCustomEvent for cross-SDK parity. '
-    'Will be removed in 1.0.0.',
-  )
+  @Deprecated('Renamed to fireCustomEvent for cross-SDK parity. '
+      'Will be removed in 1.0.0.')
   void fireCustom(Tracking tracking, String key) =>
       fireCustomEvent(tracking, key);
 

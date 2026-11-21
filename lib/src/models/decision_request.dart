@@ -189,10 +189,7 @@ class Distance {
     _validateOrigin(latitude, longitude);
     if (radiusMeters <= 0) {
       throw ArgumentError.value(
-        radiusMeters,
-        'radiusMeters',
-        'must be greater than 0 metres',
-      );
+          radiusMeters, 'radiusMeters', 'must be greater than 0 metres');
     }
     _validateLimit(limit);
     return Distance._(
@@ -222,26 +219,17 @@ class Distance {
         bounds.east > 180 ||
         bounds.west < -180 ||
         bounds.west > 180) {
-      throw ArgumentError.value(
-        bounds,
-        'bounds',
-        'latitudes must be in [-90, 90] and longitudes in [-180, 180]',
-      );
+      throw ArgumentError.value(bounds, 'bounds',
+          'latitudes must be in [-90, 90] and longitudes in [-180, 180]');
     }
     if (bounds.north <= bounds.south) {
       throw ArgumentError.value(
-        bounds,
-        'bounds',
-        'require north greater than south',
-      );
+          bounds, 'bounds', 'require north greater than south');
     }
     // The engine refuses a rectangle crossing the antimeridian, so west < east is flat.
     if (bounds.west >= bounds.east) {
-      throw ArgumentError.value(
-        bounds,
-        'bounds',
-        'must not cross the antimeridian: west must be less than east',
-      );
+      throw ArgumentError.value(bounds, 'bounds',
+          'must not cross the antimeridian: west must be less than east');
     }
     _validateLimit(limit);
     return Distance._(
@@ -258,10 +246,7 @@ class Distance {
     }
     if (longitude < -180 || longitude > 180) {
       throw ArgumentError.value(
-        longitude,
-        'longitude',
-        'must be in [-180, 180]',
-      );
+          longitude, 'longitude', 'must be in [-180, 180]');
     }
   }
 
@@ -272,18 +257,18 @@ class Distance {
   }
 
   Map<String, dynamic> toJson() => {
-    'latitude': latitude,
-    'longitude': longitude,
-    if (radius != null) 'radius': radius,
-    if (bounds != null)
-      'bounds': {
-        'north': bounds!.north,
-        'south': bounds!.south,
-        'east': bounds!.east,
-        'west': bounds!.west,
-      },
-    if (limit != null) 'limit': limit,
-  };
+        'latitude': latitude,
+        'longitude': longitude,
+        if (radius != null) 'radius': radius,
+        if (bounds != null)
+          'bounds': {
+            'north': bounds!.north,
+            'south': bounds!.south,
+            'east': bounds!.east,
+            'west': bounds!.west,
+          },
+        if (limit != null) 'limit': limit,
+      };
 }
 
 class Targeting {
@@ -321,13 +306,11 @@ class Targeting {
       // keep parsing, and camelCase wins when both are present.
       if (destination != null)
         'destination': destination!
-            .map(
-              (d) => {
-                'latitude': d.latitude,
-                'longitude': d.longitude,
-                'minConfidence': d.minConfidence,
-              },
-            )
+            .map((d) => {
+                  'latitude': d.latitude,
+                  'longitude': d.longitude,
+                  'minConfidence': d.minConfidence,
+                })
             .toList(),
       if (custom != null)
         'custom': custom!.map((c) => {'key': c.key, 'value': c.value}).toList(),
@@ -368,7 +351,12 @@ class User {
   final String? timezone;
   final Consent? consent;
 
-  User({this.id, this.ip, this.timezone, this.consent});
+  User({
+    this.id,
+    this.ip,
+    this.timezone,
+    this.consent,
+  });
 
   Map<String, dynamic> toJson() {
     return {

@@ -32,31 +32,31 @@ void main() {
     final tables = <String, (List<Enum>, List<String>)>{
       'AgeGroup': (
         AgeGroup.values,
-        ['under_18', '18_24', '25_34', '35_44', '45_54', '55_64', '65_plus'],
+        ['under_18', '18_24', '25_34', '35_44', '45_54', '55_64', '65_plus']
       ),
       'Gender': (
         Gender.values,
-        ['female', 'male', 'other', 'prefer_not_to_say'],
+        ['female', 'male', 'other', 'prefer_not_to_say']
       ),
       'AccountType': (
         AccountType.values,
-        ['personal', 'business', 'family', 'student', 'other'],
+        ['personal', 'business', 'family', 'student', 'other']
       ),
       'SubscriptionStatus': (
         SubscriptionStatus.values,
-        ['none', 'trial', 'active', 'paused', 'expired'],
+        ['none', 'trial', 'active', 'paused', 'expired']
       ),
       'AccountTenure': (
         AccountTenure.values,
-        ['0_30d', '31_90d', '91_365d', '366d_plus'],
+        ['0_30d', '31_90d', '91_365d', '366d_plus']
       ),
       'ActivityFrequency30d': (
         ActivityFrequency30d.values,
-        ['0', '1_2', '3_9', '10_plus'],
+        ['0', '1_2', '3_9', '10_plus']
       ),
       'LastActivityRecency': (
         LastActivityRecency.values,
-        ['never', '0_7d', '8_30d', '31_90d', '91d_plus'],
+        ['never', '0_7d', '8_30d', '31_90d', '91d_plus']
       ),
       'DeviceCategory': (DeviceCategory.values, ['phone', 'tablet', 'other']),
     };
@@ -80,51 +80,48 @@ void main() {
       expect(AudienceSignalKey.publisherSegments, 'publisher_segments');
     });
 
-    final setters =
-        <
-          String,
-          (
-            String,
-            List<Enum>,
-            DecisionRequestBuilder Function(DecisionRequestBuilder, Enum),
-          )
-        >{
-          'setAgeGroup': (
-            'age_group',
-            AgeGroup.values,
-            (b, e) => b.setAgeGroup(e as AgeGroup),
-          ),
-          'setGender': (
-            'gender',
-            Gender.values,
-            (b, e) => b.setGender(e as Gender),
-          ),
-          'setAccountType': (
-            'account_type',
-            AccountType.values,
-            (b, e) => b.setAccountType(e as AccountType),
-          ),
-          'setSubscriptionStatus': (
-            'subscription_status',
-            SubscriptionStatus.values,
-            (b, e) => b.setSubscriptionStatus(e as SubscriptionStatus),
-          ),
-          'setAccountTenure': (
-            'account_tenure',
-            AccountTenure.values,
-            (b, e) => b.setAccountTenure(e as AccountTenure),
-          ),
-          'setActivityFrequency30d': (
-            'activity_frequency_30d',
-            ActivityFrequency30d.values,
-            (b, e) => b.setActivityFrequency30d(e as ActivityFrequency30d),
-          ),
-          'setLastActivityRecency': (
-            'last_activity_recency',
-            LastActivityRecency.values,
-            (b, e) => b.setLastActivityRecency(e as LastActivityRecency),
-          ),
-        };
+    final setters = <String,
+        (
+      String,
+      List<Enum>,
+      DecisionRequestBuilder Function(DecisionRequestBuilder, Enum)
+    )>{
+      'setAgeGroup': (
+        'age_group',
+        AgeGroup.values,
+        (b, e) => b.setAgeGroup(e as AgeGroup)
+      ),
+      'setGender': (
+        'gender',
+        Gender.values,
+        (b, e) => b.setGender(e as Gender)
+      ),
+      'setAccountType': (
+        'account_type',
+        AccountType.values,
+        (b, e) => b.setAccountType(e as AccountType)
+      ),
+      'setSubscriptionStatus': (
+        'subscription_status',
+        SubscriptionStatus.values,
+        (b, e) => b.setSubscriptionStatus(e as SubscriptionStatus)
+      ),
+      'setAccountTenure': (
+        'account_tenure',
+        AccountTenure.values,
+        (b, e) => b.setAccountTenure(e as AccountTenure)
+      ),
+      'setActivityFrequency30d': (
+        'activity_frequency_30d',
+        ActivityFrequency30d.values,
+        (b, e) => b.setActivityFrequency30d(e as ActivityFrequency30d)
+      ),
+      'setLastActivityRecency': (
+        'last_activity_recency',
+        LastActivityRecency.values,
+        (b, e) => b.setLastActivityRecency(e as LastActivityRecency)
+      ),
+    };
 
     setters.forEach((name, s) {
       test('$name serializes every member as a single string entry', () {
@@ -138,10 +135,8 @@ void main() {
 
     test('"0" is a JSON string', () {
       final b = _builder().setActivityFrequency30d(ActivityFrequency30d.zero);
-      expect(
-        jsonEncode(_json(b)['targeting']),
-        '{"custom":[{"key":"activity_frequency_30d","value":"0"}]}',
-      );
+      expect(jsonEncode(_json(b)['targeting']),
+          '{"custom":[{"key":"activity_frequency_30d","value":"0"}]}');
     });
   });
 
@@ -157,15 +152,10 @@ void main() {
     });
 
     test('duplicates are removed in first-occurrence order', () {
-      final b = _builder().setPublisherSegments([
-        'airport_commuter',
-        'high_value',
-        'airport_commuter',
-      ]);
-      expect(_valueOf(b, 'publisher_segments'), [
-        'airport_commuter',
-        'high_value',
-      ]);
+      final b = _builder().setPublisherSegments(
+          ['airport_commuter', 'high_value', 'airport_commuter']);
+      expect(_valueOf(b, 'publisher_segments'),
+          ['airport_commuter', 'high_value']);
     });
 
     test('empty list removes an earlier value', () {
@@ -174,29 +164,26 @@ void main() {
           .addCustomTargeting(key: 'other', value: 1)
           .setPublisherSegments([]);
       expect(_custom(b), [
-        {'key': 'other', 'value': 1},
+        {'key': 'other', 'value': 1}
       ]);
     });
 
     test('emptying the only custom entry restores the untargeted wire', () {
       final b = _builder()
-          .setPublisherSegments(['high_value'])
-          .setPublisherSegments([]);
+          .setPublisherSegments(['high_value']).setPublisherSegments([]);
       expect(_json(b), _json(_builder()));
     });
 
     test(
-      'emptying the only custom entry keeps other targeting without "custom"',
-      () {
-        final b = _builder()
-            .addGeoTargeting(2643743)
-            .setPublisherSegments(['high_value'])
-            .setPublisherSegments([]);
-        final targeting = _json(b)['targeting'] as Map<String, dynamic>;
-        expect(targeting.containsKey('custom'), isFalse);
-        expect(targeting['geo'], [2643743]);
-      },
-    );
+        'emptying the only custom entry keeps other targeting without "custom"',
+        () {
+      final b = _builder()
+          .addGeoTargeting(2643743)
+          .setPublisherSegments(['high_value']).setPublisherSegments([]);
+      final targeting = _json(b)['targeting'] as Map<String, dynamic>;
+      expect(targeting.containsKey('custom'), isFalse);
+      expect(targeting['geo'], [2643743]);
+    });
 
     test('empty list on a fresh builder adds nothing', () {
       final b = _builder().setPublisherSegments([]);
@@ -208,13 +195,8 @@ void main() {
         final b = _builder().setPublisherSegments(['high_value']);
         expect(
           () => b.setPublisherSegments(['ok', bad]),
-          throwsA(
-            isA<ArgumentError>().having(
-              (e) => e.toString(),
-              'message',
-              contains('"$bad"'),
-            ),
-          ),
+          throwsA(isA<ArgumentError>()
+              .having((e) => e.toString(), 'message', contains('"$bad"'))),
         );
         expect(_valueOf(b, 'publisher_segments'), ['high_value']);
       });
@@ -234,72 +216,67 @@ void main() {
   });
 
   group('null removes a key', () {
-    final removers =
-        <
-          String,
-          (
-            String,
-            DecisionRequestBuilder Function(DecisionRequestBuilder),
-            DecisionRequestBuilder Function(DecisionRequestBuilder),
-          )
-        >{
-          'setAgeGroup': (
-            'age_group',
-            (b) => b.setAgeGroup(AgeGroup.age25To34),
-            (b) => b.setAgeGroup(null),
-          ),
-          'setGender': (
-            'gender',
-            (b) => b.setGender(Gender.male),
-            (b) => b.setGender(null),
-          ),
-          'setAccountType': (
-            'account_type',
-            (b) => b.setAccountType(AccountType.business),
-            (b) => b.setAccountType(null),
-          ),
-          'setSubscriptionStatus': (
-            'subscription_status',
-            (b) => b.setSubscriptionStatus(SubscriptionStatus.active),
-            (b) => b.setSubscriptionStatus(null),
-          ),
-          'setAccountTenure': (
-            'account_tenure',
-            (b) => b.setAccountTenure(AccountTenure.days0To30),
-            (b) => b.setAccountTenure(null),
-          ),
-          'setActivityFrequency30d': (
-            'activity_frequency_30d',
-            (b) => b.setActivityFrequency30d(ActivityFrequency30d.times3To9),
-            (b) => b.setActivityFrequency30d(null),
-          ),
-          'setLastActivityRecency': (
-            'last_activity_recency',
-            (b) => b.setLastActivityRecency(LastActivityRecency.days0To7),
-            (b) => b.setLastActivityRecency(null),
-          ),
-          'setPublisherSegments': (
-            'publisher_segments',
-            (b) => b.setPublisherSegments(['a', 'b']),
-            (b) => b.setPublisherSegments(null),
-          ),
-        };
+    final removers = <String,
+        (
+      String,
+      DecisionRequestBuilder Function(DecisionRequestBuilder),
+      DecisionRequestBuilder Function(DecisionRequestBuilder)
+    )>{
+      'setAgeGroup': (
+        'age_group',
+        (b) => b.setAgeGroup(AgeGroup.age25To34),
+        (b) => b.setAgeGroup(null)
+      ),
+      'setGender': (
+        'gender',
+        (b) => b.setGender(Gender.male),
+        (b) => b.setGender(null)
+      ),
+      'setAccountType': (
+        'account_type',
+        (b) => b.setAccountType(AccountType.business),
+        (b) => b.setAccountType(null)
+      ),
+      'setSubscriptionStatus': (
+        'subscription_status',
+        (b) => b.setSubscriptionStatus(SubscriptionStatus.active),
+        (b) => b.setSubscriptionStatus(null)
+      ),
+      'setAccountTenure': (
+        'account_tenure',
+        (b) => b.setAccountTenure(AccountTenure.days0To30),
+        (b) => b.setAccountTenure(null)
+      ),
+      'setActivityFrequency30d': (
+        'activity_frequency_30d',
+        (b) => b.setActivityFrequency30d(ActivityFrequency30d.times3To9),
+        (b) => b.setActivityFrequency30d(null)
+      ),
+      'setLastActivityRecency': (
+        'last_activity_recency',
+        (b) => b.setLastActivityRecency(LastActivityRecency.days0To7),
+        (b) => b.setLastActivityRecency(null)
+      ),
+      'setPublisherSegments': (
+        'publisher_segments',
+        (b) => b.setPublisherSegments(['a', 'b']),
+        (b) => b.setPublisherSegments(null)
+      ),
+    };
 
     removers.forEach((name, r) {
       final (key, set, clear) = r;
 
-      test(
-        '$name(null) removes only its own key, keeping the others in order',
-        () {
-          final b = _builder().addCustomTargeting(key: 'a', value: 1);
-          set(b);
-          b.addCustomTargeting(key: 'z', value: 2);
-          clear(b);
-          expect(_custom(b).map((e) => e['key']).toList(), ['a', 'z']);
-          expect(_valueOf(b, 'a'), 1);
-          expect(_valueOf(b, 'z'), 2);
-        },
-      );
+      test('$name(null) removes only its own key, keeping the others in order',
+          () {
+        final b = _builder().addCustomTargeting(key: 'a', value: 1);
+        set(b);
+        b.addCustomTargeting(key: 'z', value: 2);
+        clear(b);
+        expect(_custom(b).map((e) => e['key']).toList(), ['a', 'z']);
+        expect(_valueOf(b, 'a'), 1);
+        expect(_valueOf(b, 'z'), 2);
+      });
 
       test('$name(null) after the only entry restores the untargeted wire', () {
         final b = clear(set(_builder()));
@@ -320,7 +297,7 @@ void main() {
       test('$name(null) when the key is absent leaves other entries alone', () {
         final b = clear(_builder().addCustomTargeting(key: 'a', value: 1));
         expect(_custom(b), [
-          {'key': 'a', 'value': 1},
+          {'key': 'a', 'value': 1}
         ]);
       });
     });
@@ -347,19 +324,11 @@ void main() {
           .setAgeGroup(AgeGroup.age25To34)
           .addCustomTargeting(key: 'b', value: 2)
           .setGender(Gender.other);
-      expect(_custom(b).map((e) => e['key']).toList(), [
-        'a',
-        'age_group',
-        'b',
-        'gender',
-      ]);
+      expect(_custom(b).map((e) => e['key']).toList(),
+          ['a', 'age_group', 'b', 'gender']);
       b.setAgeGroup(AgeGroup.age35To44);
-      expect(_custom(b).map((e) => e['key']).toList(), [
-        'a',
-        'b',
-        'gender',
-        'age_group',
-      ]);
+      expect(_custom(b).map((e) => e['key']).toList(),
+          ['a', 'b', 'gender', 'age_group']);
       expect(_valueOf(b, 'a'), 1);
       expect(_valueOf(b, 'b'), 2);
     });
@@ -375,10 +344,8 @@ void main() {
           category: DeviceCategory.tablet,
         ),
       );
-      expect(
-        jsonEncode(_json(b)['device']),
-        '{"id":"d1","language":"en","carrier":"Example Mobile","category":"tablet"}',
-      );
+      expect(jsonEncode(_json(b)['device']),
+          '{"id":"d1","language":"en","carrier":"Example Mobile","category":"tablet"}');
     });
 
     test('unset values are absent', () {
@@ -398,18 +365,14 @@ void main() {
 
     test('Device normalizes carrier when built directly', () {
       expect(Device(carrier: 'wifi').toJson().containsKey('carrier'), isFalse);
-      expect(
-        Device(carrier: ' Example Mobile ').toJson()['carrier'],
-        'Example Mobile',
-      );
+      expect(Device(carrier: ' Example Mobile ').toJson()['carrier'],
+          'Example Mobile');
     });
 
     test('DeviceConfig normalizes carrier', () {
       expect(DeviceConfig(carrier: '  X  ').carrier, 'X');
       expect(DeviceConfig(carrier: 'WiFi').carrier, isNull);
-      final b = _builder(
-        device: DeviceConfig(id: 'd1', carrier: '   '),
-      );
+      final b = _builder(device: DeviceConfig(id: 'd1', carrier: '   '));
       expect((_json(b)['device'] as Map).containsKey('carrier'), isFalse);
     });
 
@@ -419,12 +382,11 @@ void main() {
       setUp(() async {
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
             .setMockMethodCallHandler(
-              const MethodChannel('flutter_timezone'),
-              (call) async => call.method == 'getLocalTimezone' ? 'UTC' : null,
-            );
-        sdk = await AdMoai.initialize(
-          config: SDKConfig(baseUrl: 'https://mock.api.admoai.com'),
+          const MethodChannel('flutter_timezone'),
+          (call) async => call.method == 'getLocalTimezone' ? 'UTC' : null,
         );
+        sdk = await AdMoai.initialize(
+            config: SDKConfig(baseUrl: 'https://mock.api.admoai.com'));
       });
 
       Map<String, dynamic> device() =>
@@ -448,9 +410,7 @@ void main() {
 
       test('clearDeviceConfig clears them', () {
         sdk.setDeviceConfig(
-          carrier: 'Example Mobile',
-          category: DeviceCategory.tablet,
-        );
+            carrier: 'Example Mobile', category: DeviceCategory.tablet);
         sdk.clearDeviceConfig();
         expect(sdk.deviceConfig.carrier, isNull);
         expect(sdk.deviceConfig.category, isNull);
@@ -460,10 +420,9 @@ void main() {
     test('disableDeviceCollection omits the whole device', () {
       final b = _builder(
         device: DeviceConfig(
-          id: 'd1',
-          carrier: 'Example Mobile',
-          category: DeviceCategory.phone,
-        ),
+            id: 'd1',
+            carrier: 'Example Mobile',
+            category: DeviceCategory.phone),
       ).disableDeviceCollection();
       final json = _json(b);
       expect(json.containsKey('device'), isFalse);

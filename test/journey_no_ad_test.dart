@@ -15,27 +15,23 @@ void main() {
     const MethodChannel channel = MethodChannel('flutter_timezone');
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (MethodCall methodCall) async {
-          if (methodCall.method == 'getLocalTimezone') return 'UTC';
-          return null;
-        });
+      if (methodCall.method == 'getLocalTimezone') return 'UTC';
+      return null;
+    });
   });
 
   group('No-ad shapes are treated uniformly', () {
     test('creatives: [] (takeover protection) is a clean no-ad', () {
-      final decision = Decision.fromJson({
-        'placement': 'in_ride',
-        'creatives': [],
-      });
+      final decision =
+          Decision.fromJson({'placement': 'in_ride', 'creatives': []});
       expect(decision.hasCreative, isFalse);
       expect(decision.isNoAd, isTrue);
       expect(decision.creatives, isEmpty);
     });
 
     test('creatives: null (no-fill) is a clean no-ad', () {
-      final decision = Decision.fromJson({
-        'placement': 'home',
-        'creatives': null,
-      });
+      final decision =
+          Decision.fromJson({'placement': 'home', 'creatives': null});
       expect(decision.hasCreative, isFalse);
       expect(decision.isNoAd, isTrue);
       expect(decision.creatives, isNull);
@@ -52,16 +48,16 @@ void main() {
         'creatives': [
           {
             'contents': [
-              {'key': 'h', 'value': 'x', 'type': 'text'},
+              {'key': 'h', 'value': 'x', 'type': 'text'}
             ],
             'advertiser': {'name': 'Acme'},
             'template': {'key': 'native'},
             'tracking': {
               'impressions': [
-                {'key': 'default', 'url': 'https://t/x'},
-              ],
+                {'key': 'default', 'url': 'https://t/x'}
+              ]
             },
-          },
+          }
         ],
       });
       expect(decision.hasCreative, isTrue);
@@ -98,31 +94,29 @@ void main() {
       expect(fired.length, equals(1));
     });
 
-    test(
-      'takeover creatives: [] yields a no-ad decision, no auto-fire',
-      () async {
-        final fired = <String>[];
-        final sdk = await sdkReturning(
-          jsonEncode({
-            'success': true,
-            'data': [
-              {'placement': 'in_ride', 'creatives': []},
-            ],
-            'errors': [],
-            'warnings': [],
-          }),
-          fired,
-        );
+    test('takeover creatives: [] yields a no-ad decision, no auto-fire',
+        () async {
+      final fired = <String>[];
+      final sdk = await sdkReturning(
+        jsonEncode({
+          'success': true,
+          'data': [
+            {'placement': 'in_ride', 'creatives': []}
+          ],
+          'errors': [],
+          'warnings': [],
+        }),
+        fired,
+      );
 
-        final response = await sdk.requestAds(
-          sdk.createRequestBuilder().addPlacement(key: 'in_ride').build(),
-        );
+      final response = await sdk.requestAds(
+        sdk.createRequestBuilder().addPlacement(key: 'in_ride').build(),
+      );
 
-        final decision = response.body.data!.first;
-        expect(decision.isNoAd, isTrue);
-        expect(fired.length, equals(1));
-      },
-    );
+      final decision = response.body.data!.first;
+      expect(decision.isNoAd, isTrue);
+      expect(fired.length, equals(1));
+    });
   });
 
   // Design invariant (enforced by API design + review, not runtime): the SDK

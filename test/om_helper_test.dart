@@ -6,18 +6,18 @@ Map<String, dynamic> _baseCreativeJson({
 }) {
   return {
     'contents': [
-      {'key': 'headline', 'value': 'hi', 'type': 'text'},
+      {'key': 'headline', 'value': 'hi', 'type': 'text'}
     ],
     'advertiser': {
       'name': 'ACME',
       'legalName': 'ACME Ltd',
-      'logoUrl': 'https://example.com/logo.png',
+      'logoUrl': 'https://example.com/logo.png'
     },
     'template': {'key': 'wide', 'style': 'imageLeft'},
     'tracking': {
       'impressions': [
-        {'key': 'default', 'url': 'https://example.com/imp'},
-      ],
+        {'key': 'default', 'url': 'https://example.com/imp'}
+      ]
     },
     if (resources != null) 'verificationScriptResources': resources,
   };
@@ -26,41 +26,29 @@ Map<String, dynamic> _baseCreativeJson({
 void main() {
   group('OM verification parsing', () {
     test('parses two VerificationScriptResource entries', () {
-      final creative = Creative.fromJson(
-        _baseCreativeJson(
-          resources: [
-            {
-              'vendorKey': 'ias',
-              'scriptUrl': 'https://cdn.ias.com/x.js',
-              'verificationParameters': 'p=1',
-            },
-            {
-              'vendorKey': 'doubleverify',
-              'scriptUrl': 'https://cdn.dv.com/x.js',
-              'verificationParameters': null,
-            },
-          ],
-        ),
-      );
+      final creative = Creative.fromJson(_baseCreativeJson(resources: [
+        {
+          'vendorKey': 'ias',
+          'scriptUrl': 'https://cdn.ias.com/x.js',
+          'verificationParameters': 'p=1',
+        },
+        {
+          'vendorKey': 'doubleverify',
+          'scriptUrl': 'https://cdn.dv.com/x.js',
+          'verificationParameters': null,
+        },
+      ]));
 
       expect(creative.verificationScriptResources, isNotNull);
       expect(creative.verificationScriptResources!.length, equals(2));
       expect(
-        creative.verificationScriptResources!.first.vendorKey,
-        equals('ias'),
-      );
-      expect(
-        creative.verificationScriptResources!.first.scriptUrl,
-        equals('https://cdn.ias.com/x.js'),
-      );
-      expect(
-        creative.verificationScriptResources!.first.verificationParameters,
-        equals('p=1'),
-      );
-      expect(
-        creative.verificationScriptResources!.last.verificationParameters,
-        isNull,
-      );
+          creative.verificationScriptResources!.first.vendorKey, equals('ias'));
+      expect(creative.verificationScriptResources!.first.scriptUrl,
+          equals('https://cdn.ias.com/x.js'));
+      expect(creative.verificationScriptResources!.first.verificationParameters,
+          equals('p=1'));
+      expect(creative.verificationScriptResources!.last.verificationParameters,
+          isNull);
     });
 
     test('verificationScriptResources is null when absent', () {
@@ -71,17 +59,13 @@ void main() {
 
   group('OMHelper extension', () {
     test('getVerificationResources returns the list when present', () {
-      final creative = Creative.fromJson(
-        _baseCreativeJson(
-          resources: [
-            {
-              'vendorKey': 'ias',
-              'scriptUrl': 'https://cdn.ias.com/x.js',
-              'verificationParameters': 'p=1',
-            },
-          ],
-        ),
-      );
+      final creative = Creative.fromJson(_baseCreativeJson(resources: [
+        {
+          'vendorKey': 'ias',
+          'scriptUrl': 'https://cdn.ias.com/x.js',
+          'verificationParameters': 'p=1',
+        }
+      ]));
 
       final resources = creative.getVerificationResources();
       expect(resources, isNotNull);
@@ -94,23 +78,17 @@ void main() {
       expect(creative.getVerificationResources(), isNull);
     });
 
-    test(
-      'hasOMVerification returns true when at least one resource exists',
-      () {
-        final creative = Creative.fromJson(
-          _baseCreativeJson(
-            resources: [
-              {
-                'vendorKey': 'ias',
-                'scriptUrl': 'https://cdn.ias.com/x.js',
-                'verificationParameters': null,
-              },
-            ],
-          ),
-        );
-        expect(creative.hasOMVerification(), isTrue);
-      },
-    );
+    test('hasOMVerification returns true when at least one resource exists',
+        () {
+      final creative = Creative.fromJson(_baseCreativeJson(resources: [
+        {
+          'vendorKey': 'ias',
+          'scriptUrl': 'https://cdn.ias.com/x.js',
+          'verificationParameters': null,
+        }
+      ]));
+      expect(creative.hasOMVerification(), isTrue);
+    });
 
     test('hasOMVerification returns false when null', () {
       final creative = Creative.fromJson(_baseCreativeJson());

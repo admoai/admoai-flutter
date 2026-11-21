@@ -13,12 +13,15 @@ void main() {
     // Mock the timezone platform channel
     const MethodChannel channel = MethodChannel('flutter_timezone');
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(channel, (MethodCall methodCall) async {
-          if (methodCall.method == 'getLocalTimezone') {
-            return 'UTC';
-          }
-          return null;
-        });
+        .setMockMethodCallHandler(
+      channel,
+      (MethodCall methodCall) async {
+        if (methodCall.method == 'getLocalTimezone') {
+          return 'UTC';
+        }
+        return null;
+      },
+    );
 
     final config = SDKConfig(baseUrl: baseUrl);
     sdk = await AdMoai.initialize(config: config);
@@ -65,28 +68,22 @@ void main() {
 
       // Verify each location exists
       expect(
-        request.targeting?.location?.any(
-          (coord) => coord.latitude == 40.7128 && coord.longitude == -74.0060,
-        ),
-        isTrue,
-        reason: 'NYC coordinates not found',
-      );
+          request.targeting?.location?.any((coord) =>
+              coord.latitude == 40.7128 && coord.longitude == -74.0060),
+          isTrue,
+          reason: 'NYC coordinates not found');
 
       expect(
-        request.targeting?.location?.any(
-          (coord) => coord.latitude == 51.5074 && coord.longitude == -0.1278,
-        ),
-        isTrue,
-        reason: 'London coordinates not found',
-      );
+          request.targeting?.location?.any((coord) =>
+              coord.latitude == 51.5074 && coord.longitude == -0.1278),
+          isTrue,
+          reason: 'London coordinates not found');
 
       expect(
-        request.targeting?.location?.any(
-          (coord) => coord.latitude == 48.8566 && coord.longitude == 2.3522,
-        ),
-        isTrue,
-        reason: 'Paris coordinates not found',
-      );
+          request.targeting?.location?.any((coord) =>
+              coord.latitude == 48.8566 && coord.longitude == 2.3522),
+          isTrue,
+          reason: 'Paris coordinates not found');
     });
 
     test('testLocationTargetingUniqueness', () {
@@ -96,18 +93,15 @@ void main() {
           .addLocationTargeting(latitude: 40.7128, longitude: -74.0060) // NYC
           .addLocationTargeting(latitude: 51.5074, longitude: -0.1278) // London
           .addLocationTargeting(
-            latitude: 40.7128,
-            longitude: -74.0060,
-          ) // NYC (duplicate)
+              latitude: 40.7128, longitude: -74.0060) // NYC (duplicate)
           .addLocationTargeting(latitude: 48.8566, longitude: 2.3522) // Paris
           .build();
 
       expect(request.targeting?.location?.length, equals(3));
 
       final nycCount = request.targeting?.location
-          ?.where(
-            (coord) => coord.latitude == 40.7128 && coord.longitude == -74.0060,
-          )
+          ?.where((coord) =>
+              coord.latitude == 40.7128 && coord.longitude == -74.0060)
           .length;
       expect(nycCount, equals(1), reason: 'Expected one occurrence of NYC');
     });
@@ -126,17 +120,13 @@ void main() {
 
       expect(request.targeting?.custom?.length, equals(4));
       expect(
-        request.targeting?.custom?.any(
-          (kv) => kv.key == 'age' && kv.value as int == 25,
-        ),
-        isTrue,
-      );
+          request.targeting?.custom
+              ?.any((kv) => kv.key == 'age' && kv.value as int == 25),
+          isTrue);
       expect(
-        request.targeting?.custom?.any(
-          (kv) => kv.key == 'score' && kv.value as double == 98.6,
-        ),
-        isTrue,
-      );
+          request.targeting?.custom
+              ?.any((kv) => kv.key == 'score' && kv.value as double == 98.6),
+          isTrue);
     });
 
     test('testCustomTargetingUniqueness', () {
@@ -149,17 +139,13 @@ void main() {
 
       expect(request.targeting?.custom?.length, equals(1));
       expect(
-        request.targeting?.custom?.any(
-          (kv) => kv.key == 'category' && kv.value == 'news',
-        ),
-        isTrue,
-      );
+          request.targeting?.custom
+              ?.any((kv) => kv.key == 'category' && kv.value == 'news'),
+          isTrue);
       expect(
-        request.targeting?.custom?.any(
-          (kv) => kv.key == 'category' && kv.value == 'sports',
-        ),
-        isFalse,
-      );
+          request.targeting?.custom
+              ?.any((kv) => kv.key == 'category' && kv.value == 'sports'),
+          isFalse);
     });
   });
 
@@ -193,10 +179,8 @@ void main() {
     });
 
     test('placement without explicit format omits the field', () {
-      final request = sdk
-          .createRequestBuilder()
-          .addPlacement(key: 'home')
-          .build();
+      final request =
+          sdk.createRequestBuilder().addPlacement(key: 'home').build();
 
       final json = request.toJson();
       final placementsJson = json['placements'] as List;
@@ -261,10 +245,7 @@ void main() {
           .createRequestBuilder()
           .addPlacement(key: 'home')
           .addDestinationTargeting(
-            latitude: 40.7128,
-            longitude: -74.0060,
-            minConfidence: 0.8,
-          )
+              latitude: 40.7128, longitude: -74.0060, minConfidence: 0.8)
           .build();
 
       expect(request.targeting?.destination?.length, equals(1));
@@ -291,46 +272,29 @@ void main() {
           .createRequestBuilder()
           .addPlacement(key: 'home')
           .addDestinationTargeting(
-            latitude: 40.7128,
-            longitude: -74.0060,
-            minConfidence: 0.8,
-          )
+              latitude: 40.7128, longitude: -74.0060, minConfidence: 0.8)
           .addDestinationTargeting(
-            latitude: 40.7128,
-            longitude: -74.0060,
-            minConfidence: 0.8,
-          )
+              latitude: 40.7128, longitude: -74.0060, minConfidence: 0.8)
           .addDestinationTargeting(
-            latitude: 51.5074,
-            longitude: -0.1278,
-            minConfidence: 0.9,
-          )
+              latitude: 51.5074, longitude: -0.1278, minConfidence: 0.9)
           .build();
 
       expect(request.targeting?.destination?.length, equals(2));
     });
 
-    test(
-      'destinations with same coords but different minConfidence are kept',
-      () {
-        final request = sdk
-            .createRequestBuilder()
-            .addPlacement(key: 'home')
-            .addDestinationTargeting(
-              latitude: 40.7128,
-              longitude: -74.0060,
-              minConfidence: 0.5,
-            )
-            .addDestinationTargeting(
-              latitude: 40.7128,
-              longitude: -74.0060,
-              minConfidence: 0.9,
-            )
-            .build();
+    test('destinations with same coords but different minConfidence are kept',
+        () {
+      final request = sdk
+          .createRequestBuilder()
+          .addPlacement(key: 'home')
+          .addDestinationTargeting(
+              latitude: 40.7128, longitude: -74.0060, minConfidence: 0.5)
+          .addDestinationTargeting(
+              latitude: 40.7128, longitude: -74.0060, minConfidence: 0.9)
+          .build();
 
-        expect(request.targeting?.destination?.length, equals(2));
-      },
-    );
+      expect(request.targeting?.destination?.length, equals(2));
+    });
 
     test('setDestinationTargeting replaces existing destinations', () {
       final destA = Destination(latitude: 1, longitude: 2, minConfidence: 0.5);
@@ -340,12 +304,8 @@ void main() {
           .createRequestBuilder()
           .addPlacement(key: 'home')
           .addDestinationTargeting(
-            latitude: 99,
-            longitude: 99,
-            minConfidence: 0.1,
-          )
-          .setDestinationTargeting([destA, destB])
-          .build();
+              latitude: 99, longitude: 99, minConfidence: 0.1)
+          .setDestinationTargeting([destA, destB]).build();
 
       expect(request.targeting?.destination?.length, equals(2));
       expect(request.targeting?.destination?.first.latitude, equals(1));
@@ -357,10 +317,7 @@ void main() {
           .createRequestBuilder()
           .addPlacement(key: 'home')
           .addDestinationTargeting(
-            latitude: 1,
-            longitude: 2,
-            minConfidence: 0.5,
-          )
+              latitude: 1, longitude: 2, minConfidence: 0.5)
           .addGeoTargeting(5819)
           .clearDestinationTargeting()
           .build();
@@ -374,10 +331,7 @@ void main() {
           .createRequestBuilder()
           .addPlacement(key: 'home')
           .addDestinationTargeting(
-            latitude: 1,
-            longitude: 2,
-            minConfidence: 0.5,
-          )
+              latitude: 1, longitude: 2, minConfidence: 0.5)
           .clearTargeting()
           .build();
 
@@ -388,10 +342,7 @@ void main() {
       final builder = sdk.createRequestBuilder();
       expect(
         () => builder.addDestinationTargeting(
-          latitude: 0,
-          longitude: 0,
-          minConfidence: 1.5,
-        ),
+            latitude: 0, longitude: 0, minConfidence: 1.5),
         throwsA(isA<ArgumentError>()),
       );
     });
@@ -400,10 +351,7 @@ void main() {
       final builder = sdk.createRequestBuilder();
       expect(
         () => builder.addDestinationTargeting(
-          latitude: 0,
-          longitude: 0,
-          minConfidence: -0.1,
-        ),
+            latitude: 0, longitude: 0, minConfidence: -0.1),
         throwsA(isA<ArgumentError>()),
       );
     });
@@ -413,15 +361,9 @@ void main() {
           .createRequestBuilder()
           .addPlacement(key: 'home')
           .addDestinationTargeting(
-            latitude: 1,
-            longitude: 2,
-            minConfidence: 0.0,
-          )
+              latitude: 1, longitude: 2, minConfidence: 0.0)
           .addDestinationTargeting(
-            latitude: 3,
-            longitude: 4,
-            minConfidence: 1.0,
-          )
+              latitude: 3, longitude: 4, minConfidence: 1.0)
           .build();
 
       expect(request.targeting?.destination?.length, equals(2));
@@ -434,10 +376,7 @@ void main() {
           .addGeoTargeting(5819)
           .addLocationTargeting(latitude: 10, longitude: 20)
           .addDestinationTargeting(
-            latitude: 30,
-            longitude: 40,
-            minConfidence: 0.5,
-          )
+              latitude: 30, longitude: 40, minConfidence: 0.5)
           .addCustomTargeting(key: 'k', value: 'v')
           .build();
 

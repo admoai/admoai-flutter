@@ -69,26 +69,25 @@ void main() {
                   'distance': i,
                   'tracking': {
                     'views': [
-                      {'key': 'default', 'url': url(response, 'view', i)},
+                      {'key': 'default', 'url': url(response, 'view', i)}
                     ],
                     'taps': [
-                      {'key': 'default', 'url': url(response, 'tap', i)},
+                      {'key': 'default', 'url': url(response, 'tap', i)}
                     ],
                     'clicks': [
-                      {'key': 'default', 'url': url(response, 'click', i)},
+                      {'key': 'default', 'url': url(response, 'click', i)}
                     ],
                   },
                 },
             ],
-          },
+          }
         ],
         'advertiser': {'name': 'Cabify'},
         'tracking': <String, dynamic>{},
       }).matchedPoints;
 
-  Set<String> viewUrls(int from, int to, {required String response}) => {
-    for (var i = from; i < to; i++) url(response, 'view', i),
-  };
+  Set<String> viewUrls(int from, int to, {required String response}) =>
+      {for (var i = from; i < to; i++) url(response, 'view', i)};
 
   List<String> fired(List<http.Request> captured) =>
       captured.map((r) => r.url.toString()).toList();
@@ -147,11 +146,8 @@ void main() {
     final (sdk, captured) = sdkWithCapture();
     final r1 = points(0, 1, response: 'r1');
     final r2 = points(0, 1, response: 'r2');
-    expect(
-      r1.single.id,
-      r2.single.id,
-      reason: 'the same location in both responses',
-    );
+    expect(r1.single.id, r2.single.id,
+        reason: 'the same location in both responses');
     sdk.trackPointViews(r1);
     await settle();
     captured.clear();
@@ -173,21 +169,12 @@ void main() {
     }
 
     expect(ledger.length, 500, reason: 'the ten most recent full responses');
-    expect(
-      ledger.claim('https://t/r99/view/p0'),
-      isFalse,
-      reason: 'the newest response is remembered',
-    );
-    expect(
-      ledger.claim('https://t/r90/view/p49'),
-      isFalse,
-      reason: 'so is the tenth newest',
-    );
-    expect(
-      ledger.claim('https://t/r89/view/p49'),
-      isTrue,
-      reason: 'the eleventh is forgotten and fires',
-    );
+    expect(ledger.claim('https://t/r99/view/p0'), isFalse,
+        reason: 'the newest response is remembered');
+    expect(ledger.claim('https://t/r90/view/p49'), isFalse,
+        reason: 'so is the tenth newest');
+    expect(ledger.claim('https://t/r89/view/p49'), isTrue,
+        reason: 'the eleventh is forgotten and fires');
     expect(ledger.length, 500);
   });
 
@@ -248,9 +235,7 @@ void main() {
 
     expect(fired(captured).where((u) => u == url('r', 'tap', 0)), hasLength(2));
     expect(
-      fired(captured).where((u) => u == url('r', 'click', 0)),
-      hasLength(2),
-    );
+        fired(captured).where((u) => u == url('r', 'click', 0)), hasLength(2));
     expect(captured, hasLength(4));
   });
 }

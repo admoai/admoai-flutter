@@ -74,10 +74,8 @@ Future<DeviceSignals?> collectDeviceSignals({
     );
   } catch (e) {
     // MissingPluginException, PlatformException, TimeoutException, codec errors.
-    logger?.fine(
-      'Device signals read failed (${e.runtimeType}); '
-      'carrier and category keep their last values.',
-    );
+    logger?.fine('Device signals read failed (${e.runtimeType}); '
+        'carrier and category keep their last values.');
     return null;
   }
 }

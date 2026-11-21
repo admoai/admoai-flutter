@@ -15,10 +15,8 @@ void main() {
 
       expect(c.contents, isEmpty);
       expect(c.advertiser.name, isNull);
-      expect(
-        c.template,
-        isNull,
-      ); // absent/malformed template is null, matching iOS and Android
+      expect(c.template,
+          isNull); // absent/malformed template is null, matching iOS and Android
       expect(c.tracking.impressions, isNull);
       expect(c.metadata, isNull);
       expect(c.vast, isNull);
@@ -26,29 +24,25 @@ void main() {
       expect(c.isJourneyAd(), isFalse);
     });
 
-    test(
-      'retyped blocks (advertiser/template/tracking as non-map) → defaults',
-      () {
-        late Creative c;
-        expect(() {
-          c = Creative.fromJson({
-            'advertiser': 'nope',
-            'template': 42,
-            'tracking': ['not', 'a', 'map'],
-            'contents': 'not-a-list',
-            'metadata': 7,
-            'vast': 'x',
-          });
-        }, returnsNormally);
-        expect(c.contents, isEmpty);
-        expect(
-          c.template,
-          isNull,
-        ); // absent/malformed template is null, matching iOS and Android
-        expect(c.metadata, isNull);
-        expect(c.vast, isNull);
-      },
-    );
+    test('retyped blocks (advertiser/template/tracking as non-map) → defaults',
+        () {
+      late Creative c;
+      expect(() {
+        c = Creative.fromJson({
+          'advertiser': 'nope',
+          'template': 42,
+          'tracking': ['not', 'a', 'map'],
+          'contents': 'not-a-list',
+          'metadata': 7,
+          'vast': 'x',
+        });
+      }, returnsNormally);
+      expect(c.contents, isEmpty);
+      expect(c.template,
+          isNull); // absent/malformed template is null, matching iOS and Android
+      expect(c.metadata, isNull);
+      expect(c.vast, isNull);
+    });
 
     test('malformed content entries are dropped', () {
       final c = Creative.fromJson({
@@ -87,20 +81,18 @@ void main() {
   });
 
   group('Metadata tolerance', () {
-    test(
-      'missing required id fields default to empty string (non-breaking)',
-      () {
-        late Metadata m;
-        expect(() => m = Metadata.fromJson({}), returnsNormally);
-        expect(m.adId, equals(''));
-        expect(m.creativeId, equals(''));
-        expect(m.templateId, equals(''));
-        expect(m.placementId, equals(''));
-        expect(m.priority, equals(Priority.unknown));
-        expect(m.advertiserId, isNull);
-        expect(m.duration, isNull);
-      },
-    );
+    test('missing required id fields default to empty string (non-breaking)',
+        () {
+      late Metadata m;
+      expect(() => m = Metadata.fromJson({}), returnsNormally);
+      expect(m.adId, equals(''));
+      expect(m.creativeId, equals(''));
+      expect(m.templateId, equals(''));
+      expect(m.placementId, equals(''));
+      expect(m.priority, equals(Priority.unknown));
+      expect(m.advertiserId, isNull);
+      expect(m.duration, isNull);
+    });
 
     test('retyped fields degrade without throwing', () {
       late Metadata m;

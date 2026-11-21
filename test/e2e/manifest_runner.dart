@@ -48,8 +48,8 @@ void manifestGroup(E2eReport report) {
   // golden decision-wire files): they run as unit tests, and a runner that read a newer
   // manifest as if it were version 1 would silently skip half of it.
   requireSupportedSchemaVersion(manifest['schemaVersion']);
-  final scenarios = (manifest['scenarios'] as List)
-      .cast<Map<String, dynamic>>();
+  final scenarios =
+      (manifest['scenarios'] as List).cast<Map<String, dynamic>>();
 
   for (final entry in scenarios) {
     scenario(
@@ -64,13 +64,10 @@ void manifestGroup(E2eReport report) {
 Future<void> _run(Map<String, dynamic> entry, List<String> notes) async {
   final request = entry['request'] as Map<String, dynamic>;
   final expect = entry['expect'] as Map<String, dynamic>;
-  final unknownKeys = entry.keys
-      .where((k) => !knownScenarioKeys.contains(k))
-      .toList();
-  check(
-    unknownKeys.isEmpty,
-    'every scenario key is one this runner executes (unknown: $unknownKeys)',
-  );
+  final unknownKeys =
+      entry.keys.where((k) => !knownScenarioKeys.contains(k)).toList();
+  check(unknownKeys.isEmpty,
+      'every scenario key is one this runner executes (unknown: $unknownKeys)');
   final shapeProblems = validateScenarioShape(entry);
   check(shapeProblems.isEmpty, shapeProblems.join('; '));
 
@@ -83,9 +80,7 @@ Future<void> _run(Map<String, dynamic> entry, List<String> notes) async {
   try {
     applyScenarioDevice(driver.sdk, request['device']);
     applyScenarioInteractiveExperience(
-      driver.sdk,
-      request['interactiveExperience'],
-    );
+        driver.sdk, request['interactiveExperience']);
     final builder = driver.sdk.createRequestBuilder();
     for (final p
         in (request['placements'] as List).cast<Map<String, dynamic>>()) {
@@ -106,8 +101,7 @@ Future<void> _run(Map<String, dynamic> entry, List<String> notes) async {
     }
     if (request['journeyOpt'] != null) {
       builder.setJourneyOpt(
-        request['journeyOpt'] == 'in' ? JourneyOpt.optIn : JourneyOpt.optOut,
-      );
+          request['journeyOpt'] == 'in' ? JourneyOpt.optIn : JourneyOpt.optOut);
     }
     // Sponsored Pin: a radius or a bounds search. Declarative so the same manifest entry
     // drives all three SDKs, each through its own idiom for the two shapes.
@@ -150,24 +144,19 @@ Future<void> _run(Map<String, dynamic> entry, List<String> notes) async {
         await driver.sdk.requestAds(built);
         check(false, 'the request is rejected (it succeeded instead)');
       } on ArgumentError catch (e) {
-        check(
-          kind == 'local',
-          'a local SDK error is expected for this scenario (got $e)',
-        );
+        check(kind == 'local',
+            'a local SDK error is expected for this scenario (got $e)');
         notes.add('rejected locally as ArgumentError, no network call');
         return;
       } on ValidationError catch (e) {
         check(kind != 'local', 'the SDK rejects this before any network call');
         final code = expectedError['code'] as int?;
         if (code != null) {
-          check(
-            e.errors.any((err) => err.code == code),
-            'the engine error code is $code (got ${e.errors.map((x) => x.code).toList()})',
-          );
+          check(e.errors.any((err) => err.code == code),
+              'the engine error code is $code (got ${e.errors.map((x) => x.code).toList()})');
         }
         notes.add(
-          'rejected with ${e.errors.map((x) => '[${x.code}] ${x.message}').join()}',
-        );
+            'rejected with ${e.errors.map((x) => '[${x.code}] ${x.message}').join()}');
         return;
       }
       return;
@@ -180,10 +169,8 @@ Future<void> _run(Map<String, dynamic> entry, List<String> notes) async {
 
     final expectedDecisions = expect['decisions'] as int?;
     if (expectedDecisions != null) {
-      check(
-        decisions.length == expectedDecisions,
-        'the response carries $expectedDecisions decision(s) (got ${decisions.length})',
-      );
+      check(decisions.length == expectedDecisions,
+          'the response carries $expectedDecisions decision(s) (got ${decisions.length})');
     }
     if (expect['decisionsMatchRequest'] == true) {
       final requested = (request['placements'] as List)
@@ -192,10 +179,9 @@ Future<void> _run(Map<String, dynamic> entry, List<String> notes) async {
           .toSet();
       final returned = decisions.map((d) => d.placement).toSet();
       check(
-        requested.difference(returned).isEmpty &&
-            returned.difference(requested).isEmpty,
-        'every requested placement is keyed back: $requested vs $returned',
-      );
+          requested.difference(returned).isEmpty &&
+              returned.difference(requested).isEmpty,
+          'every requested placement is keyed back: $requested vs $returned');
     }
 
     check(decisions.isNotEmpty, 'at least one decision is returned');
@@ -203,26 +189,20 @@ Future<void> _run(Map<String, dynamic> entry, List<String> notes) async {
     final creatives = decision.creatives ?? <Creative>[];
 
     if (outcome == 'noAd') {
-      check(
-        decision.isNoAd,
-        'the decision is a clean no-ad (got ${creatives.length} creatives)',
-      );
+      check(decision.isNoAd,
+          'the decision is a clean no-ad (got ${creatives.length} creatives)');
       check(!decision.hasCreative, 'hasCreative is false');
       notes.add('no-ad on ${decision.placement}, nothing exposed to fire');
       return;
     }
 
     check(
-      decision.hasCreative,
-      'a creative is served on ${decision.placement}',
-    );
+        decision.hasCreative, 'a creative is served on ${decision.placement}');
 
     final atMost = expect['creativesAtMost'] as int?;
     if (atMost != null) {
-      check(
-        creatives.length <= atMost,
-        'at most $atMost creatives are returned (got ${creatives.length})',
-      );
+      check(creatives.length <= atMost,
+          'at most $atMost creatives are returned (got ${creatives.length})');
       notes.add('returned ${creatives.length} creative(s)');
     }
     if (expect['creativesDistinct'] == true && creatives.length > 1) {
@@ -230,10 +210,8 @@ Future<void> _run(Map<String, dynamic> entry, List<String> notes) async {
           .map((c) => c.metadata?.creativeId)
           .whereType<String>()
           .toList();
-      check(
-        ids.toSet().length == ids.length,
-        'the returned creatives are distinct (got $ids)',
-      );
+      check(ids.toSet().length == ids.length,
+          'the returned creatives are distinct (got $ids)');
     }
 
     final creativeExpect = expect['creative'] as Map<String, dynamic>?;
@@ -242,37 +220,21 @@ Future<void> _run(Map<String, dynamic> entry, List<String> notes) async {
     }
     final slideTracking = entry['slideTracking'] as Map<String, dynamic>?;
     if (slideTracking != null) {
-      check(
-        creativeExpect?.containsKey('slides') == true,
-        'slideTracking requires expect.creative.slides',
-      );
+      check(creativeExpect?.containsKey('slides') == true,
+          'slideTracking requires expect.creative.slides');
       await runSlideTracking(
-        slideTracking,
-        driver.sdk,
-        driver.client,
-        creatives.first,
-        notes,
-      );
+          slideTracking, driver.sdk, driver.client, creatives.first, notes);
     }
     final pinTracking = entry['pinTracking'] as Map<String, dynamic>?;
     if (pinTracking != null) {
       await _runPinTracking(
-        pinTracking,
-        driver,
-        creatives.first.matchedPoints,
-        notes,
-        fetchAgain: () async {
-          final again = await driver.sdk.requestAds(built);
-          return again
-                  .body
-                  .data
-                  ?.firstOrNull
-                  ?.creatives
-                  ?.firstOrNull
-                  ?.matchedPoints ??
-              const <MatchedPoint>[];
-        },
-      );
+          pinTracking, driver, creatives.first.matchedPoints, notes,
+          fetchAgain: () async {
+        final again = await driver.sdk.requestAds(built);
+        return again.body.data?.firstOrNull?.creatives?.firstOrNull
+                ?.matchedPoints ??
+            const <MatchedPoint>[];
+      });
     }
   } finally {
     driver.sdk.disableInteractiveExperiences();
@@ -320,10 +282,8 @@ Future<void> _runPinTracking(
 
   MatchedPoint pick(int i) {
     final pins = responses.last;
-    check(
-      i < pins.length,
-      'the response carries a pin at index $i (got ${pins.length})',
-    );
+    check(i < pins.length,
+        'the response carries a pin at index $i (got ${pins.length})');
     return pins[i];
   }
 
@@ -351,10 +311,8 @@ Future<void> _runPinTracking(
         final range = views as Map<String, dynamic>;
         final from = range['from'] as int;
         final to = range['to'] as int;
-        check(
-          to <= pins.length,
-          'the response carries $to pins (got ${pins.length})',
-        );
+        check(to <= pins.length,
+            'the response carries $to pins (got ${pins.length})');
         slice = pins.sublist(from, to);
       }
       sdk.trackPointViews(slice);
@@ -390,8 +348,8 @@ Future<void> _runPinTracking(
   final expectedTotal = expectedViews.length + interactionTotal;
   check(expectedTotal > 0, 'the steps name at least one beacon to send');
   final deadline = DateTime.now().add(const Duration(seconds: 10));
-  while (tracking().length < expectedTotal &&
-      DateTime.now().isBefore(deadline)) {
+  while (
+      tracking().length < expectedTotal && DateTime.now().isBefore(deadline)) {
     await Future<void>.delayed(const Duration(milliseconds: 50));
   }
   await Future<void>.delayed(const Duration(milliseconds: 1500));
@@ -403,48 +361,33 @@ Future<void> _runPinTracking(
   final e = pinTracking['expect'] as Map<String, dynamic>;
 
   if (e['viewsOncePerResponse'] == true) {
-    final everyViewUrl = responses
-        .expand((pins) => pins)
-        .expand(_viewUrls)
-        .toSet();
+    final everyViewUrl =
+        responses.expand((pins) => pins).expand(_viewUrls).toSet();
     for (final url in expectedViews) {
-      check(
-        counts[url] == 1,
-        "a shown pin's view beacon is sent exactly once (got ${counts[url] ?? 0})",
-      );
+      check(counts[url] == 1,
+          "a shown pin's view beacon is sent exactly once (got ${counts[url] ?? 0})");
     }
-    final unexpected = sent
-        .toSet()
-        .intersection(everyViewUrl)
-        .difference(expectedViews);
-    check(
-      unexpected.isEmpty,
-      'no view beacon is sent for a pin the app never showed (got ${unexpected.length})',
-    );
+    final unexpected =
+        sent.toSet().intersection(everyViewUrl).difference(expectedViews);
+    check(unexpected.isEmpty,
+        'no view beacon is sent for a pin the app never showed (got ${unexpected.length})');
   }
   if (e['interactionsEveryCall'] == true) {
     expectedInteractions.forEach((url, times) {
-      check(
-        counts[url] == times,
-        'a tap/click beacon is sent on every call: $times (got ${counts[url] ?? 0})',
-      );
+      check(counts[url] == times,
+          'a tap/click beacon is sent on every call: $times (got ${counts[url] ?? 0})');
     });
   }
-  check(
-    sent.length == expectedTotal,
-    'exactly $expectedTotal tracking GETs reach the engine, nothing stray (got ${sent.length})',
-  );
+  check(sent.length == expectedTotal,
+      'exactly $expectedTotal tracking GETs reach the engine, nothing stray (got ${sent.length})');
   if (e['newResponseHasNewViewUrls'] == true) {
     check(responses.length >= 2, 'the steps fetched a second response');
-    final perResponse = responses
-        .map((pins) => pins.expand(_viewUrls).toSet())
-        .toList();
+    final perResponse =
+        responses.map((pins) => pins.expand(_viewUrls).toSet()).toList();
     for (var i = 0; i < perResponse.length; i++) {
       for (var j = i + 1; j < perResponse.length; j++) {
-        check(
-          perResponse[i].intersection(perResponse[j]).isEmpty,
-          'a new response mints new view URLs for the same pins',
-        );
+        check(perResponse[i].intersection(perResponse[j]).isEmpty,
+            'a new response mints new view URLs for the same pins');
       }
     }
   }
@@ -457,24 +400,17 @@ Future<void> _runPinTracking(
       await Future<void>.delayed(const Duration(milliseconds: 50));
     }
     final all = answers();
-    check(
-      all.length == sent.length,
-      'the engine answered every beacon (${all.length}/${sent.length})',
-    );
-    final rejected = all
-        .where((a) => a.$2 < 200 || a.$2 >= 400)
-        .map((a) => a.$2)
-        .toList();
-    check(
-      rejected.isEmpty,
-      'the engine accepts every beacon (rejected: $rejected)',
-    );
+    check(all.length == sent.length,
+        'the engine answered every beacon (${all.length}/${sent.length})');
+    final rejected =
+        all.where((a) => a.$2 < 200 || a.$2 >= 400).map((a) => a.$2).toList();
+    check(rejected.isEmpty,
+        'the engine accepts every beacon (rejected: $rejected)');
   }
   notes.add(
-    '${responses.length} response(s), ${responses.map((p) => p.length).toList()} pins: '
-    '${expectedViews.length} view GET(s), $interactionTotal tap/click GET(s), '
-    '${sent.length} sent in total',
-  );
+      '${responses.length} response(s), ${responses.map((p) => p.length).toList()} pins: '
+      '${expectedViews.length} view GET(s), $interactionTotal tap/click GET(s), '
+      '${sent.length} sent in total');
 }
 
 // ---- Carousel slide tracking (schemaVersion 5) ----
@@ -513,21 +449,16 @@ Future<void> runSlideTracking(
   Duration quietPeriod = const Duration(milliseconds: 1500),
   Duration deadline = const Duration(seconds: 10),
 }) async {
-  final unknownKeys = block.keys
-      .where((k) => k != 'steps' && k != 'expect')
-      .toList();
-  check(
-    unknownKeys.isEmpty,
-    'every slideTracking key is one this runner executes (unknown: $unknownKeys)',
-  );
+  final unknownKeys =
+      block.keys.where((k) => k != 'steps' && k != 'expect').toList();
+  check(unknownKeys.isEmpty,
+      'every slideTracking key is one this runner executes (unknown: $unknownKeys)');
   final e = block['expect'] as Map<String, dynamic>;
   final unknownExpect = e.keys
       .where((k) => k != 'beacons' && k != 'engineAcceptsEveryBeacon')
       .toList();
-  check(
-    unknownExpect.isEmpty,
-    'every slideTracking expect key is one this runner executes (unknown: $unknownExpect)',
-  );
+  check(unknownExpect.isEmpty,
+      'every slideTracking expect key is one this runner executes (unknown: $unknownExpect)');
 
   // The decision that served this scenario went through the recorder too; only beacons count.
   client.sent.clear();
@@ -535,17 +466,13 @@ Future<void> runSlideTracking(
   for (final step in (block['steps'] as List).cast<Map<String, dynamic>>()) {
     if (step['slideView'] is int) {
       final n = step['slideView'] as int;
-      check(
-        n >= 1 && n <= creative.slides.length,
-        'the creative has a slide $n (got ${creative.slides.length})',
-      );
+      check(n >= 1 && n <= creative.slides.length,
+          'the creative has a slide $n (got ${creative.slides.length})');
       sdk.trackSlideView(creative.slides[n - 1]);
     } else if (step['slideClick'] is int) {
       final n = step['slideClick'] as int;
-      check(
-        n >= 1 && n <= creative.slides.length,
-        'the creative has a slide $n (got ${creative.slides.length})',
-      );
+      check(n >= 1 && n <= creative.slides.length,
+          'the creative has a slide $n (got ${creative.slides.length})');
       sdk.trackSlideClick(creative.slides[n - 1], creative);
     } else if (step.containsKey('fireClick')) {
       final key = step['fireClick'];
@@ -559,8 +486,8 @@ Future<void> runSlideTracking(
     }
   }
 
-  final expectedBeacons = (e['beacons'] as List? ?? const [])
-      .cast<Map<String, dynamic>>();
+  final expectedBeacons =
+      (e['beacons'] as List? ?? const []).cast<Map<String, dynamic>>();
   final waitUntil = DateTime.now().add(deadline);
   while (client.sent.length < expectedBeacons.length &&
       DateTime.now().isBefore(waitUntil)) {
@@ -573,18 +500,14 @@ Future<void> runSlideTracking(
   final dispatched = <Map<String, dynamic>>[];
   for (final url in sent) {
     final beacon = describeBeacon(creative, url);
-    check(
-      beacon != null,
-      'every dispatched beacon is a tracker of the creative (got $url)',
-    );
+    check(beacon != null,
+        'every dispatched beacon is a tracker of the creative (got $url)');
     dispatched.add(beacon!);
   }
   final want = [for (final b in expectedBeacons) _beaconShape(b)];
   final got = [for (final b in dispatched) _beaconShape(b)];
-  check(
-    want.length == got.length && _sameOrder(want, got),
-    'the first-party beacons, in dispatch order, are $want (got $got)',
-  );
+  check(want.length == got.length && _sameOrder(want, got),
+      'the first-party beacons, in dispatch order, are $want (got $got)');
 
   if (e['engineAcceptsEveryBeacon'] == true) {
     final waitAnswers = DateTime.now().add(deadline);
@@ -593,18 +516,12 @@ Future<void> runSlideTracking(
       await Future<void>.delayed(const Duration(milliseconds: 50));
     }
     final all = List<(String, int)>.of(client.answered);
-    check(
-      all.length == sent.length,
-      'the engine answered every beacon (${all.length}/${sent.length})',
-    );
-    final rejected = all
-        .where((a) => a.$2 < 200 || a.$2 >= 400)
-        .map((a) => a.$2)
-        .toList();
-    check(
-      rejected.isEmpty,
-      'the engine accepts every beacon (rejected: $rejected)',
-    );
+    check(all.length == sent.length,
+        'the engine answered every beacon (${all.length}/${sent.length})');
+    final rejected =
+        all.where((a) => a.$2 < 200 || a.$2 >= 400).map((a) => a.$2).toList();
+    check(rejected.isEmpty,
+        'the engine accepts every beacon (rejected: $rejected)');
   }
   notes.add('${sent.length} slide beacon(s): $got');
 }
@@ -730,7 +647,7 @@ List<String> validateScenarioShape(Map<String, dynamic> entry) {
   final problems = <String>[];
   List<String> unknownIn(Object? m, Set<String> known) => m is Map
       ? (m.keys.cast<String>().where((k) => !known.contains(k)).toList()
-          ..sort())
+        ..sort())
       : const [];
 
   final request = entry['request'];
@@ -738,8 +655,7 @@ List<String> validateScenarioShape(Map<String, dynamic> entry) {
   final unknownRequest = unknownIn(request, knownRequestKeys);
   if (unknownRequest.isNotEmpty) {
     problems.add(
-      'every request key is one this runner executes (unknown: $unknownRequest)',
-    );
+        'every request key is one this runner executes (unknown: $unknownRequest)');
   }
   final placements = request['placements'];
   if (placements is List) {
@@ -747,8 +663,7 @@ List<String> validateScenarioShape(Map<String, dynamic> entry) {
       final u = unknownIn(p, knownPlacementKeys);
       if (u.isNotEmpty) {
         problems.add(
-          'every placement key is one this runner executes (unknown: $u)',
-        );
+            'every placement key is one this runner executes (unknown: $u)');
       }
     }
   }
@@ -758,15 +673,13 @@ List<String> validateScenarioShape(Map<String, dynamic> entry) {
       final u = unknownIn(c, knownCustomKeys);
       if (u.isNotEmpty) {
         problems.add(
-          'every custom entry key is one this runner executes (unknown: $u)',
-        );
+            'every custom entry key is one this runner executes (unknown: $u)');
       }
       final v = c is Map ? c['value'] : null;
       final ok = v is String || (v is List && v.every((e) => e is String));
       if (!ok) {
         problems.add(
-          'request.custom[].value is a string or a list of strings (got $v)',
-        );
+            'request.custom[].value is a string or a list of strings (got $v)');
       }
     }
   }
@@ -774,15 +687,13 @@ List<String> validateScenarioShape(Map<String, dynamic> entry) {
   if (distance is Map) {
     final u = unknownIn(distance, knownDistanceKeys);
     if (u.isNotEmpty) {
-      problems.add(
-        'every distance key is one this runner executes (unknown: $u)',
-      );
+      problems
+          .add('every distance key is one this runner executes (unknown: $u)');
     }
     final ub = unknownIn(distance['bounds'], knownBoundsKeys);
     if (ub.isNotEmpty) {
       problems.add(
-        'every distance.bounds key is one this runner executes (unknown: $ub)',
-      );
+          'every distance.bounds key is one this runner executes (unknown: $ub)');
     }
   }
   if (request.containsKey('device')) {
@@ -793,44 +704,34 @@ List<String> validateScenarioShape(Map<String, dynamic> entry) {
       final u = unknownIn(device, knownDeviceKeys);
       if (u.isNotEmpty) {
         problems.add(
-          'every request.device key is one this runner executes (unknown: $u)',
-        );
+            'every request.device key is one this runner executes (unknown: $u)');
       }
       if (device.containsKey('carrier') && device['carrier'] is! String) {
         problems.add(
-          'request.device.carrier is a string (got ${device['carrier']})',
-        );
+            'request.device.carrier is a string (got ${device['carrier']})');
       }
       if (device.containsKey('category') &&
           (device['category'] is! String ||
               DeviceCategory.fromWire(device['category'] as String) == null)) {
         problems.add(
-          'request.device.category is "phone", "tablet" or "other" (got ${device['category']})',
-        );
+            'request.device.category is "phone", "tablet" or "other" (got ${device['category']})');
       }
     }
   }
   if (request.containsKey('interactiveExperience')) {
-    problems.addAll(
-      _interactiveExperienceProblems(
-        request['interactiveExperience'],
-        unknownIn,
-      ),
-    );
+    problems.addAll(_interactiveExperienceProblems(
+        request['interactiveExperience'], unknownIn));
   }
   final unknownExpect = unknownIn(entry['expect'], knownExpectKeys);
   if (unknownExpect.isNotEmpty) {
     problems.add(
-      'every expect key is one this runner executes (unknown: $unknownExpect)',
-    );
+        'every expect key is one this runner executes (unknown: $unknownExpect)');
   }
   return problems;
 }
 
 List<String> _interactiveExperienceProblems(
-  Object? ie,
-  List<String> Function(Object?, Set<String>) unknownIn,
-) {
+    Object? ie, List<String> Function(Object?, Set<String>) unknownIn) {
   if (ie is! Map) {
     return ['request.interactiveExperience is an object (got $ie)'];
   }
@@ -838,25 +739,21 @@ List<String> _interactiveExperienceProblems(
   final u = unknownIn(ie, knownInteractiveExperienceKeys);
   if (u.isNotEmpty) {
     problems.add(
-      'every request.interactiveExperience key is one this runner executes (unknown: $u)',
-    );
+        'every request.interactiveExperience key is one this runner executes (unknown: $u)');
   }
   if (ie['supported'] != true) {
     problems.add(
-      'request.interactiveExperience.supported is true (got ${ie['supported']})',
-    );
+        'request.interactiveExperience.supported is true (got ${ie['supported']})');
   }
   final keys = ie['availableAttributeKeys'];
   if (keys is! List || keys.any((k) => k is! String)) {
     problems.add(
-      'request.interactiveExperience.availableAttributeKeys is a list of strings (got $keys)',
-    );
+        'request.interactiveExperience.availableAttributeKeys is a list of strings (got $keys)');
   } else {
     for (final k in keys.cast<String>()) {
       if (StandardAttributeKey.fromWire(k) == null) {
         problems.add(
-          'request.interactiveExperience.availableAttributeKeys names a standard attribute key the SDK knows (got "$k")',
-        );
+            'request.interactiveExperience.availableAttributeKeys names a standard attribute key the SDK knows (got "$k")');
       }
     }
   }
@@ -880,12 +777,11 @@ class _ManifestKeysProvider implements LeadFormValueProvider {
 void applyScenarioInteractiveExperience(AdMoai sdk, Object? ie) {
   if (ie == null) return;
   final problems = _interactiveExperienceProblems(
-    ie,
-    (m, known) => m is Map
-        ? (m.keys.cast<String>().where((k) => !known.contains(k)).toList()
+      ie,
+      (m, known) => m is Map
+          ? (m.keys.cast<String>().where((k) => !known.contains(k)).toList()
             ..sort())
-        : const [],
-  );
+          : const []);
   if (problems.isNotEmpty) {
     throw StateError('scenario interpreter error: ${problems.join('; ')}');
   }
@@ -910,29 +806,18 @@ void applyScenarioDevice(AdMoai sdk, Object? device) {
 
 /// Public seam for the offline unit test of the interpreter.
 void assertCreative(
-  Creative creative,
-  Map<String, dynamic> e,
-  List<String> notes,
-) => _assertCreative(creative, e, notes);
+        Creative creative, Map<String, dynamic> e, List<String> notes) =>
+    _assertCreative(creative, e, notes);
 
 void _assertCreative(
-  Creative creative,
-  Map<String, dynamic> e,
-  List<String> notes,
-) {
-  final unknown = e.keys
-      .where((k) => !knownCreativeExpectKeys.contains(k))
-      .toList();
-  check(
-    unknown.isEmpty,
-    'every expect.creative key is one this runner executes (unknown: $unknown)',
-  );
+    Creative creative, Map<String, dynamic> e, List<String> notes) {
+  final unknown =
+      e.keys.where((k) => !knownCreativeExpectKeys.contains(k)).toList();
+  check(unknown.isEmpty,
+      'every expect.creative key is one this runner executes (unknown: $unknown)');
   if (e.containsKey('metadata')) {
     checkMetadataExpectation(
-      'expect.creative',
-      e['metadata'],
-      creative.metadata,
-    );
+        'expect.creative', e['metadata'], creative.metadata);
   }
   if (e.containsKey('templateKey')) {
     checkTemplateKey('expect.creative', e['templateKey'], creative);
@@ -944,10 +829,8 @@ void _assertCreative(
     checkStyleIn('expect.creative', e['styleIn'], creative);
   }
   if (e.containsKey('journeyStageKey')) {
-    check(
-      e['journey'] == true,
-      'journeyStageKey is only valid with "journey": true',
-    );
+    check(e['journey'] == true,
+        'journeyStageKey is only valid with "journey": true');
     checkJourneyStageKey('expect.creative', e['journeyStageKey'], creative);
   }
   if (e.containsKey('slides')) {
@@ -967,10 +850,8 @@ void _assertCreative(
   }
   final priorityIn = (e['priorityIn'] as List?)?.cast<String>();
   if (priorityIn != null && creative.metadata != null) {
-    check(
-      priorityIn.contains(creative.metadata!.priority.value),
-      'priority is one of $priorityIn (got ${creative.metadata!.priority.value})',
-    );
+    check(priorityIn.contains(creative.metadata!.priority.value),
+        'priority is one of $priorityIn (got ${creative.metadata!.priority.value})');
   }
   if (e['requireAdvertiser'] == true) {
     final a = creative.advertiser;
@@ -980,47 +861,33 @@ void _assertCreative(
   }
   if (e['requireTemplate'] == true) {
     check(
-      (creative.template?.key ?? '').isNotEmpty,
-      'template.key is non-empty',
-    );
+        (creative.template?.key ?? '').isNotEmpty, 'template.key is non-empty');
   }
   if (e['requireContents'] == true) {
     check(
-      creative.contents.hasContents(),
-      'the creative carries content fields',
-    );
+        creative.contents.hasContents(), 'the creative carries content fields');
     notes.add('${creative.contents.length} content field(s)');
   }
   if (e['journey'] != null) {
-    check(
-      creative.isJourneyAd() == e['journey'],
-      'isJourneyAd is ${e['journey']} (got ${creative.isJourneyAd()})',
-    );
+    check(creative.isJourneyAd() == e['journey'],
+        'isJourneyAd is ${e['journey']} (got ${creative.isJourneyAd()})');
   }
   if (e['formatEquals'] != null) {
-    check(
-      creative.metadata?.format == e['formatEquals'],
-      'metadata.format is "${e['formatEquals']}" (got ${creative.metadata?.format})',
-    );
+    check(creative.metadata?.format == e['formatEquals'],
+        'metadata.format is "${e['formatEquals']}" (got ${creative.metadata?.format})');
   }
   if (e['deliveryEquals'] != null) {
-    check(
-      creative.delivery == e['deliveryEquals'],
-      'delivery is "${e['deliveryEquals']}" (got ${creative.delivery})',
-    );
+    check(creative.delivery == e['deliveryEquals'],
+        'delivery is "${e['deliveryEquals']}" (got ${creative.delivery})');
   }
   switch (e['impressions']) {
     case 'required':
-      check(
-        (creative.tracking.impressions ?? []).isNotEmpty,
-        'an impression URL is exposed',
-      );
+      check((creative.tracking.impressions ?? []).isNotEmpty,
+          'an impression URL is exposed');
       break;
     case 'forbidden':
-      check(
-        (creative.tracking.impressions ?? []).isEmpty,
-        'NO engine-side impression URL is exposed (VAST owns it; both would double-count)',
-      );
+      check((creative.tracking.impressions ?? []).isEmpty,
+          'NO engine-side impression URL is exposed (VAST owns it; both would double-count)');
       break;
   }
   // --- Sponsored Pin -------------------------------------------------------------------
@@ -1028,24 +895,18 @@ void _assertCreative(
 
   final atLeast = e['matchedPointsAtLeast'] as int?;
   if (atLeast != null) {
-    check(
-      points.length >= atLeast,
-      'the creative carries at least $atLeast matched point(s) (got ${points.length})',
-    );
+    check(points.length >= atLeast,
+        'the creative carries at least $atLeast matched point(s) (got ${points.length})');
     notes.add('${points.length} matched point(s)');
   }
   final exactly = e['matchedPointsEquals'] as int?;
   if (exactly != null) {
-    check(
-      points.length == exactly,
-      'the creative carries exactly $exactly matched point(s) (got ${points.length})',
-    );
+    check(points.length == exactly,
+        'the creative carries exactly $exactly matched point(s) (got ${points.length})');
   }
   if (e['matchedPointsNone'] == true) {
-    check(
-      points.isEmpty,
-      'the creative carries NO matched points (got ${points.length})',
-    );
+    check(points.isEmpty,
+        'the creative carries NO matched points (got ${points.length})');
   }
   if (e['matchedPointsNearestFirst'] == true) {
     var ordered = true;
@@ -1058,10 +919,8 @@ void _assertCreative(
     check(points.isNotEmpty, 'there are matched points to inspect');
     for (final p in points) {
       check(p.id.isNotEmpty, 'point id is non-empty');
-      check(
-        p.id.startsWith('advertiser_location_'),
-        'point id is an Advertiser Location public id (got ${p.id})',
-      );
+      check(p.id.startsWith('advertiser_location_'),
+          'point id is an Advertiser Location public id (got ${p.id})');
       check(p.name.isNotEmpty, 'point "${p.id}" has a name');
       check(p.distance >= 0, 'point "${p.name}" has a non-negative distance');
     }
@@ -1075,105 +934,76 @@ void _assertCreative(
       check((t?.views ?? []).isNotEmpty, 'point "${p.name}" has a view beacon');
       check((t?.taps ?? []).isNotEmpty, 'point "${p.name}" has a tap beacon');
       check(
-        (t?.clicks ?? []).isNotEmpty,
-        'point "${p.name}" has a click beacon',
-      );
+          (t?.clicks ?? []).isNotEmpty, 'point "${p.name}" has a click beacon');
       // A shared beacon would attribute every shop's numbers to whichever the token names.
       for (final item in (t?.views ?? <TrackingItem>[])) {
-        check(
-          seen.add(item.url),
-          'point "${p.name}" has its own view beacon, not a shared one',
-        );
+        check(seen.add(item.url),
+            'point "${p.name}" has its own view beacon, not a shared one');
       }
     }
   }
   if (e['matchedPointsHaveClickUrl'] == true) {
     for (final p in points) {
-      check(
-        (p.clickUrl ?? '').isNotEmpty,
-        'point "${p.name}" carries a resolved destination',
-      );
+      check((p.clickUrl ?? '').isNotEmpty,
+          'point "${p.name}" carries a resolved destination');
     }
   }
 
   final clicksAtLeast = e['clicksAtLeast'] as int?;
   if (clicksAtLeast != null) {
     final clicks = creative.tracking.clicks ?? [];
-    check(
-      clicks.length >= clicksAtLeast,
-      'at least $clicksAtLeast click URL(s) exposed (got ${clicks.length})',
-    );
+    check(clicks.length >= clicksAtLeast,
+        'at least $clicksAtLeast click URL(s) exposed (got ${clicks.length})');
   }
   final videoCount = e['videoEventCount'] as int?;
   if (videoCount != null) {
     final events = creative.tracking.videoEvents ?? [];
-    check(
-      events.length == videoCount,
-      'exactly $videoCount video event URL(s) exposed (got ${events.length}: ${events.map((v) => v.key).toList()})',
-    );
+    check(events.length == videoCount,
+        'exactly $videoCount video event URL(s) exposed (got ${events.length}: ${events.map((v) => v.key).toList()})');
   }
   final videoKeys = (e['videoEventKeys'] as List?)?.cast<String>();
   if (videoKeys != null) {
-    final actual = (creative.tracking.videoEvents ?? [])
-        .map((v) => v.key)
-        .toSet();
-    check(
-      videoKeys.every(actual.contains),
-      'video events include $videoKeys (got ${actual.toList()..sort()})',
-    );
+    final actual =
+        (creative.tracking.videoEvents ?? []).map((v) => v.key).toSet();
+    check(videoKeys.every(actual.contains),
+        'video events include $videoKeys (got ${actual.toList()..sort()})');
   }
   if (e['requireVastTagUrl'] == true) {
-    check(
-      (creative.getVastTagUrl() ?? '').isNotEmpty,
-      'a VAST tag URL is exposed',
-    );
-    check(
-      creative.isVastTagDelivery(),
-      'isVastTagDelivery() agrees with the delivery mode',
-    );
+    check((creative.getVastTagUrl() ?? '').isNotEmpty,
+        'a VAST tag URL is exposed');
+    check(creative.isVastTagDelivery(),
+        'isVastTagDelivery() agrees with the delivery mode');
   }
   if (e['requireVastXmlDecodes'] == true) {
     final b64 = creative.getVastXmlBase64();
     check(b64 != null, 'vast.xmlBase64 is present');
     final xml = utf8.decode(base64Decode(b64!));
     check(xml.contains('<VAST'), 'the decoded payload is a VAST document');
-    check(
-      creative.isVastXmlDelivery(),
-      'isVastXmlDelivery() agrees with the delivery mode',
-    );
+    check(creative.isVastXmlDelivery(),
+        'isVastXmlDelivery() agrees with the delivery mode');
   }
   if (e['metadataIsSkippable'] != null) {
-    check(
-      creative.metadata?.isSkippable == e['metadataIsSkippable'],
-      'metadata.isSkippable is ${e['metadataIsSkippable']} (got ${creative.metadata?.isSkippable})',
-    );
+    check(creative.metadata?.isSkippable == e['metadataIsSkippable'],
+        'metadata.isSkippable is ${e['metadataIsSkippable']} (got ${creative.metadata?.isSkippable})');
   }
   final skipSeconds = e['skipOffsetSecondsEquals'] as int?;
   if (skipSeconds != null) {
-    check(
-      creative.metadata?.skipOffsetSeconds == skipSeconds,
-      'metadata.skipOffsetSeconds is $skipSeconds (got ${creative.metadata?.skipOffsetSeconds})',
-    );
+    check(creative.metadata?.skipOffsetSeconds == skipSeconds,
+        'metadata.skipOffsetSeconds is $skipSeconds (got ${creative.metadata?.skipOffsetSeconds})');
   }
   if (e['helperIsSkippable'] != null) {
     // Proves the helper reads ENGINE metadata rather than falling through to content fields —
     // the Wave 2 fix, which no live scenario exercised until now.
-    check(
-      creative.isSkippable() == e['helperIsSkippable'],
-      'isSkippable() is ${e['helperIsSkippable']} (got ${creative.isSkippable()})',
-    );
+    check(creative.isSkippable() == e['helperIsSkippable'],
+        'isSkippable() is ${e['helperIsSkippable']} (got ${creative.isSkippable()})');
   }
   if (e['helperSkipOffsetEquals'] != null) {
-    check(
-      creative.getSkipOffset() == e['helperSkipOffsetEquals'],
-      'getSkipOffset() is "${e['helperSkipOffsetEquals']}" (got ${creative.getSkipOffset()})',
-    );
+    check(creative.getSkipOffset() == e['helperSkipOffsetEquals'],
+        'getSkipOffset() is "${e['helperSkipOffsetEquals']}" (got ${creative.getSkipOffset()})');
   }
   if (e['endCardModeEquals'] != null) {
-    check(
-      creative.metadata?.endCardMode == e['endCardModeEquals'],
-      'metadata.endCardMode is "${e['endCardModeEquals']}" (got ${creative.metadata?.endCardMode})',
-    );
+    check(creative.metadata?.endCardMode == e['endCardModeEquals'],
+        'metadata.endCardMode is "${e['endCardModeEquals']}" (got ${creative.metadata?.endCardMode})');
   }
 }
 
@@ -1184,162 +1014,120 @@ void _assertCreative(
 // sending, so the whole group is offline and deterministic.
 
 void wireShapeGroup(E2eReport report) {
-  scenario(
-    report,
-    'U1',
-    'the canonical request body uses the engine\'s canonical key names',
-    (notes) async {
-      final driver = await newDriver();
-      try {
-        final request = driver.sdk
-            .createRequestBuilder()
-            .addPlacement(key: 'home')
-            .setUserId('u-1')
-            .addGeoTargeting(5128581)
-            .addLocationTargeting(latitude: 40.7, longitude: -74.0)
-            .addDestinationTargeting(
-              latitude: 41.0,
-              longitude: -73.0,
-              minConfidence: 0.8,
-            )
-            .build();
-        final body = driver.sdk.getHttpRequest(request).body ?? '';
+  scenario(report, 'U1',
+      'the canonical request body uses the engine\'s canonical key names',
+      (notes) async {
+    final driver = await newDriver();
+    try {
+      final request = driver.sdk
+          .createRequestBuilder()
+          .addPlacement(key: 'home')
+          .setUserId('u-1')
+          .addGeoTargeting(5128581)
+          .addLocationTargeting(latitude: 40.7, longitude: -74.0)
+          .addDestinationTargeting(
+              latitude: 41.0, longitude: -73.0, minConfidence: 0.8)
+          .build();
+      final body = driver.sdk.getHttpRequest(request).body ?? '';
 
-        // `minConfidence` is canonical; `min_confidence` is a back-compat alias the engine keeps
-        // only for already-fielded SDKs. A new version must not emit the alias.
-        check(
-          body.contains('"minConfidence"'),
-          'destination uses the canonical camelCase key',
-        );
-        check(
-          !body.contains('min_confidence'),
-          'the legacy snake_case alias is NOT emitted',
-        );
-        check(body.contains('"placements"'), 'placements are present');
-        notes.add(
-          'body keys verified against the engine\'s canonical contract',
-        );
-      } finally {
-        driver.dispose();
-      }
-    },
-  );
+      // `minConfidence` is canonical; `min_confidence` is a back-compat alias the engine keeps
+      // only for already-fielded SDKs. A new version must not emit the alias.
+      check(body.contains('"minConfidence"'),
+          'destination uses the canonical camelCase key');
+      check(!body.contains('min_confidence'),
+          'the legacy snake_case alias is NOT emitted');
+      check(body.contains('"placements"'), 'placements are present');
+      notes.add('body keys verified against the engine\'s canonical contract');
+    } finally {
+      driver.dispose();
+    }
+  });
 
-  scenario(
-    report,
-    'U2',
-    'decision headers carry version, language and the SDK User-Agent',
-    (notes) async {
-      final driver = await newDriver();
-      try {
-        final request = driver.sdk
-            .createRequestBuilder()
-            .addPlacement(key: 'home')
-            .build();
-        final headers = driver.sdk.getHttpRequest(request).headers ?? {};
+  scenario(report, 'U2',
+      'decision headers carry version, language and the SDK User-Agent',
+      (notes) async {
+    final driver = await newDriver();
+    try {
+      final request =
+          driver.sdk.createRequestBuilder().addPlacement(key: 'home').build();
+      final headers = driver.sdk.getHttpRequest(request).headers ?? {};
 
-        check(
-          headers['X-Decision-Version'] == e2eApiVersion,
-          'X-Decision-Version is $e2eApiVersion (got ${headers['X-Decision-Version']})',
-        );
-        check(
-          (headers['User-Agent'] ?? '').startsWith('AdMoaiSDK/'),
-          'a User-Agent identifying the SDK is sent (got ${headers['User-Agent']})',
-        );
-        check(
-          headers['Content-Type'] == 'application/json',
-          'Content-Type is application/json',
-        );
-        notes.add('headers: ${(headers.keys.toList()..sort()).join(', ')}');
-      } finally {
-        driver.dispose();
-      }
-    },
-  );
+      check(headers['X-Decision-Version'] == e2eApiVersion,
+          'X-Decision-Version is $e2eApiVersion (got ${headers['X-Decision-Version']})');
+      check((headers['User-Agent'] ?? '').startsWith('AdMoaiSDK/'),
+          'a User-Agent identifying the SDK is sent (got ${headers['User-Agent']})');
+      check(headers['Content-Type'] == 'application/json',
+          'Content-Type is application/json');
+      notes.add('headers: ${(headers.keys.toList()..sort()).join(', ')}');
+    } finally {
+      driver.dispose();
+    }
+  });
 
-  scenario(
-    report,
-    'U3',
-    'omitted optional fields are absent from the body, not sent as null',
-    (notes) async {
-      final driver = await newDriver();
-      try {
-        final request = driver.sdk
-            .createRequestBuilder()
-            .addPlacement(key: 'home')
-            .build();
-        final body = driver.sdk.getHttpRequest(request).body ?? '';
+  scenario(report, 'U3',
+      'omitted optional fields are absent from the body, not sent as null',
+      (notes) async {
+    final driver = await newDriver();
+    try {
+      final request =
+          driver.sdk.createRequestBuilder().addPlacement(key: 'home').build();
+      final body = driver.sdk.getHttpRequest(request).body ?? '';
 
-        // A tolerant engine accepts nulls, but emitting them makes every payload larger and muddies
-        // "the publisher did not set this" versus "the publisher cleared this".
-        check(
-          !body.contains('"format"'),
-          'an unset placement format is omitted entirely',
-        );
-        check(!body.contains('"count"'), 'an unset count is omitted entirely');
-        check(
-          !body.contains('null'),
-          'no explicit nulls are emitted anywhere in the body',
-        );
-        notes.add('no nulls, no unset optional keys');
-      } finally {
-        driver.dispose();
-      }
-    },
-  );
+      // A tolerant engine accepts nulls, but emitting them makes every payload larger and muddies
+      // "the publisher did not set this" versus "the publisher cleared this".
+      check(!body.contains('"format"'),
+          'an unset placement format is omitted entirely');
+      check(!body.contains('"count"'), 'an unset count is omitted entirely');
+      check(!body.contains('null'),
+          'no explicit nulls are emitted anywhere in the body');
+      notes.add('no nulls, no unset optional keys');
+    } finally {
+      driver.dispose();
+    }
+  });
+
+  scenario(report, 'U4',
+      'disabling app and device collection removes those blocks from the wire',
+      (notes) async {
+    final driver = await newDriver();
+    try {
+      final request = driver.sdk
+          .createRequestBuilder()
+          .addPlacement(key: 'home')
+          .disableAppCollection()
+          .disableDeviceCollection()
+          .build();
+      final body = driver.sdk.getHttpRequest(request).body ?? '';
+
+      check(!body.contains('"app"'), 'the app block is absent');
+      check(!body.contains('"device"'), 'the device block is absent');
+      notes.add('app and device omitted on request');
+    } finally {
+      driver.dispose();
+    }
+  });
 
   scenario(
-    report,
-    'U4',
-    'disabling app and device collection removes those blocks from the wire',
-    (notes) async {
-      final driver = await newDriver();
-      try {
-        final request = driver.sdk
-            .createRequestBuilder()
-            .addPlacement(key: 'home')
-            .disableAppCollection()
-            .disableDeviceCollection()
-            .build();
-        final body = driver.sdk.getHttpRequest(request).body ?? '';
+      report, 'U5', 'Journey context reaches the wire as top-level camelCase',
+      (notes) async {
+    final driver = await newDriver();
+    try {
+      final session = freshSession('u5');
+      final request = driver.sdk
+          .createRequestBuilder()
+          .addPlacement(key: 'home')
+          .setSessionId(session)
+          .setJourneyOpt(JourneyOpt.optIn)
+          .build();
+      final body = driver.sdk.getHttpRequest(request).body ?? '';
 
-        check(!body.contains('"app"'), 'the app block is absent');
-        check(!body.contains('"device"'), 'the device block is absent');
-        notes.add('app and device omitted on request');
-      } finally {
-        driver.dispose();
-      }
-    },
-  );
-
-  scenario(
-    report,
-    'U5',
-    'Journey context reaches the wire as top-level camelCase',
-    (notes) async {
-      final driver = await newDriver();
-      try {
-        final session = freshSession('u5');
-        final request = driver.sdk
-            .createRequestBuilder()
-            .addPlacement(key: 'home')
-            .setSessionId(session)
-            .setJourneyOpt(JourneyOpt.optIn)
-            .build();
-        final body = driver.sdk.getHttpRequest(request).body ?? '';
-
-        check(
-          body.contains('"sessionId":"$session"'),
-          'sessionId is top-level camelCase',
-        );
-        check(
-          body.contains('"journeyOpt":"in"'),
-          'journeyOpt serializes to the wire literal "in"',
-        );
-        notes.add('journey context verified on the wire');
-      } finally {
-        driver.dispose();
-      }
-    },
-  );
+      check(body.contains('"sessionId":"$session"'),
+          'sessionId is top-level camelCase');
+      check(body.contains('"journeyOpt":"in"'),
+          'journeyOpt serializes to the wire literal "in"');
+      notes.add('journey context verified on the wire');
+    } finally {
+      driver.dispose();
+    }
+  });
 }

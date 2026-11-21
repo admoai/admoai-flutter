@@ -102,10 +102,8 @@ class DeviceConfig implements Clearable {
   /// The device as the platform reports it. Carrier and category are read
   /// only when [collectSignals] is true (see [SDKConfig.collectDeviceSignals]);
   /// otherwise the native channel is never called and both stay absent.
-  static Future<DeviceConfig> systemDefault({
-    bool collectSignals = false,
-    Logger? logger,
-  }) async {
+  static Future<DeviceConfig> systemDefault(
+      {bool collectSignals = false, Logger? logger}) async {
     final details = await getDeviceDetails();
     // A failed first read has nothing to fall back to: treat it as empty.
     final signals = collectSignals
@@ -137,8 +135,12 @@ class UserConfig implements Clearable {
   final String? timezone;
   final Consent consent;
 
-  UserConfig({this.id, this.ip, this.timezone, Consent? consent})
-    : consent = consent ?? Consent();
+  UserConfig({
+    this.id,
+    this.ip,
+    this.timezone,
+    Consent? consent,
+  }) : consent = consent ?? Consent();
 
   factory UserConfig.clear() => UserConfig();
 }
