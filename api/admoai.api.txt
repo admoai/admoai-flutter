@@ -44,6 +44,7 @@ AdMoai.clearDeviceConfig  method() -> void
 AdMoai.clearSessionId  method() -> void
 AdMoai.clearUserConfig  method() -> void
 AdMoai.config  field: SDKConfig (read)
+AdMoai.createLeadFormController  method(Creative creative, {required FormPresentation presentation, required LeadFormHost host}) -> LeadFormController?
 AdMoai.createRequestBuilder  method() -> DecisionRequestBuilder
 AdMoai.deviceConfig  field: DeviceConfig (read/write)
 AdMoai.disableInteractiveExperiences  method() -> void
@@ -333,6 +334,16 @@ DistanceBounds.new  constructor({required double north, required double south, r
 DistanceBounds.north  field: double (read)
 DistanceBounds.south  field: double (read)
 DistanceBounds.west  field: double (read)
+ExternalLinkPurpose  type : Enum
+ExternalLinkPurpose.privacyPolicy  static field: ExternalLinkPurpose (read)
+ExternalLinkPurpose.values  static field: List<ExternalLinkPurpose> (read)
+ExternalLinkPurpose.websiteCta  static field: ExternalLinkPurpose (read)
+ExternalLinkPurpose.wireName  field: String (read)
+FormPresentation  type : Enum
+FormPresentation.fullScreen  static field: FormPresentation (read)
+FormPresentation.inline  static field: FormPresentation (read)
+FormPresentation.values  static field: List<FormPresentation> (read)
+FormPresentation.wireName  field: String (read)
 Format  type : Enum
 Format.native  static field: Format (read)
 Format.value  field: String (read)
@@ -411,9 +422,55 @@ LastActivityRecency.days91Plus  static field: LastActivityRecency (read)
 LastActivityRecency.never  static field: LastActivityRecency (read)
 LastActivityRecency.value  field: String (read)
 LastActivityRecency.values  static field: List<LastActivityRecency> (read)
+LeadFormActivating  type : LeadFormState
+LeadFormActivating.new  constructor()
+LeadFormController  type
+LeadFormController.dispose  method() -> Future<void>
+LeadFormController.formInstanceId  field: String (read)
+LeadFormController.open  method() -> Future<void>
+LeadFormController.prepare  method() -> Future<void>
+LeadFormController.presentation  field: FormPresentation (read)
+LeadFormController.retry  method() -> Future<void>
+LeadFormController.setVisible  method(bool visible) -> void
+LeadFormController.state  field: ValueListenable<LeadFormState> (read)
+LeadFormDisposed  type : LeadFormState
+LeadFormDisposed.new  constructor()
+LeadFormExpired  type : LeadFormState
+LeadFormExpired.new  constructor()
+LeadFormFailed  type : LeadFormState
+LeadFormFailed.errorCode  field: String (read)
+LeadFormFailed.hashCode  field: int (read)
+LeadFormFailed.new  constructor(String errorCode, bool retryable)
+LeadFormFailed.retryable  field: bool (read)
+LeadFormHost  type
+LeadFormHost.new  constructor()
+LeadFormHost.onOpenExternalLink  method(LeadFormController controller, ExternalLinkPurpose purpose, Uri url) -> void
+LeadFormHost.onRequestClose  method(LeadFormController controller) -> void
+LeadFormIdle  type : LeadFormState
+LeadFormIdle.new  constructor()
+LeadFormPrepared  type : LeadFormState
+LeadFormPrepared.new  constructor()
+LeadFormPreparing  type : LeadFormState
+LeadFormPreparing.new  constructor()
+LeadFormReadyToShow  type : LeadFormState
+LeadFormReadyToShow.new  constructor()
+LeadFormState  type
+LeadFormState.new  constructor()
+LeadFormSubmitted  type : LeadFormState
+LeadFormSubmitted.hashCode  field: int (read)
+LeadFormSubmitted.leadId  field: String (read)
+LeadFormSubmitted.new  constructor(String leadId, DateTime submittedAt)
+LeadFormSubmitted.submittedAt  field: DateTime (read)
+LeadFormSubmitting  type : LeadFormState
+LeadFormSubmitting.new  constructor()
 LeadFormValueProvider  type
 LeadFormValueProvider.availableKeys  field: Set<StandardAttributeKey> (read)
 LeadFormValueProvider.new  constructor()
+LeadFormView  type : Diagnosticable, DiagnosticableTree, StatefulWidget, Widget
+LeadFormView.controller  field: LeadFormController (read)
+LeadFormView.new  constructor({Key? key, required LeadFormController controller})
+LeadFormVisible  type : LeadFormState
+LeadFormVisible.new  constructor()
 LeadGenerationExperience  type : InteractiveExperience
 LeadGenerationExperience.expiresAt  field: DateTime (read)
 LeadGenerationExperience.formId  field: String (read)

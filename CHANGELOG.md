@@ -20,6 +20,32 @@
   ordinary creative. Lead Generation ads are served on `apiVersion` `2025-11-01`
   or later; the SDK warns when enabled without one.
 
+- **Experimental: Lead Generation form controller and secure web view.**
+  `AdMoai.createLeadFormController(creative, presentation:, host:)` returns a
+  `LeadFormController` for a creative that carries a Lead Generation experience,
+  or `null` when the app has not opted in, the device cannot host the form, or the
+  creative has no usable experience. The controller prepares the form hidden
+  (`prepare()`), opens it on tap (`open()`), is told when the form is on screen
+  (`setVisible`), can `retry()` a retryable failure and is released with
+  `dispose()`; its `state` is a `ValueListenable<LeadFormState>`
+  (`LeadFormIdle`, `LeadFormPreparing`, `LeadFormPrepared`, `LeadFormActivating`,
+  `LeadFormReadyToShow`, `LeadFormVisible`, `LeadFormSubmitting`,
+  `LeadFormSubmitted`, `LeadFormFailed`, `LeadFormExpired`, `LeadFormDisposed`).
+  `LeadFormView(controller:)` shows the native form view the controller owns and
+  never recreates it on a rebuild. `FormPresentation` (`inline`, `fullScreen`)
+  tells the form whether to draw its own close button, and `LeadFormHost` is how
+  the form asks the app to close and to open the privacy policy or the
+  advertiser's website (`ExternalLinkPurpose`); the app opens those links outside
+  the form. The form runs in a locked-down web view that only the form's own
+  origin can talk to (Android `WebView`, iOS `WKWebView`); the preparation token
+  and the form's messages are never logged. The SDK now advertises Lead
+  Generation support only on a device that can host the form, so an app that
+  opted in is no longer served ads it cannot open on a device without it. New
+  Android dependency: `androidx.webkit:webkit:1.12.1`. iOS: the form needs iOS 14
+  or later; below that the SDK does not advertise support. This release does not
+  fill the form's prefill and does not fire the form's tracking events yet. A form message in which any
+  JSON object repeats a key is refused.
+
 - **Internal: Lead Generation bridge protocol validator.** Groundwork for the
   form surface, not a public API: the message validator the SDK will use between
   the app and the hosted form (size, envelope, instance, channel, payload and
@@ -28,6 +54,16 @@
   A `submitted` or `submit_failed` with no unanswered `submitting` is refused as
   out of order, and `submit_failed` accepts the codes `unauthorized`,
   `form_not_available` and `invalid_request`.
+
+### Fixed
+
+- The Android plugin now declares minSdk 21, matching the documented minimum.
+- Lead Generation form review follow-ups: an explicit `:443` no longer makes the
+  form's origin differ from the page's; a binary (ArrayBuffer) message from the
+  page is ignored instead of throwing; page navigation is also blocked on
+  Android 5.0 to 5.1 and 6.0; a retry after a load failure always shows the
+  replacement form view; a listener that opens the form on `LeadFormPrepared`
+  activates it once; a form that expires while it loads is never activated.
 
 ## 0.8.0 - 2026-11-18
 

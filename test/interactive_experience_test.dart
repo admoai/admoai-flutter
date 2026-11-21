@@ -4,6 +4,8 @@ import 'dart:io';
 import 'package:admoai/admoai.dart';
 import 'package:admoai/src/models/interactive_experience.dart'
     show leadGenerationLaunch;
+import 'package:admoai/src/interactive/secure_form_surface.dart'
+    show LeadFormSurface;
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -31,7 +33,10 @@ void main() {
   Map<String, dynamic> descriptor() => Map<String, dynamic>.from(
       fixture('creative-descriptor.json')['interactiveExperience'] as Map);
 
-  tearDown(() => AdMoai.secureSurfaceAvailableForTesting = null);
+  tearDown(() {
+    AdMoai.secureSurfaceAvailableForTesting = null;
+    LeadFormSurface.resetSupportForTesting();
+  });
 
   setUp(() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
