@@ -395,7 +395,7 @@ void main() {
   scenario('a preparation that expires while the form is loading never opens',
       () async {
     var now = beforeExpiry;
-    final r = _Rig(descriptor(), fixtures, beforeExpiry, clock: () => now);
+    final r = FakeRig(descriptor(), fixtures, beforeExpiry, clock: () => now);
     await r.controller.prepare();
     await r.controller.open();
     expect(r.state, isA<LeadFormPreparing>());
