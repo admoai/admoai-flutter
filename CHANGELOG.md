@@ -43,7 +43,8 @@
   opted in is no longer served ads it cannot open on a device without it. New
   Android dependency: `androidx.webkit:webkit:1.12.1`. iOS: the form needs iOS 14
   or later; below that the SDK does not advertise support. This release does not
-  fill the form's prefill and does not fire the form's tracking events yet.
+  fill the form's prefill and does not fire the form's tracking events yet. A form message in which any
+  JSON object repeats a key is refused.
 
 - **Internal: Lead Generation bridge protocol validator.** Groundwork for the
   form surface, not a public API: the message validator the SDK will use between
