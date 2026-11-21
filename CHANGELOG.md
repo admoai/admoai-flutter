@@ -10,6 +10,7 @@
   served by a fixture hook that exists only in the plugin's debug build; release
   and profile builds compile a no-op, so a publisher's app is unchanged.
 
+- E2E runner: scenarios schemaVersion 7 — `request.interactiveExperience` sent through the opt-in.
 - **Experimental: Lead Generation opt-in, keys-only availability and
   interactive experience decode.** `AdMoai.enableInteractiveExperiences(provider)`
   declares that the app hosts the Lead Generation form and

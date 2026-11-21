@@ -20,8 +20,21 @@ import 'journey_e2e_harness.dart';
 /// Scope: declarative scenarios only. Anything procedural (log capture, concurrency, retry, TTL
 /// sleeps) stays hand-written, because that genuinely differs per platform.
 
-/// The one manifest `schemaVersion` this runner executes.
-const supportedSchemaVersion = 6;
+/// The manifest `schemaVersion`s this runner executes. 7 is 6 plus `request.interactiveExperience`
+/// (@admoai/sdk-scenarios 4.0.0); the vendored manifest stays on 6 until the adopt PR lands.
+const supportedSchemaVersions = {6, 7};
+
+/// Throws a [StateError] naming the fix when [schemaVersion] is not one this runner executes.
+void requireSupportedSchemaVersion(Object? schemaVersion) {
+  if (supportedSchemaVersions.contains(schemaVersion)) return;
+  throw StateError(
+    'scenarios.json is schemaVersion $schemaVersion; this runner knows schemaVersion '
+    '${(supportedSchemaVersions.toList()..sort()).join(' and ')} (the live expect.creative keys metadata, templateKey, contentKeys, '
+    'styleIn, journeyStageKey, slides and clickKeys, and slideTracking on a live scenario; request.device and a request.custom[].value that is a list of strings; '
+    'and, from schemaVersion 7, request.interactiveExperience sent through the Lead Generation opt-in); fixtureScenarios and their slideTracking run as unit tests in '
+    'test/fixture_scenarios_test.dart',
+  );
+}
 
 Map<String, dynamic> loadManifest() {
   // Resolved relative to the test file so it works under `flutter test` from any cwd.
@@ -34,15 +47,7 @@ void manifestGroup(E2eReport report) {
   // The live runner executes `scenarios` only. Version 2 added `fixtureScenarios` (offline,
   // golden decision-wire files): they run as unit tests, and a runner that read a newer
   // manifest as if it were version 1 would silently skip half of it.
-  final schemaVersion = manifest['schemaVersion'];
-  if (schemaVersion != supportedSchemaVersion) {
-    throw StateError(
-      'scenarios.json is schemaVersion $schemaVersion; this runner knows schemaVersion '
-      '$supportedSchemaVersion (the live expect.creative keys metadata, templateKey, contentKeys, '
-      'styleIn, journeyStageKey, slides and clickKeys, and slideTracking on a live scenario; request.device and a request.custom[].value that is a list of strings); fixtureScenarios and their slideTracking run as unit tests in '
-      'test/fixture_scenarios_test.dart',
-    );
-  }
+  requireSupportedSchemaVersion(manifest['schemaVersion']);
   final scenarios =
       (manifest['scenarios'] as List).cast<Map<String, dynamic>>();
 
@@ -74,6 +79,8 @@ Future<void> _run(Map<String, dynamic> entry, List<String> notes) async {
 
   try {
     applyScenarioDevice(driver.sdk, request['device']);
+    applyScenarioInteractiveExperience(
+        driver.sdk, request['interactiveExperience']);
     final builder = driver.sdk.createRequestBuilder();
     for (final p
         in (request['placements'] as List).cast<Map<String, dynamic>>()) {
@@ -230,6 +237,8 @@ Future<void> _run(Map<String, dynamic> entry, List<String> notes) async {
       });
     }
   } finally {
+    driver.sdk.disableInteractiveExperiences();
+    AdMoai.secureSurfaceAvailableForTesting = null;
     driver.dispose();
   }
 }
@@ -598,6 +607,7 @@ const knownRequestKeys = {
   'journeyOpt',
   'distance',
   'device',
+  'interactiveExperience', // schemaVersion 7
 };
 
 const knownPlacementKeys = {
@@ -617,6 +627,7 @@ const knownDistanceKeys = {
 };
 const knownBoundsKeys = {'north', 'south', 'east', 'west'};
 const knownDeviceKeys = {'carrier', 'category'};
+const knownInteractiveExperienceKeys = {'supported', 'availableAttributeKeys'};
 
 /// Top-level `expect` keys this interpreter executes.
 const knownExpectKeys = {
@@ -707,12 +718,85 @@ List<String> validateScenarioShape(Map<String, dynamic> entry) {
       }
     }
   }
+  if (request.containsKey('interactiveExperience')) {
+    problems.addAll(_interactiveExperienceProblems(
+        request['interactiveExperience'], unknownIn));
+  }
   final unknownExpect = unknownIn(entry['expect'], knownExpectKeys);
   if (unknownExpect.isNotEmpty) {
     problems.add(
         'every expect key is one this runner executes (unknown: $unknownExpect)');
   }
   return problems;
+}
+
+List<String> _interactiveExperienceProblems(
+    Object? ie, List<String> Function(Object?, Set<String>) unknownIn) {
+  if (ie is! Map) {
+    return ['request.interactiveExperience is an object (got $ie)'];
+  }
+  final problems = <String>[];
+  final u = unknownIn(ie, knownInteractiveExperienceKeys);
+  if (u.isNotEmpty) {
+    problems.add(
+        'every request.interactiveExperience key is one this runner executes (unknown: $u)');
+  }
+  if (ie['supported'] != true) {
+    problems.add(
+        'request.interactiveExperience.supported is true (got ${ie['supported']})');
+  }
+  final keys = ie['availableAttributeKeys'];
+  if (keys is! List || keys.any((k) => k is! String)) {
+    problems.add(
+        'request.interactiveExperience.availableAttributeKeys is a list of strings (got $keys)');
+  } else {
+    for (final k in keys.cast<String>()) {
+      if (StandardAttributeKey.fromWire(k) == null) {
+        problems.add(
+            'request.interactiveExperience.availableAttributeKeys names a standard attribute key the SDK knows (got "$k")');
+      }
+    }
+  }
+  return problems;
+}
+
+class _ManifestKeysProvider implements LeadFormValueProvider {
+  _ManifestKeysProvider(this.availableKeys);
+
+  @override
+  final Set<StandardAttributeKey> availableKeys;
+
+  /// The manifest claims keys only; a live scenario never opens a form, so no value is ever read.
+  @override
+  Future<Map<StandardAttributeKey, String>> lookUpValues(
+          Set<StandardAttributeKey> keys) async =>
+      const <StandardAttributeKey, String>{};
+}
+
+/// Applies a scenario's `request.interactiveExperience` through the SDK's public opt-in
+/// (`enableInteractiveExperiences`), never as raw JSON. Absent does nothing. A shape or key the SDK
+/// does not know throws a [StateError]: a claim is never silently dropped.
+///
+/// This SDK version has no form surface yet, so the opt-in never advertises on its own; the runner
+/// proves the wire through the public API. The caller resets it with
+/// `disableInteractiveExperiences()` and `AdMoai.secureSurfaceAvailableForTesting = null`.
+void applyScenarioInteractiveExperience(AdMoai sdk, Object? ie) {
+  if (ie == null) return;
+  final problems = _interactiveExperienceProblems(
+      ie,
+      (m, known) => m is Map
+          ? (m.keys.cast<String>().where((k) => !known.contains(k)).toList()
+            ..sort())
+          : const []);
+  if (problems.isNotEmpty) {
+    throw StateError('scenario interpreter error: ${problems.join('; ')}');
+  }
+  final keys = ((ie as Map)['availableAttributeKeys'] as List)
+      .cast<String>()
+      .map((k) => StandardAttributeKey.fromWire(k)!)
+      .toSet();
+  AdMoai.secureSurfaceAvailableForTesting = () => true;
+  sdk.enableInteractiveExperiences(_ManifestKeysProvider(keys));
 }
 
 /// Applies a scenario's `request.device` as the app's MANUAL device config, through the SDK's own
