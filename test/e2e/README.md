@@ -143,6 +143,11 @@ is published. To change a scenario, change it in adhub and publish; to take a ne
 `.github/scripts/scenarios.sh adopt test/e2e/scenarios.json <version|latest>`, then run this suite against an
 engine. The tests read the vendored file and never touch the network.
 
+The runner executes manifest `schemaVersion` 6 and 7 and refuses any other. Version 7 adds
+`request.interactiveExperience` (`supported`, `availableAttributeKeys`), which the runner sends
+through the SDK's own opt-in (`enableInteractiveExperiences`), never as raw JSON; an unknown key
+name fails the scenario. `test/manifest_interactive_experience_test.dart` proves it offline.
+
 §K runs early on purpose: it is the only platform-authored fixture and cannot be
 recreated from code.
 
