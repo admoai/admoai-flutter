@@ -296,6 +296,7 @@ String mintBridgeChannel([Random? random]) {
 enum BridgeRefusal {
   tooLarge,
   notJson,
+  repeatedKey,
   badEnvelope,
   wrongInstance,
   wrongChannel,
@@ -384,6 +385,9 @@ class BridgeSession {
     if (root is! Map<String, dynamic>) {
       return const BridgeRefused(BridgeRefusal.notJson);
     }
+    if (_repeatsAKey(text)) {
+      return const BridgeRefused(BridgeRefusal.repeatedKey);
+    }
     if (root.length != _envelopeKeys.length ||
         !root.keys.every(_envelopeKeys.contains)) {
       return const BridgeRefused(BridgeRefusal.badEnvelope);
@@ -424,6 +428,46 @@ class BridgeSession {
     _exchanged.add(type);
     if (type == 'bridge_ready') _bridgeReadyCount++;
     return BridgeMessage(type, _freeze(payload) as Map<String, Object?>);
+  }
+
+  /// True when any object, at any depth, repeats a key (decoded key strings
+  /// compared), like the engine's duplicate-key check. [text] has already parsed
+  /// as JSON, so it is well formed; an explicit stack keeps depth harmless. Keys
+  /// of different objects never collide.
+  static bool _repeatsAKey(String text) {
+    final stack = <Set<String>?>[]; // a key set per open object, null per array
+    var expectKey = false;
+    var i = 0;
+    while (i < text.length) {
+      switch (text[i]) {
+        case '{':
+          stack.add(<String>{});
+          expectKey = true;
+        case '[':
+          stack.add(null);
+          expectKey = false;
+        case '}' || ']':
+          stack.removeLast();
+          expectKey = false;
+        case ',':
+          expectKey = stack.isNotEmpty && stack.last != null;
+        case ':':
+          expectKey = false;
+        case '"':
+          final start = i;
+          i++;
+          while (text[i] != '"') {
+            i += text[i] == '\\' ? 2 : 1;
+          }
+          if (expectKey &&
+              !stack.last!
+                  .add(jsonDecode(text.substring(start, i + 1)) as String)) {
+            return true;
+          }
+      }
+      i++;
+    }
+    return false;
   }
 
   /// The JSON envelope for a message the app sends to the form. Validates

@@ -23,6 +23,11 @@ Feature: Lead Generation form bridge
     When the form sends a message one byte over the size limit
     Then the app refuses it without reading it
 
+  Scenario: A message that repeats a key is refused
+    Given a form opened by the app
+    When the form sends a message in which any object, at any depth, repeats a key, even spelled differently in JSON
+    Then the app refuses it, while the same key name in different objects is accepted
+
   Scenario: A timestamp that is not a real moment is refused
     Given a form opened by the app
     When the form sends submitted with a date that does not exist, such as 30 February or 29 February in a common year, or an hour of 24, or a minute or second out of range
