@@ -85,6 +85,15 @@ const String bridgeMessagesJson = r'''{
       "payload": {}
     },
     {
+      "type": "back",
+      "direction": "app_to_runtime",
+      "after": [
+        "became_visible"
+      ],
+      "payload": {},
+      "description": "The viewer pressed the system back button. The page does what its own Back arrow does: it goes back one stage with answers kept, or answers request_close on the first stage and on Confirmation. Ignored while submitting."
+    },
+    {
       "type": "retry_prepare",
       "direction": "app_to_runtime",
       "after": [
@@ -297,7 +306,10 @@ const String bridgeMessagesJson = r'''{
             "expired",
             "revoked",
             "rate_limited",
-            "temporary_failure"
+            "temporary_failure",
+            "unauthorized",
+            "form_not_available",
+            "invalid_request"
           ]
         },
         "retryable": {
