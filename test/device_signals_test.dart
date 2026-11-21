@@ -53,8 +53,10 @@ void main() {
   });
 
   test('carrier is trimmed', () async {
-    expect((await collectWith({'carrier': '  Example Mobile '})).carrier,
-        'Example Mobile');
+    expect(
+      (await collectWith({'carrier': '  Example Mobile '})).carrier,
+      'Example Mobile',
+    );
   });
 
   for (final placeholder in ['--', ' WiFi ', 'unknown', '']) {
@@ -64,11 +66,16 @@ void main() {
   }
 
   test('category tablet parses; other forms are absent', () async {
-    expect((await collectWith({'category': 'tablet'})).category,
-        DeviceCategory.tablet);
+    expect(
+      (await collectWith({'category': 'tablet'})).category,
+      DeviceCategory.tablet,
+    );
     for (final bad in <Object?>['TABLET', 'watch', null, 3]) {
-      expect((await collectWith({'category': bad})).category, isNull,
-          reason: '$bad');
+      expect(
+        (await collectWith({'category': bad})).category,
+        isNull,
+        reason: '$bad',
+      );
     }
   });
 
@@ -85,12 +92,13 @@ void main() {
 
   test('PlatformException is a failed read (null)', () async {
     messenger.setMockMethodCallHandler(
-        channel, (call) async => throw PlatformException(code: 'boom'));
+      channel,
+      (call) async => throw PlatformException(code: 'boom'),
+    );
     expect(await collectDeviceSignals(), isNull);
   });
 
-  test(
-      'a failed read logs one fine line with the failure type only, and a '
+  test('a failed read logs one fine line with the failure type only, and a '
       'successful read logs nothing', () async {
     final records = <LogRecord>[];
     hierarchicalLoggingEnabled = true;
@@ -98,8 +106,10 @@ void main() {
       ..level = Level.ALL
       ..onRecord.listen(records.add);
 
-    messenger.setMockMethodCallHandler(channel,
-        (call) async => throw PlatformException(code: 'boom', message: 'x'));
+    messenger.setMockMethodCallHandler(
+      channel,
+      (call) async => throw PlatformException(code: 'boom', message: 'x'),
+    );
     expect(await collectDeviceSignals(logger: logger), isNull);
     expect(records, hasLength(1));
     expect(records.single.level, Level.FINE);
@@ -108,9 +118,13 @@ void main() {
 
     records.clear();
     messenger.setMockMethodCallHandler(
-        channel, (call) async => {'carrier': 'Example Mobile'});
-    expect((await collectDeviceSignals(logger: logger))!.carrier,
-        'Example Mobile');
+      channel,
+      (call) async => {'carrier': 'Example Mobile'},
+    );
+    expect(
+      (await collectDeviceSignals(logger: logger))!.carrier,
+      'Example Mobile',
+    );
     expect(records, isEmpty);
   });
 
@@ -118,19 +132,22 @@ void main() {
     expect(await collectDeviceSignals(), isNull);
   });
 
-  test('timeout is a failed read (null), honoring the named parameter',
-      () async {
-    reply(() => {'category': 'phone'});
-    messenger.setMockMethodCallHandler(channel, (call) async {
-      await Future<void>.delayed(const Duration(seconds: 2));
-      return {'category': 'phone'};
-    });
-    final sw = Stopwatch()..start();
-    final s =
-        await collectDeviceSignals(timeout: const Duration(milliseconds: 50));
-    expect(s, isNull);
-    expect(sw.elapsedMilliseconds, lessThan(1000));
-  });
+  test(
+    'timeout is a failed read (null), honoring the named parameter',
+    () async {
+      reply(() => {'category': 'phone'});
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        await Future<void>.delayed(const Duration(seconds: 2));
+        return {'category': 'phone'};
+      });
+      final sw = Stopwatch()..start();
+      final s = await collectDeviceSignals(
+        timeout: const Duration(milliseconds: 50),
+      );
+      expect(s, isNull);
+      expect(sw.elapsedMilliseconds, lessThan(1000));
+    },
+  );
 
   test('non-mobile host never calls the channel', () async {
     debugMobileHostOverride = null;

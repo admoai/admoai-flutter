@@ -24,8 +24,8 @@ class DecisionRequestBuilder {
     required UserConfig userConfig,
     String? sessionId,
     Logger? logger,
-  })  : _sessionId = sessionId,
-        _logger = logger ?? Logger('AdMoai') {
+  }) : _sessionId = sessionId,
+       _logger = logger ?? Logger('AdMoai') {
     _app = App(
       name: appConfig.name,
       version: appConfig.version,
@@ -62,13 +62,15 @@ class DecisionRequestBuilder {
     String? advertiserId,
     String? templateId,
   }) {
-    _placements.add(Placement(
-      key: key,
-      count: count,
-      format: format,
-      advertiserId: advertiserId,
-      templateId: templateId,
-    ));
+    _placements.add(
+      Placement(
+        key: key,
+        count: count,
+        format: format,
+        advertiserId: advertiserId,
+        templateId: templateId,
+      ),
+    );
     return this;
   }
 
@@ -112,18 +114,20 @@ class DecisionRequestBuilder {
   }
 
   DecisionRequestBuilder setLocationTargeting(List<Location> locations) {
-    final uniqueLocations = locations.fold<List<Location>>(
-      [],
-      (result, coordinate) {
-        final exists = result.any((existing) =>
+    final uniqueLocations = locations.fold<List<Location>>([], (
+      result,
+      coordinate,
+    ) {
+      final exists = result.any(
+        (existing) =>
             existing.latitude == coordinate.latitude &&
-            existing.longitude == coordinate.longitude);
-        if (!exists) {
-          result.add(coordinate);
-        }
-        return result;
-      },
-    );
+            existing.longitude == coordinate.longitude,
+      );
+      if (!exists) {
+        result.add(coordinate);
+      }
+      return result;
+    });
 
     _targeting = Targeting(
       geo: _targeting?.geo,
@@ -163,7 +167,8 @@ class DecisionRequestBuilder {
   /// this bulk setter did not — so the same out-of-range value threw on iOS and Android and was
   /// silently sent from here.
   DecisionRequestBuilder setDestinationTargeting(
-      List<Destination>? destinations) {
+    List<Destination>? destinations,
+  ) {
     for (final d in destinations ?? const <Destination>[]) {
       if (d.minConfidence < 0.0 || d.minConfidence > 1.0) {
         throw ArgumentError.value(
@@ -173,19 +178,18 @@ class DecisionRequestBuilder {
         );
       }
     }
-    final unique = destinations?.fold<List<Destination>>(
-      [],
-      (result, dest) {
-        final exists = result.any((existing) =>
+    final unique = destinations?.fold<List<Destination>>([], (result, dest) {
+      final exists = result.any(
+        (existing) =>
             existing.latitude == dest.latitude &&
             existing.longitude == dest.longitude &&
-            existing.minConfidence == dest.minConfidence);
-        if (!exists) {
-          result.add(dest);
-        }
-        return result;
-      },
-    );
+            existing.minConfidence == dest.minConfidence,
+      );
+      if (!exists) {
+        result.add(dest);
+      }
+      return result;
+    });
 
     _targeting = Targeting(
       geo: _targeting?.geo,
@@ -210,11 +214,13 @@ class DecisionRequestBuilder {
       );
     }
     final current = List<Destination>.from(_targeting?.destination ?? []);
-    current.add(Destination(
-      latitude: latitude,
-      longitude: longitude,
-      minConfidence: minConfidence,
-    ));
+    current.add(
+      Destination(
+        latitude: latitude,
+        longitude: longitude,
+        minConfidence: minConfidence,
+      ),
+    );
     return setDestinationTargeting(current);
   }
 
@@ -232,14 +238,14 @@ class DecisionRequestBuilder {
   }
 
   DecisionRequestBuilder setCustomTargeting(List<CustomKeyValue>? custom) {
-    final uniqueCustom = custom?.fold<List<CustomKeyValue>>(
-      [],
-      (result, keyValue) {
-        result.removeWhere((item) => item.key == keyValue.key);
-        result.add(keyValue);
-        return result;
-      },
-    );
+    final uniqueCustom = custom?.fold<List<CustomKeyValue>>([], (
+      result,
+      keyValue,
+    ) {
+      result.removeWhere((item) => item.key == keyValue.key);
+      result.add(keyValue);
+      return result;
+    });
 
     _targeting = Targeting(
       geo: _targeting?.geo,
@@ -281,7 +287,8 @@ class DecisionRequestBuilder {
     // Removing the only custom entry must put the wire back where it was: no `"custom": []`,
     // and no empty `"targeting": {}` when nothing else was targeted.
     final t = _targeting!;
-    final nothingElse = t.geo == null &&
+    final nothingElse =
+        t.geo == null &&
         t.location == null &&
         t.destination == null &&
         t.distance == null;

@@ -15,7 +15,8 @@ import 'package:flutter_test/flutter_test.dart';
 // the tolerance rules the golden files do not exercise. Mirrors iOS SlidesDecodingTests.swift.
 
 Creative creative({required String contents, String metadata = '{}'}) {
-  final json = '''
+  final json =
+      '''
 {"success": true, "data": [{"placement": "home", "creatives": [{
     "contents": $contents, "metadata": $metadata, "advertiser": {}, "tracking": {}
 }]}]}''';
@@ -23,7 +24,8 @@ Creative creative({required String contents, String metadata = '{}'}) {
   return Decision.fromJson(data.first as Map<String, dynamic>).creatives!.first;
 }
 
-String slide(String id, int position) => '''
+String slide(String id, int position) =>
+    '''
 {"slideId": "$id", "position": $position,
  "contents": [{"key": "image", "value": "https://cdn.example/$id.png", "type": "image"}],
  "tracking": {"views": [{"key": "slide_view", "url": "https://t.example/v/$id"}],
@@ -57,8 +59,11 @@ void main() {
 
   test('position out of order on the wire keeps the wire order', () {
     final result = creative(
-      contents:
-          slides([slide('third', 3), slide('first', 1), slide('second', 2)]),
+      contents: slides([
+        slide('third', 3),
+        slide('first', 1),
+        slide('second', 2),
+      ]),
     );
     expect(result.slides.map((s) => s.slideId), ['third', 'first', 'second']);
     expect(result.slides.map((s) => s.position), [3, 1, 2]);
@@ -73,10 +78,15 @@ void main() {
 ], "tracking": "nope"}''';
     final result = creative(contents: slides([entry]));
     expect(result.slides, hasLength(1));
+    expect(result.slides.first.contents.map((c) => c.key), [
+      'image',
+      'headline',
+    ]);
     expect(
-        result.slides.first.contents.map((c) => c.key), ['image', 'headline']);
-    expect(result.slides.first.tracking, isNull,
-        reason: 'a malformed tracking block is absent, not a failure');
+      result.slides.first.tracking,
+      isNull,
+      reason: 'a malformed tracking block is absent, not a failure',
+    );
   });
 
   test('the slides entry stays in contents', () {
@@ -87,20 +97,25 @@ void main() {
 
   test('a non-carousel creative has no slides', () {
     final plain = creative(
-        contents: '[{"key": "headline", "value": "Hi", "type": "text"}]');
+      contents: '[{"key": "headline", "value": "Hi", "type": "text"}]',
+    );
     expect(plain.slides, isEmpty);
     final malformed = creative(
-        contents: '[{"key": "slides", "type": "slides", "value": "nope"}]');
-    expect(malformed.slides, isEmpty,
-        reason:
-            'a slides entry that is not a list yields no slides and no failure');
+      contents: '[{"key": "slides", "type": "slides", "value": "nope"}]',
+    );
+    expect(
+      malformed.slides,
+      isEmpty,
+      reason:
+          'a slides entry that is not a list yields no slides and no failure',
+    );
   });
 
   test('the standard format version accepts a number and nothing else', () {
     int? version(String literal) => creative(
-          contents: '[]',
-          metadata: '{"effectiveStandardFormatVersion": $literal}',
-        ).metadata?.effectiveStandardFormatVersion;
+      contents: '[]',
+      metadata: '{"effectiveStandardFormatVersion": $literal}',
+    ).metadata?.effectiveStandardFormatVersion;
     expect(version('1'), 1);
     expect(version('1.0'), 1);
     expect(version('"1"'), isNull);
@@ -109,12 +124,19 @@ void main() {
 
   test('template source is open-set and wrong types are absent', () {
     final known = creative(
-        contents: '[]', metadata: '{"templateSource": "based_on_standard"}');
+      contents: '[]',
+      metadata: '{"templateSource": "based_on_standard"}',
+    );
     expect(known.metadata?.templateSource, 'based_on_standard');
     final future = creative(
-        contents: '[]', metadata: '{"templateSource": "from_the_future"}');
-    expect(future.metadata?.templateSource, 'from_the_future',
-        reason: 'an unknown value is kept verbatim');
+      contents: '[]',
+      metadata: '{"templateSource": "from_the_future"}',
+    );
+    expect(
+      future.metadata?.templateSource,
+      'from_the_future',
+      reason: 'an unknown value is kept verbatim',
+    );
     final mistyped = creative(
       contents: '[]',
       metadata: '{"templateSource": 3, "effectiveStandardFormatKey": false}',
@@ -125,8 +147,13 @@ void main() {
 
   test('asset context decodes from Branded Assets and is absent on Card', () {
     Metadata metadataOf(String golden) {
-      final wire = jsonDecode(File('test/e2e/fixtures/golden-wire/$golden.json')
-          .readAsStringSync()) as Map<String, dynamic>;
+      final wire =
+          jsonDecode(
+                File(
+                  'test/e2e/fixtures/golden-wire/$golden.json',
+                ).readAsStringSync(),
+              )
+              as Map<String, dynamic>;
       final first = ((wire['data'] as List).first as Map)['creatives'] as List;
       return Creative.fromJson(first.first as Map<String, dynamic>).metadata!;
     }

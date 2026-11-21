@@ -33,8 +33,10 @@ void main() {
         if (request.uri.path == '/v1/tracking') {
           response
             ..statusCode = 302
-            ..headers
-                .set('location', 'http://127.0.0.1:${server.port}/landing');
+            ..headers.set(
+              'location',
+              'http://127.0.0.1:${server.port}/landing',
+            );
         } else {
           // What a content-negotiating landing page answers a JSON request with.
           response
@@ -47,49 +49,64 @@ void main() {
 
     tearDown(() => server.close(force: true));
 
-    test('a 302 click is sent once and its Location is never requested',
-        () async {
-      await withRealHttp(() async {
-        final sdk = AdMoai.forTesting(
-          config: SDKConfig(baseUrl: 'http://127.0.0.1:${server.port}'),
-        );
-        final clickUrl = 'http://127.0.0.1:${server.port}/v1/tracking?e=click';
+    test(
+      'a 302 click is sent once and its Location is never requested',
+      () async {
+        await withRealHttp(() async {
+          final sdk = AdMoai.forTesting(
+            config: SDKConfig(baseUrl: 'http://127.0.0.1:${server.port}'),
+          );
+          final clickUrl =
+              'http://127.0.0.1:${server.port}/v1/tracking?e=click';
 
-        sdk.fireClick(
-            Tracking(clicks: [TrackingItem(key: 'default', url: clickUrl)]));
-        await Future<void>.delayed(const Duration(milliseconds: 500));
+          sdk.fireClick(
+            Tracking(
+              clicks: [TrackingItem(key: 'default', url: clickUrl)],
+            ),
+          );
+          await Future<void>.delayed(const Duration(milliseconds: 500));
 
-        expect(paths, equals(['/v1/tracking']),
-            reason: 'the SDK requested the redirect\'s Location');
-        sdk.dispose();
-      });
-    });
+          expect(
+            paths,
+            equals(['/v1/tracking']),
+            reason: 'the SDK requested the redirect\'s Location',
+          );
+          sdk.dispose();
+        });
+      },
+    );
   });
 
   group('fireClick with an injected client', () {
     const clickUrl = 'https://mock.api.admoai.com/v1/tracking?e=click';
-    final clicks =
-        Tracking(clicks: [TrackingItem(key: 'default', url: clickUrl)]);
+    final clicks = Tracking(
+      clicks: [TrackingItem(key: 'default', url: clickUrl)],
+    );
 
-    test('a 302 click asks the client not to follow it, and sends nothing else',
-        () async {
-      final sent = <http.BaseRequest>[];
-      final client = MockClient.streaming((request, _) async {
-        sent.add(request);
-        return http.StreamedResponse(const Stream.empty(), 302,
-            headers: {'location': 'https://shop.advertiser.example/landing'});
-      });
-      final sdk = AdMoai.forTesting(
-        config: SDKConfig(baseUrl: 'https://mock.api.admoai.com'),
-        httpClient: client,
-      );
+    test(
+      'a 302 click asks the client not to follow it, and sends nothing else',
+      () async {
+        final sent = <http.BaseRequest>[];
+        final client = MockClient.streaming((request, _) async {
+          sent.add(request);
+          return http.StreamedResponse(
+            const Stream.empty(),
+            302,
+            headers: {'location': 'https://shop.advertiser.example/landing'},
+          );
+        });
+        final sdk = AdMoai.forTesting(
+          config: SDKConfig(baseUrl: 'https://mock.api.admoai.com'),
+          httpClient: client,
+        );
 
-      sdk.fireClick(clicks);
-      await Future<void>.delayed(Duration.zero);
+        sdk.fireClick(clicks);
+        await Future<void>.delayed(Duration.zero);
 
-      expect(sent.map((r) => r.url.toString()), equals([clickUrl]));
-      expect(sent.single.followRedirects, isFalse);
-    });
+        expect(sent.map((r) => r.url.toString()), equals([clickUrl]));
+        expect(sent.single.followRedirects, isFalse);
+      },
+    );
 
     test('a 2xx click is sent once and nothing else', () async {
       final sent = <http.Request>[];

@@ -17,7 +17,9 @@ void main() {
   setUp(() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(
-            const MethodChannel('flutter_timezone'), (_) async => 'UTC');
+          const MethodChannel('flutter_timezone'),
+          (_) async => 'UTC',
+        );
   });
 
   ({Logger logger, List<LogRecord> records}) capture(String name) {
@@ -29,13 +31,15 @@ void main() {
   }
 
   AdMoai sdkWith(Logger logger, {String? apiVersion}) => AdMoai.forTesting(
-        config: SDKConfig(
-            baseUrl: 'https://mock.api.admoai.com',
-            apiVersion: apiVersion,
-            logger: logger),
-        httpClient: MockClient(
-            (r) async => http.Response('{"success":true,"data":[]}', 200)),
-      );
+    config: SDKConfig(
+      baseUrl: 'https://mock.api.admoai.com',
+      apiVersion: apiVersion,
+      logger: logger,
+    ),
+    httpClient: MockClient(
+      (r) async => http.Response('{"success":true,"data":[]}', 200),
+    ),
+  );
 
   int warnings(List<LogRecord> records) => records
       .where((r) => r.level >= Level.WARNING && r.message.contains(needle))
@@ -43,11 +47,12 @@ void main() {
 
   final cases =
       <String, DecisionRequestBuilder Function(DecisionRequestBuilder)>{
-    'a Standard key (typed setter)': (b) => b.setAgeGroup(AgeGroup.age25To34),
-    'a Standard key (generic addCustomTargeting)': (b) =>
-        b.addCustomTargeting(key: 'activity_frequency_30d', value: '0'),
-    'publisher segments': (b) => b.setPublisherSegments(['beach_goer']),
-  };
+        'a Standard key (typed setter)': (b) =>
+            b.setAgeGroup(AgeGroup.age25To34),
+        'a Standard key (generic addCustomTargeting)': (b) =>
+            b.addCustomTargeting(key: 'activity_frequency_30d', value: '0'),
+        'publisher segments': (b) => b.setPublisherSegments(['beach_goer']),
+      };
 
   for (final entry in cases.entries) {
     test('requestAds with ${entry.key} and no apiVersion warns once', () async {
@@ -64,11 +69,13 @@ void main() {
   test('getHttpRequest with a Standard key and no apiVersion warns', () {
     final log = capture('aw-gethttp');
     final sdk = sdkWith(log.logger);
-    sdk.getHttpRequest(sdk
-        .createRequestBuilder()
-        .addPlacement(key: 'home')
-        .setGender(Gender.female)
-        .build());
+    sdk.getHttpRequest(
+      sdk
+          .createRequestBuilder()
+          .addPlacement(key: 'home')
+          .setGender(Gender.female)
+          .build(),
+    );
     expect(warnings(log.records), 1);
   });
 
@@ -77,7 +84,8 @@ void main() {
     final sdk = sdkWith(log.logger);
     sdk.setDeviceConfig(category: DeviceCategory.tablet);
     await sdk.requestAds(
-        sdk.createRequestBuilder().addPlacement(key: 'home').build());
+      sdk.createRequestBuilder().addPlacement(key: 'home').build(),
+    );
     expect(warnings(log.records), 1);
   });
 
@@ -85,22 +93,26 @@ void main() {
     final log = capture('aw-versioned');
     final sdk = sdkWith(log.logger, apiVersion: '2025-11-01');
     sdk.setDeviceConfig(carrier: 'Example Mobile');
-    await sdk.requestAds(sdk
-        .createRequestBuilder()
-        .addPlacement(key: 'home')
-        .setAgeGroup(AgeGroup.age25To34)
-        .build());
+    await sdk.requestAds(
+      sdk
+          .createRequestBuilder()
+          .addPlacement(key: 'home')
+          .setAgeGroup(AgeGroup.age25To34)
+          .build(),
+    );
     expect(warnings(log.records), 0);
   });
 
   test('no warning for a request with only non-audience custom keys', () async {
     final log = capture('aw-custom');
     final sdk = sdkWith(log.logger);
-    await sdk.requestAds(sdk
-        .createRequestBuilder()
-        .addPlacement(key: 'home')
-        .addCustomTargeting(key: 'category', value: 'news')
-        .build());
+    await sdk.requestAds(
+      sdk
+          .createRequestBuilder()
+          .addPlacement(key: 'home')
+          .addCustomTargeting(key: 'category', value: 'news')
+          .build(),
+    );
     expect(warnings(log.records), 0);
   });
 }

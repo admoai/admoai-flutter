@@ -59,12 +59,12 @@ class ScenarioResult {
   final List<String> notes;
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'title': title,
-        'outcome': outcome.name.toUpperCase(),
-        if (detail != null) 'detail': detail,
-        if (notes.isNotEmpty) 'notes': notes,
-      };
+    'id': id,
+    'title': title,
+    'outcome': outcome.name.toUpperCase(),
+    if (detail != null) 'detail': detail,
+    if (notes.isNotEmpty) 'notes': notes,
+  };
 }
 
 /// Thrown by a scenario body when the fixture it needs was never seeded.
@@ -121,26 +121,28 @@ class E2eReport {
   void write() {
     final file = File(reportPath);
     file.parent.createSync(recursive: true);
-    file.writeAsStringSync(const JsonEncoder.withIndent('  ').convert({
-      'baseUrl': e2eBaseUrl,
-      'apiVersion': e2eApiVersion,
-      if (preflightDiagnosis != null)
-        'preflight': {
-          'aborted': true,
-          'diagnosis': preflightDiagnosis,
-          if (preflightRecipe != null) 'recipe': preflightRecipe,
-        }
-      else
-        'preflight': {'aborted': false},
-      'summary': {
-        'passed': passed,
-        'failed': failed,
-        'skipped': skipped,
-        'total': results.length,
-      },
-      'exitCode': exitCode,
-      'scenarios': results.map((r) => r.toJson()).toList(),
-    }));
+    file.writeAsStringSync(
+      const JsonEncoder.withIndent('  ').convert({
+        'baseUrl': e2eBaseUrl,
+        'apiVersion': e2eApiVersion,
+        if (preflightDiagnosis != null)
+          'preflight': {
+            'aborted': true,
+            'diagnosis': preflightDiagnosis,
+            if (preflightRecipe != null) 'recipe': preflightRecipe,
+          }
+        else
+          'preflight': {'aborted': false},
+        'summary': {
+          'passed': passed,
+          'failed': failed,
+          'skipped': skipped,
+          'total': results.length,
+        },
+        'exitCode': exitCode,
+        'scenarios': results.map((r) => r.toJson()).toList(),
+      }),
+    );
   }
 
   void printSummary() {
@@ -150,13 +152,17 @@ class E2eReport {
       print('  $preflightDiagnosis');
       if (preflightRecipe != null) print('  fix: $preflightRecipe');
     }
-    print('Journey E2E: $passed passed, $failed failed, $skipped skipped '
-        '(${results.length} total)');
+    print(
+      'Journey E2E: $passed passed, $failed failed, $skipped skipped '
+      '(${results.length} total)',
+    );
     print('Report: $reportPath   (exit $exitCode)');
     if (skipped > 0) {
       print('');
-      print('SKIPPED scenarios are NOT failures, but they are also NOT '
-          'coverage. Before signing off, confirm every SKIP is deliberate:');
+      print(
+        'SKIPPED scenarios are NOT failures, but they are also NOT '
+        'coverage. Before signing off, confirm every SKIP is deliberate:',
+      );
       for (final r in results.where((r) => r.outcome == Outcome.skip)) {
         print('  ${r.id}: ${r.detail}');
       }
@@ -243,9 +249,9 @@ void installPlatformChannelStubs() {
   const timezone = MethodChannel('flutter_timezone');
   TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
       .setMockMethodCallHandler(timezone, (call) async {
-    if (call.method == 'getLocalTimezone') return 'UTC';
-    return null;
-  });
+        if (call.method == 'getLocalTimezone') return 'UTC';
+        return null;
+      });
 }
 
 /// Fails loudly if the test binding's HTTP override is still installed.
@@ -257,7 +263,8 @@ void assertRealNetworkingEnabled() {
     throw PreflightAbort(
       'the Flutter test binding\'s HttpOverrides is still installed, so every '
       'request would return a mocked HTTP 400 without reaching the engine',
-      recipe: 'call installPlatformChannelStubs() (which clears '
+      recipe:
+          'call installPlatformChannelStubs() (which clears '
           'HttpOverrides.global) after TestWidgetsFlutterBinding.ensureInitialized()',
     );
   }
@@ -407,9 +414,7 @@ Future<int> fireTracking(String mintedUrl, {bool allowRedirect = false}) async {
         .timeout(const Duration(seconds: 15));
     request.followRedirects = false;
     request.headers.set('X-Tracking-Version', e2eApiVersion);
-    final response = await request.close().timeout(
-          const Duration(seconds: 15),
-        );
+    final response = await request.close().timeout(const Duration(seconds: 15));
     final code = response.statusCode;
     // Drained so the socket is released back to the client before it closes.
     await response.drain<void>();
@@ -450,39 +455,47 @@ void scenario(
 ) {
   test('$id — $title', () async {
     if (report.preflightDiagnosis != null) {
-      report.add(ScenarioResult(
-        id: id,
-        title: title,
-        outcome: Outcome.skip,
-        detail: 'preflight aborted: ${report.preflightDiagnosis}',
-      ));
+      report.add(
+        ScenarioResult(
+          id: id,
+          title: title,
+          outcome: Outcome.skip,
+          detail: 'preflight aborted: ${report.preflightDiagnosis}',
+        ),
+      );
       return;
     }
     final notes = <String>[];
     try {
       await body(notes);
-      report.add(ScenarioResult(
-        id: id,
-        title: title,
-        outcome: Outcome.pass,
-        notes: notes,
-      ));
+      report.add(
+        ScenarioResult(
+          id: id,
+          title: title,
+          outcome: Outcome.pass,
+          notes: notes,
+        ),
+      );
     } on SkipScenario catch (skip) {
-      report.add(ScenarioResult(
-        id: id,
-        title: title,
-        outcome: Outcome.skip,
-        detail: skip.reason,
-        notes: notes,
-      ));
+      report.add(
+        ScenarioResult(
+          id: id,
+          title: title,
+          outcome: Outcome.skip,
+          detail: skip.reason,
+          notes: notes,
+        ),
+      );
     } catch (error, stack) {
-      report.add(ScenarioResult(
-        id: id,
-        title: title,
-        outcome: Outcome.fail,
-        detail: _firstLines(error, stack),
-        notes: notes,
-      ));
+      report.add(
+        ScenarioResult(
+          id: id,
+          title: title,
+          outcome: Outcome.fail,
+          detail: _firstLines(error, stack),
+          notes: notes,
+        ),
+      );
     }
   });
 }

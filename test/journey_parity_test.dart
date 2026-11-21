@@ -23,14 +23,15 @@ Creative creativeWith({
 }) {
   return Creative.fromJson({
     'contents': [
-      {'key': 'headline', 'value': 'x', 'type': 'text'}
+      {'key': 'headline', 'value': 'x', 'type': 'text'},
     ],
     'advertiser': {'name': 'Acme'},
     'template': {'key': 'native'},
-    'tracking': tracking ??
+    'tracking':
+        tracking ??
         {
           'impressions': [
-            {'key': 'default', 'url': 'https://t.example/v1/tracking?e=imp'}
+            {'key': 'default', 'url': 'https://t.example/v1/tracking?e=imp'},
           ],
         },
     if (journey != _absent) 'journey': journey,
@@ -49,8 +50,9 @@ const _absent = Object();
 }
 
 Iterable<LogRecord> warningsMatching(List<LogRecord> records, String needle) =>
-    records
-        .where((r) => r.level >= Level.WARNING && r.message.contains(needle));
+    records.where(
+      (r) => r.level >= Level.WARNING && r.message.contains(needle),
+    );
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -60,9 +62,9 @@ void main() {
     const MethodChannel channel = MethodChannel('flutter_timezone');
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (MethodCall methodCall) async {
-      if (methodCall.method == 'getLocalTimezone') return 'UTC';
-      return null;
-    });
+          if (methodCall.method == 'getLocalTimezone') return 'UTC';
+          return null;
+        });
   });
 
   // ───────────────────────────────────────────────────────────────────────────
@@ -95,12 +97,14 @@ void main() {
     });
 
     test('journey block with every field retyped is NOT a journey ad', () {
-      final creative = creativeWith(journey: {
-        'dealId': 42,
-        'instanceId': false,
-        'definitionKey': <String>[],
-        'stageKey': {'nested': true},
-      });
+      final creative = creativeWith(
+        journey: {
+          'dealId': 42,
+          'instanceId': false,
+          'definitionKey': <String>[],
+          'stageKey': {'nested': true},
+        },
+      );
 
       expect(creative.isJourneyAd(), isFalse);
       expect(creative.journeyDealId, isNull);
@@ -108,8 +112,9 @@ void main() {
     });
 
     test('blank-string identifiers are NOT a journey ad', () {
-      final creative =
-          creativeWith(journey: {'dealId': '   ', 'instanceId': ''});
+      final creative = creativeWith(
+        journey: {'dealId': '   ', 'instanceId': ''},
+      );
 
       expect(creative.isJourneyAd(), isFalse);
     });
@@ -134,15 +139,17 @@ void main() {
     });
 
     test('a real journey serve is a journey ad with metadata intact', () {
-      final creative = creativeWith(journey: {
-        'dealId': 'jad_01K',
-        'instanceId': 'jinst_01K',
-        'definitionKey': 'ride_hailing_journey',
-        'stageKey': 'pre_ride',
-        'optStatus': 'in',
-        'pricingModel': 'cpt',
-        'fallbackBillingMode': 'bill_per_stage',
-      });
+      final creative = creativeWith(
+        journey: {
+          'dealId': 'jad_01K',
+          'instanceId': 'jinst_01K',
+          'definitionKey': 'ride_hailing_journey',
+          'stageKey': 'pre_ride',
+          'optStatus': 'in',
+          'pricingModel': 'cpt',
+          'fallbackBillingMode': 'bill_per_stage',
+        },
+      );
 
       expect(creative.isJourneyAd(), isTrue);
       expect(creative.journeyDefinitionKey, equals('ride_hailing_journey'));
@@ -162,13 +169,13 @@ void main() {
   // ───────────────────────────────────────────────────────────────────────────
   group('D2: fireCompletion warns when apiVersion is null', () {
     Tracking completionTracking() => Tracking.fromJson({
-          'completions': [
-            {
-              'key': 'journey_complete',
-              'url': 'https://t.example/v1/tracking?e=cmp'
-            }
-          ],
-        });
+      'completions': [
+        {
+          'key': 'journey_complete',
+          'url': 'https://t.example/v1/tracking?e=cmp',
+        },
+      ],
+    });
 
     test('warns and still fires when apiVersion is null', () async {
       final log = capturingLogger('d2-null-version');
@@ -195,7 +202,10 @@ void main() {
       final fired = <String>[];
       final sdk = AdMoai.forTesting(
         config: SDKConfig(
-            baseUrl: baseUrl, apiVersion: '2025-11-01', logger: log.logger),
+          baseUrl: baseUrl,
+          apiVersion: '2025-11-01',
+          logger: log.logger,
+        ),
         httpClient: MockClient((r) async {
           fired.add(r.url.toString());
           return http.Response('', 200);
@@ -236,10 +246,13 @@ void main() {
     const needle = 'Journey will be ignored';
 
     AdMoai sdkWith(Logger logger, {String? apiVersion}) => AdMoai.forTesting(
-          config: SDKConfig(
-              baseUrl: baseUrl, apiVersion: apiVersion, logger: logger),
-          httpClient: MockClient((r) async => http.Response(okBody, 200)),
-        );
+      config: SDKConfig(
+        baseUrl: baseUrl,
+        apiVersion: apiVersion,
+        logger: logger,
+      ),
+      httpClient: MockClient((r) async => http.Response(okBody, 200)),
+    );
 
     test('requestAds with a sessionId warns', () async {
       final log = capturingLogger('d3-requestads');
@@ -288,15 +301,16 @@ void main() {
       final log = capturingLogger('d3-no-journey');
       final sdk = sdkWith(log.logger);
 
-      final request =
-          sdk.createRequestBuilder().addPlacement(key: 'home').build();
+      final request = sdk
+          .createRequestBuilder()
+          .addPlacement(key: 'home')
+          .build();
       await sdk.requestAds(request);
 
       expect(warningsMatching(log.records, needle), isEmpty);
     });
 
-    test('a blank sessionId is not journey context, so it does not warn',
-        () async {
+    test('a blank sessionId is not journey context, so it does not warn', () async {
       final log = capturingLogger('d3-blank-session');
       final sdk = sdkWith(log.logger);
 
@@ -369,23 +383,26 @@ void main() {
       expect(fired, hasLength(2));
     });
 
-    test('the rejection warning never leaks the URL (it carries a PII token)',
-        () async {
-      final log = capturingLogger('d4-pii');
-      final sdk = AdMoai.forTesting(
-        config: SDKConfig(baseUrl: baseUrl, logger: log.logger),
-        httpClient: MockClient((r) async => http.Response('', 200)),
-      );
+    test(
+      'the rejection warning never leaks the URL (it carries a PII token)',
+      () async {
+        final log = capturingLogger('d4-pii');
+        final sdk = AdMoai.forTesting(
+          config: SDKConfig(baseUrl: baseUrl, logger: log.logger),
+          httpClient: MockClient((r) async => http.Response('', 200)),
+        );
 
-      const secret = 'mailto:ops@admoai.com?e=SUPERSECRETTOKEN';
-      sdk.fireTracking(secret);
+        const secret = 'mailto:ops@admoai.com?e=SUPERSECRETTOKEN';
+        sdk.fireTracking(secret);
 
-      final warnings =
-          log.records.where((r) => r.level >= Level.WARNING).toList();
-      expect(warnings, hasLength(1));
-      expect(warnings.single.message, isNot(contains('SUPERSECRETTOKEN')));
-      expect(warnings.single.message, isNot(contains(secret)));
-    });
+        final warnings = log.records
+            .where((r) => r.level >= Level.WARNING)
+            .toList();
+        expect(warnings, hasLength(1));
+        expect(warnings.single.message, isNot(contains('SUPERSECRETTOKEN')));
+        expect(warnings.single.message, isNot(contains(secret)));
+      },
+    );
   });
 
   // ───────────────────────────────────────────────────────────────────────────
@@ -440,38 +457,44 @@ void main() {
       expect(fired[0], equals(fired[1]));
     });
 
-    test('engine tokens use the base64url alphabet, so no escape to normalize',
-        () {
-      // The guard that makes the normalization below unreachable in practice.
-      expect(realToken, matches(RegExp(r'^[A-Za-z0-9_-]+$')));
-      expect(realUrl, isNot(contains('%')));
-    });
+    test(
+      'engine tokens use the base64url alphabet, so no escape to normalize',
+      () {
+        // The guard that makes the normalization below unreachable in practice.
+        expect(realToken, matches(RegExp(r'^[A-Za-z0-9_-]+$')));
+        expect(realUrl, isNot(contains('%')));
+      },
+    );
 
-    test('percent-escape hex is uppercased (RFC 3986 equivalent), value intact',
-        () async {
-      final fired = <String>[];
-      final sdk = AdMoai.forTesting(
-        config: SDKConfig(baseUrl: baseUrl, apiVersion: '2025-11-01'),
-        httpClient: MockClient((r) async {
-          fired.add(r.url.toString());
-          return http.Response('', 200);
-        }),
-      );
+    test(
+      'percent-escape hex is uppercased (RFC 3986 equivalent), value intact',
+      () async {
+        final fired = <String>[];
+        final sdk = AdMoai.forTesting(
+          config: SDKConfig(baseUrl: baseUrl, apiVersion: '2025-11-01'),
+          httpClient: MockClient((r) async {
+            fired.add(r.url.toString());
+            return http.Response('', 200);
+          }),
+        );
 
-      const lower = 'https://t.example/v1/tracking?e=aB9%2fXyz%3d';
-      sdk.fireTracking(lower);
-      await Future.delayed(Duration.zero);
+        const lower = 'https://t.example/v1/tracking?e=aB9%2fXyz%3d';
+        sdk.fireTracking(lower);
+        await Future.delayed(Duration.zero);
 
-      // Documented, deliberate: hex digits are uppercased...
-      expect(
-          fired.single, equals('https://t.example/v1/tracking?e=aB9%2FXyz%3D'));
-      // ...and the token's decoded value is unchanged, which is what the engine
-      // reads. Nothing is added, dropped, or reordered.
-      expect(
-        Uri.parse(fired.single).queryParameters['e'],
-        equals(Uri.parse(lower).queryParameters['e']),
-      );
-    });
+        // Documented, deliberate: hex digits are uppercased...
+        expect(
+          fired.single,
+          equals('https://t.example/v1/tracking?e=aB9%2FXyz%3D'),
+        );
+        // ...and the token's decoded value is unchanged, which is what the engine
+        // reads. Nothing is added, dropped, or reordered.
+        expect(
+          Uri.parse(fired.single).queryParameters['e'],
+          equals(Uri.parse(lower).queryParameters['e']),
+        );
+      },
+    );
   });
 
   // ───────────────────────────────────────────────────────────────────────────
@@ -490,16 +513,16 @@ void main() {
   group('D6: metadata exposes impId, skipOffsetSeconds and endCardMode', () {
     // Shape taken verbatim from a live journey serve.
     Map<String, dynamic> liveJourneyMetadata() => {
-          'adId': 'jad_01KYT8WMT199HC3Q7BXR4CPNJA',
-          'creativeId': 'jsc_01KYT8WMV3RR9Q5G7FA1G0NKR7',
-          'advertiserId': '1',
-          'placementId': '2',
-          'templateId': '2',
-          'impId': 'imp_01KYTC0QFP42KQ6V0GTTCGHSMV',
-          'priority': 'standard',
-          'language': 'en',
-          'format': 'native',
-        };
+      'adId': 'jad_01KYT8WMT199HC3Q7BXR4CPNJA',
+      'creativeId': 'jsc_01KYT8WMV3RR9Q5G7FA1G0NKR7',
+      'advertiserId': '1',
+      'placementId': '2',
+      'templateId': '2',
+      'impId': 'imp_01KYTC0QFP42KQ6V0GTTCGHSMV',
+      'priority': 'standard',
+      'language': 'en',
+      'format': 'native',
+    };
 
     test('impId is surfaced from a real journey serve payload', () {
       final creative = creativeWith(journey: {'dealId': 'jad_1'});
@@ -515,8 +538,10 @@ void main() {
       });
 
       expect(withMetadata.metadata, isNotNull);
-      expect(withMetadata.metadata!.impId,
-          equals('imp_01KYTC0QFP42KQ6V0GTTCGHSMV'));
+      expect(
+        withMetadata.metadata!.impId,
+        equals('imp_01KYTC0QFP42KQ6V0GTTCGHSMV'),
+      );
     });
 
     test('video metadata exposes skipOffsetSeconds and endCardMode', () {
@@ -594,30 +619,32 @@ void main() {
   // tracking path.
   // ───────────────────────────────────────────────────────────────────────────
   group('R1: a journey decision request carries X-Decision-Version', () {
-    test('header is present on the wire alongside the journey fields',
-        () async {
-      http.Request? captured;
-      final sdk = AdMoai.forTesting(
-        config: SDKConfig(baseUrl: baseUrl, apiVersion: '2025-11-01'),
-        httpClient: MockClient((r) async {
-          captured = r;
-          return http.Response('{"success":true,"data":[]}', 200);
-        }),
-      );
+    test(
+      'header is present on the wire alongside the journey fields',
+      () async {
+        http.Request? captured;
+        final sdk = AdMoai.forTesting(
+          config: SDKConfig(baseUrl: baseUrl, apiVersion: '2025-11-01'),
+          httpClient: MockClient((r) async {
+            captured = r;
+            return http.Response('{"success":true,"data":[]}', 200);
+          }),
+        );
 
-      final request = sdk
-          .createRequestBuilder()
-          .addPlacement(key: 'vehicleSelection')
-          .setSessionId('trip_abc')
-          .setJourneyOpt(JourneyOpt.optIn)
-          .build();
-      await sdk.requestAds(request);
+        final request = sdk
+            .createRequestBuilder()
+            .addPlacement(key: 'vehicleSelection')
+            .setSessionId('trip_abc')
+            .setJourneyOpt(JourneyOpt.optIn)
+            .build();
+        await sdk.requestAds(request);
 
-      expect(captured, isNotNull);
-      expect(captured!.headers['X-Decision-Version'], equals('2025-11-01'));
-      expect(captured!.body, contains('"sessionId":"trip_abc"'));
-      expect(captured!.body, contains('"journeyOpt":"in"'));
-    });
+        expect(captured, isNotNull);
+        expect(captured!.headers['X-Decision-Version'], equals('2025-11-01'));
+        expect(captured!.body, contains('"sessionId":"trip_abc"'));
+        expect(captured!.body, contains('"journeyOpt":"in"'));
+      },
+    );
 
     test('getHttpRequest exposes the same header for inspection', () {
       final sdk = AdMoai.forTesting(
@@ -625,11 +652,13 @@ void main() {
         httpClient: MockClient((r) async => http.Response('', 200)),
       );
 
-      final http0 = sdk.getHttpRequest(sdk
-          .createRequestBuilder()
-          .addPlacement(key: 'home')
-          .setSessionId('trip_abc')
-          .build());
+      final http0 = sdk.getHttpRequest(
+        sdk
+            .createRequestBuilder()
+            .addPlacement(key: 'home')
+            .setSessionId('trip_abc')
+            .build(),
+      );
 
       expect(http0.headers?['X-Decision-Version'], equals('2025-11-01'));
       expect(http0.path, equals('/v1/decision'));
@@ -641,13 +670,10 @@ void main() {
   // ───────────────────────────────────────────────────────────────────────────
   group('fireCustomEvent / fireCustom parity', () {
     Tracking customTracking() => Tracking.fromJson({
-          'custom': [
-            {
-              'key': 'companionOpened',
-              'url': 'https://t.example/v1/tracking?e=c'
-            }
-          ],
-        });
+      'custom': [
+        {'key': 'companionOpened', 'url': 'https://t.example/v1/tracking?e=c'},
+      ],
+    });
 
     test('both names fire the same URL', () async {
       final fired = <String>[];

@@ -74,17 +74,21 @@ class LoggingClient extends http.BaseClient {
     final respStr = utf8.decode(respBytes);
     String prettyResp;
     try {
-      prettyResp =
-          const JsonEncoder.withIndent('  ').convert(jsonDecode(respStr));
+      prettyResp = const JsonEncoder.withIndent(
+        '  ',
+      ).convert(jsonDecode(respStr));
     } catch (_) {
       prettyResp = respStr;
     }
 
     print(
-        '\n━━━ RESPONSE (${response.statusCode}) ━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    print(prettyResp.length > 3000
-        ? '${prettyResp.substring(0, 3000)}\n… (truncated)'
-        : prettyResp);
+      '\n━━━ RESPONSE (${response.statusCode}) ━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+    );
+    print(
+      prettyResp.length > 3000
+          ? '${prettyResp.substring(0, 3000)}\n… (truncated)'
+          : prettyResp,
+    );
     print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
 
     return http.StreamedResponse(
@@ -125,29 +129,29 @@ class _MockClient extends http.BaseClient {
 const _baseUrl = 'https://api.mock.admoai.com';
 
 AppConfig get _appConfig => AppConfig(
-      name: 'Admoai Flutter SDK',
-      version: '1.0',
-      identifier: 'com.admoai.sample',
-      buildNumber: '1',
-      language: 'en',
-    );
+  name: 'Admoai Flutter SDK',
+  version: '1.0',
+  identifier: 'com.admoai.sample',
+  buildNumber: '1',
+  language: 'en',
+);
 
 DeviceConfig get _deviceConfig => DeviceConfig(
-      os: 'iOS',
-      osVersion: '18',
-      model: 'iPhone16,2',
-      manufacturer: 'Apple',
-      id: 'flutter-test-device-001',
-      timezone: 'America/Santiago',
-      language: 'en',
-    );
+  os: 'iOS',
+  osVersion: '18',
+  model: 'iPhone16,2',
+  manufacturer: 'Apple',
+  id: 'flutter-test-device-001',
+  timezone: 'America/Santiago',
+  language: 'en',
+);
 
 UserConfig get _userConfig => UserConfig(
-      id: 'user_123',
-      ip: '203.0.113.1',
-      timezone: 'America/Santiago',
-      consent: Consent(gdpr: true),
-    );
+  id: 'user_123',
+  ip: '203.0.113.1',
+  timezone: 'America/Santiago',
+  consent: Consent(gdpr: true),
+);
 
 // Test matrix: 9 placements × 2 apiVersion variants = 18 live requests
 const _placements = [
@@ -185,10 +189,7 @@ void main() {
   setUpAll(() {
     const channel = MethodChannel('flutter_timezone');
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(
-      channel,
-      (_) async => 'America/Santiago',
-    );
+        .setMockMethodCallHandler(channel, (_) async => 'America/Santiago');
   });
 
   // ── §1  Format field omission (offline) ───────────────────────────────────
@@ -216,7 +217,8 @@ void main() {
       expect(
         placement.containsKey('format'),
         isFalse,
-        reason: 'format must be omitted entirely when not set — '
+        reason:
+            'format must be omitted entirely when not set — '
             'the decision-engine picks native or video automatically',
       );
     });
@@ -259,11 +261,17 @@ void main() {
       final dest = (targeting['destination'] as List).first as Map;
 
       print('\n[§1-min_confidence] destination entry: $dest');
-      expect(dest.containsKey('min_confidence'), isTrue,
-          reason: 'API requires snake_case "min_confidence"');
-      expect(dest.containsKey('minConfidence'), isFalse,
-          reason:
-              'camelCase "minConfidence" is rejected by the API with HTTP 400');
+      expect(
+        dest.containsKey('min_confidence'),
+        isTrue,
+        reason: 'API requires snake_case "min_confidence"',
+      );
+      expect(
+        dest.containsKey('minConfidence'),
+        isFalse,
+        reason:
+            'camelCase "minConfidence" is rejected by the API with HTTP 400',
+      );
       expect(dest['min_confidence'], equals(0.5046));
     });
   });
@@ -284,7 +292,8 @@ void main() {
       );
 
       await sdk.requestAds(
-          (sdk.createRequestBuilder()..addPlacement(key: 'home')).build());
+        (sdk.createRequestBuilder()..addPlacement(key: 'home')).build(),
+      );
 
       print('\n[§2-UA] $capturedUA');
       expect(capturedUA, contains('AdMoaiSDK/'));
@@ -305,32 +314,36 @@ void main() {
       );
 
       await sdk.requestAds(
-          (sdk.createRequestBuilder()..addPlacement(key: 'home')).build());
+        (sdk.createRequestBuilder()..addPlacement(key: 'home')).build(),
+      );
 
       print('\n[§2-Accept-Language] $capturedLang');
       expect(capturedLang, equals('es'));
     });
 
-    test('X-Decision-Version is sent when apiVersion is "2025-11-01"',
-        () async {
-      String? capturedVersion;
-      final sdk = AdMoai.forTesting(
-        config: SDKConfig(baseUrl: _baseUrl, apiVersion: '2025-11-01'),
-        appConfig: _appConfig,
-        deviceConfig: _deviceConfig,
-        userConfig: UserConfig.clear(),
-        httpClient: _MockClient((req) {
-          capturedVersion = req.headers['X-Decision-Version'];
-          return http.Response('{"success":true,"data":[]}', 200);
-        }),
-      );
+    test(
+      'X-Decision-Version is sent when apiVersion is "2025-11-01"',
+      () async {
+        String? capturedVersion;
+        final sdk = AdMoai.forTesting(
+          config: SDKConfig(baseUrl: _baseUrl, apiVersion: '2025-11-01'),
+          appConfig: _appConfig,
+          deviceConfig: _deviceConfig,
+          userConfig: UserConfig.clear(),
+          httpClient: _MockClient((req) {
+            capturedVersion = req.headers['X-Decision-Version'];
+            return http.Response('{"success":true,"data":[]}', 200);
+          }),
+        );
 
-      await sdk.requestAds(
-          (sdk.createRequestBuilder()..addPlacement(key: 'home')).build());
+        await sdk.requestAds(
+          (sdk.createRequestBuilder()..addPlacement(key: 'home')).build(),
+        );
 
-      print('\n[§2-X-Decision-Version] $capturedVersion');
-      expect(capturedVersion, equals('2025-11-01'));
-    });
+        print('\n[§2-X-Decision-Version] $capturedVersion');
+        expect(capturedVersion, equals('2025-11-01'));
+      },
+    );
 
     test('X-Decision-Version is ABSENT when apiVersion is null', () async {
       bool hadVersionHeader = false;
@@ -346,7 +359,8 @@ void main() {
       );
 
       await sdk.requestAds(
-          (sdk.createRequestBuilder()..addPlacement(key: 'home')).build());
+        (sdk.createRequestBuilder()..addPlacement(key: 'home')).build(),
+      );
 
       print('\n[§2-no-version-header] hadVersionHeader=$hadVersionHeader');
       expect(hadVersionHeader, isFalse);
@@ -409,9 +423,11 @@ void main() {
           try {
             final response = await sdk.requestAds(request);
             final decisions = response.body.data?.length ?? 0;
-            print('▶  [$label]  '
-                'success=${response.body.success}  '
-                'decisions=$decisions');
+            print(
+              '▶  [$label]  '
+              'success=${response.body.success}  '
+              'decisions=$decisions',
+            );
 
             expect(
               response.body.success,
@@ -439,64 +455,71 @@ void main() {
 
   // ── §4  Format.video live request ─────────────────────────────────────────
   group('§4  Format.video — live request with explicit format', () {
-    test('vasttag_none with Format.video sends "format":"video" and gets 200',
-        () async {
-      final client = LoggingClient();
-      addTearDown(client.close);
+    test(
+      'vasttag_none with Format.video sends "format":"video" and gets 200',
+      () async {
+        final client = LoggingClient();
+        addTearDown(client.close);
 
-      final sdk = AdMoai.forTesting(
-        config: SDKConfig(
-          baseUrl: _baseUrl,
-          apiVersion: '2025-11-01',
-          requestTimeout: const Duration(seconds: 15),
-        ),
-        appConfig: _appConfig,
-        deviceConfig: _deviceConfig,
-        userConfig: _userConfig,
-        httpClient: client,
-      );
+        final sdk = AdMoai.forTesting(
+          config: SDKConfig(
+            baseUrl: _baseUrl,
+            apiVersion: '2025-11-01',
+            requestTimeout: const Duration(seconds: 15),
+          ),
+          appConfig: _appConfig,
+          deviceConfig: _deviceConfig,
+          userConfig: _userConfig,
+          httpClient: client,
+        );
 
-      final request = sdk
-          .createRequestBuilder()
-          .addPlacement(key: 'vasttag_none', format: Format.video)
-          .addGeoTargeting(2643743)
-          .build();
+        final request = sdk
+            .createRequestBuilder()
+            .addPlacement(key: 'vasttag_none', format: Format.video)
+            .addGeoTargeting(2643743)
+            .build();
 
-      // Confirm "format": "video" is in the outgoing JSON
-      final placementJson =
-          (request.toJson()['placements'] as List).first as Map;
-      expect(placementJson['format'], equals('video'));
-      print('\n[§4-video] placement JSON: $placementJson');
+        // Confirm "format": "video" is in the outgoing JSON
+        final placementJson =
+            (request.toJson()['placements'] as List).first as Map;
+        expect(placementJson['format'], equals('video'));
+        print('\n[§4-video] placement JSON: $placementJson');
 
-      try {
-        final response = await sdk.requestAds(request);
-        print('[§4-video RESULT]  '
+        try {
+          final response = await sdk.requestAds(request);
+          print(
+            '[§4-video RESULT]  '
             'success=${response.body.success}  '
-            'decisions=${response.body.data?.length ?? 0}');
-        expect(response.body.success, isTrue);
-      } on APIError catch (e) {
-        // NOTE: After rapid §3 load, the mock server may transiently return
-        // 400 (empty body) for the same placement/device combination.
-        // Confirmed working via isolated curl — not a SDK bug.
-        print('\n⚠️  API ERROR (§4-video): ${e.message}'
-            '\n  (may be transient mock-server throttle after §3 load)');
-      }
-    });
+            'decisions=${response.body.data?.length ?? 0}',
+          );
+          expect(response.body.success, isTrue);
+        } on APIError catch (e) {
+          // NOTE: After rapid §3 load, the mock server may transiently return
+          // 400 (empty body) for the same placement/device combination.
+          // Confirmed working via isolated curl — not a SDK bug.
+          print(
+            '\n⚠️  API ERROR (§4-video): ${e.message}'
+            '\n  (may be transient mock-server throttle after §3 load)',
+          );
+        }
+      },
+    );
   });
 
   // ── §5  OM verification helpers (offline) ─────────────────────────────────
   group('§5  OM verification helpers', () {
     // Helper matches the pattern from om_helper_test.dart — explicit return
     // type ensures inner maps get proper String→dynamic inference
-    Map<String, dynamic> omCreativeJson(
-        {List<Map<String, dynamic>>? resources}) {
+    Map<String, dynamic> omCreativeJson({
+      List<Map<String, dynamic>>? resources,
+    }) {
       return <String, dynamic>{
         'contents': <Map<String, dynamic>>[
           <String, dynamic>{
             'key': 'headline',
             'value': 'Test Ad',
-            'type': 'text'
-          }
+            'type': 'text',
+          },
         ],
         'advertiser': <String, dynamic>{'name': 'ACME'},
         'template': <String, dynamic>{'key': 'wide'},
@@ -506,30 +529,38 @@ void main() {
     }
 
     test('hasOMVerification and getVerificationResources work', () {
-      final creative = Creative.fromJson(omCreativeJson(resources: [
-        <String, dynamic>{
-          'vendorKey': 'iabtechlab.com-omid',
-          'scriptUrl':
-              'https://storage.googleapis.com/om-sdk/test/iab-omsdk-publisher-test.js',
-          'verificationParameters': 'test-params',
-        },
-        <String, dynamic>{
-          'vendorKey': 'doubleverify.com',
-          'scriptUrl': 'https://cdn.dv.com/x.js',
-        },
-      ]));
+      final creative = Creative.fromJson(
+        omCreativeJson(
+          resources: [
+            <String, dynamic>{
+              'vendorKey': 'iabtechlab.com-omid',
+              'scriptUrl':
+                  'https://storage.googleapis.com/om-sdk/test/iab-omsdk-publisher-test.js',
+              'verificationParameters': 'test-params',
+            },
+            <String, dynamic>{
+              'vendorKey': 'doubleverify.com',
+              'scriptUrl': 'https://cdn.dv.com/x.js',
+            },
+          ],
+        ),
+      );
 
       print('\n[§5-OM] hasOMVerification: ${creative.hasOMVerification()}');
-      print('[§5-OM] resources count: '
-          '${creative.getVerificationResources()?.length}');
+      print(
+        '[§5-OM] resources count: '
+        '${creative.getVerificationResources()?.length}',
+      );
       for (final r in creative.getVerificationResources() ?? []) {
         print('  • vendor=${r.vendorKey}  url=${r.scriptUrl}');
       }
 
       expect(creative.hasOMVerification(), isTrue);
       expect(creative.getVerificationResources()?.length, equals(2));
-      expect(creative.getVerificationResources()?.first.vendorKey,
-          equals('iabtechlab.com-omid'));
+      expect(
+        creative.getVerificationResources()?.first.vendorKey,
+        equals('iabtechlab.com-omid'),
+      );
     });
 
     test('hasOMVerification is false when no resources', () {
@@ -557,11 +588,20 @@ void main() {
           .createRequestBuilder()
           .addPlacement(key: 'home')
           .addDestinationTargeting(
-              latitude: 10, longitude: 20, minConfidence: 0.5)
+            latitude: 10,
+            longitude: 20,
+            minConfidence: 0.5,
+          )
           .addDestinationTargeting(
-              latitude: 10, longitude: 20, minConfidence: 0.5) // dup
+            latitude: 10,
+            longitude: 20,
+            minConfidence: 0.5,
+          ) // dup
           .addDestinationTargeting(
-              latitude: 30, longitude: 40, minConfidence: 0.7)
+            latitude: 30,
+            longitude: 40,
+            minConfidence: 0.7,
+          )
           .build();
       expect(request.targeting?.destination?.length, equals(2));
     });
@@ -569,10 +609,10 @@ void main() {
     test('minConfidence outside [0,1] throws ArgumentError', () {
       expect(
         () => sdk.createRequestBuilder().addDestinationTargeting(
-              latitude: 0,
-              longitude: 0,
-              minConfidence: 1.1,
-            ),
+          latitude: 0,
+          longitude: 0,
+          minConfidence: 1.1,
+        ),
         throwsA(isA<ArgumentError>()),
       );
     });
@@ -582,9 +622,15 @@ void main() {
           .createRequestBuilder()
           .addPlacement(key: 'home')
           .addDestinationTargeting(
-              latitude: 1, longitude: 2, minConfidence: 0.0)
+            latitude: 1,
+            longitude: 2,
+            minConfidence: 0.0,
+          )
           .addDestinationTargeting(
-              latitude: 3, longitude: 4, minConfidence: 1.0)
+            latitude: 3,
+            longitude: 4,
+            minConfidence: 1.0,
+          )
           .build();
       expect(request.targeting?.destination?.length, equals(2));
     });
@@ -604,22 +650,22 @@ void main() {
 
     test('401 surfaces as UnexpectedStatusError', () async {
       final sdk = await sdkWith(() => http.Response('', 401));
-      final req =
-          (sdk.createRequestBuilder()..addPlacement(key: 'home')).build();
+      final req = (sdk.createRequestBuilder()..addPlacement(key: 'home'))
+          .build();
       expect(() => sdk.requestAds(req), throwsA(isA<UnexpectedStatusError>()));
     });
 
     test('502 surfaces as ServerError', () async {
       final sdk = await sdkWith(() => http.Response('', 502));
-      final req =
-          (sdk.createRequestBuilder()..addPlacement(key: 'home')).build();
+      final req = (sdk.createRequestBuilder()..addPlacement(key: 'home'))
+          .build();
       expect(() => sdk.requestAds(req), throwsA(isA<ServerError>()));
     });
 
     test('400 surfaces as ClientError', () async {
       final sdk = await sdkWith(() => http.Response('', 400));
-      final req =
-          (sdk.createRequestBuilder()..addPlacement(key: 'home')).build();
+      final req = (sdk.createRequestBuilder()..addPlacement(key: 'home'))
+          .build();
       expect(() => sdk.requestAds(req), throwsA(isA<ClientError>()));
     });
   });

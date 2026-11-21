@@ -26,10 +26,7 @@ class Decision {
   final String placement;
   final List<Creative>? creatives;
 
-  Decision({
-    required this.placement,
-    this.creatives,
-  });
+  Decision({required this.placement, this.creatives});
 
   factory Decision.fromJson(Map<String, dynamic> json) {
     final rawCreatives = json['creatives'];
@@ -42,10 +39,10 @@ class Decision {
       // objects. Creative.fromJson is itself total (never throws).
       creatives: rawCreatives is List
           ? rawCreatives
-              .map(_asMap)
-              .whereType<Map<String, dynamic>>()
-              .map(Creative.fromJson)
-              .toList()
+                .map(_asMap)
+                .whereType<Map<String, dynamic>>()
+                .map(Creative.fromJson)
+                .toList()
           : null,
     );
   }
@@ -146,16 +143,17 @@ class Creative {
           : VastData.fromJson(_asMap(json['vast'])!),
       verificationScriptResources: rawVerifications is List
           ? rawVerifications
-              .map(VerificationScriptResource.tryFromJson)
-              .whereType<VerificationScriptResource>()
-              .toList()
+                .map(VerificationScriptResource.tryFromJson)
+                .whereType<VerificationScriptResource>()
+                .toList()
           : null,
       journey: _asMap(json['journey']) == null
           ? null
           : CreativeJourney.fromJson(_asMap(json['journey'])!),
       slides: _slidesFrom(rawContents),
-      interactiveExperience:
-          InteractiveExperience.tryFromJson(json['interactiveExperience']),
+      interactiveExperience: InteractiveExperience.tryFromJson(
+        json['interactiveExperience'],
+      ),
     );
   }
 
@@ -335,8 +333,9 @@ class VerificationScriptResource {
     return VerificationScriptResource(
       vendorKey: vendorKey,
       scriptUrl: scriptUrl,
-      verificationParameters:
-          _verificationParameters(map['verificationParameters']),
+      verificationParameters: _verificationParameters(
+        map['verificationParameters'],
+      ),
     );
   }
 }
@@ -366,11 +365,7 @@ class Content {
   final dynamic value;
   final String type;
 
-  Content({
-    required this.key,
-    required this.value,
-    required this.type,
-  });
+  Content({required this.key, required this.value, required this.type});
 
   factory Content.fromJson(Map<String, dynamic> json) {
     return Content(
@@ -523,8 +518,9 @@ class Metadata {
       // Open-set strings, absent when the engine does not send them (it omits all three while
       // the standard formats are off). A wrong type is `null`, never a throw.
       effectiveStandardFormatKey: _asString(json['effectiveStandardFormatKey']),
-      effectiveStandardFormatVersion:
-          _asWholeNumber(json['effectiveStandardFormatVersion']),
+      effectiveStandardFormatVersion: _asWholeNumber(
+        json['effectiveStandardFormatVersion'],
+      ),
       templateSource: _asString(json['templateSource']),
       assetContext: _asString(json['assetContext']),
     );
@@ -537,12 +533,7 @@ class Advertiser {
   final String? legalName;
   final String? logoUrl;
 
-  Advertiser({
-    this.id,
-    this.name,
-    this.legalName,
-    this.logoUrl,
-  });
+  Advertiser({this.id, this.name, this.legalName, this.logoUrl});
 
   factory Advertiser.fromJson(Map<String, dynamic> json) {
     return Advertiser(
@@ -558,10 +549,7 @@ class Template {
   final String key;
   final String? style;
 
-  Template({
-    required this.key,
-    this.style,
-  });
+  Template({required this.key, this.style});
 
   factory Template.fromJson(Map<String, dynamic> json) {
     return Template(
@@ -824,16 +812,10 @@ class TrackingItem {
   final String key;
   final String url;
 
-  TrackingItem({
-    required this.key,
-    required this.url,
-  });
+  TrackingItem({required this.key, required this.url});
 
   factory TrackingItem.fromJson(Map<String, dynamic> json) {
-    return TrackingItem(
-      key: json['key'] as String,
-      url: json['url'] as String,
-    );
+    return TrackingItem(key: json['key'] as String, url: json['url'] as String);
   }
 
   /// Tolerant Reader variant: returns `null` (instead of throwing) when the
@@ -920,10 +902,7 @@ class VastData {
   final String? tagUrl;
   final String? xmlBase64;
 
-  VastData({
-    this.tagUrl,
-    this.xmlBase64,
-  });
+  VastData({this.tagUrl, this.xmlBase64});
 
   factory VastData.fromJson(Map<String, dynamic> json) {
     return VastData(

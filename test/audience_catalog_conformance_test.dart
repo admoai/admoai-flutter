@@ -19,23 +19,28 @@ void main() {
   final sdk = <String, List<String>>{
     AudienceSignalKey.ageGroup: AgeGroup.values.map((v) => v.value).toList(),
     AudienceSignalKey.gender: Gender.values.map((v) => v.value).toList(),
-    AudienceSignalKey.accountType:
-        AccountType.values.map((v) => v.value).toList(),
-    AudienceSignalKey.subscriptionStatus:
-        SubscriptionStatus.values.map((v) => v.value).toList(),
-    AudienceSignalKey.accountTenure:
-        AccountTenure.values.map((v) => v.value).toList(),
-    AudienceSignalKey.activityFrequency30d:
-        ActivityFrequency30d.values.map((v) => v.value).toList(),
-    AudienceSignalKey.lastActivityRecency:
-        LastActivityRecency.values.map((v) => v.value).toList(),
+    AudienceSignalKey.accountType: AccountType.values
+        .map((v) => v.value)
+        .toList(),
+    AudienceSignalKey.subscriptionStatus: SubscriptionStatus.values
+        .map((v) => v.value)
+        .toList(),
+    AudienceSignalKey.accountTenure: AccountTenure.values
+        .map((v) => v.value)
+        .toList(),
+    AudienceSignalKey.activityFrequency30d: ActivityFrequency30d.values
+        .map((v) => v.value)
+        .toList(),
+    AudienceSignalKey.lastActivityRecency: LastActivityRecency.values
+        .map((v) => v.value)
+        .toList(),
   };
 
   test('the SDK knows exactly the catalog keys', () {
-    expect(
-      {...sdk.keys, AudienceSignalKey.publisherSegments},
-      presets.keys.toSet(),
-    );
+    expect({
+      ...sdk.keys,
+      AudienceSignalKey.publisherSegments,
+    }, presets.keys.toSet());
   });
 
   for (final entry in sdk.entries) {

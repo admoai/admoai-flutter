@@ -31,7 +31,8 @@ void main() {
   test('full request with generic custom targeting is unchanged', () {
     final request = _builder()
         .addCustomTargeting(key: 'tier', value: 'gold')
-        .addCustomTargeting(key: 'tags', value: ['a', 'b']).build();
+        .addCustomTargeting(key: 'tags', value: ['a', 'b'])
+        .build();
     expect(jsonEncode(request.toJson()), _fullGolden);
   });
 

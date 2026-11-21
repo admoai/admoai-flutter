@@ -29,14 +29,17 @@ void main() {
       jsonDecode(File('$dir/$name').readAsStringSync()) as Map<String, dynamic>;
 
   Map<String, dynamic> descriptor() => Map<String, dynamic>.from(
-      fixture('creative-descriptor.json')['interactiveExperience'] as Map);
+    fixture('creative-descriptor.json')['interactiveExperience'] as Map,
+  );
 
   tearDown(() => AdMoai.secureSurfaceAvailableForTesting = null);
 
   setUp(() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(
-            const MethodChannel('flutter_timezone'), (_) async => 'UTC');
+          const MethodChannel('flutter_timezone'),
+          (_) async => 'UTC',
+        );
   });
 
   ({AdMoai sdk, List<http.Request> sent, List<LogRecord> logs}) build({
@@ -74,11 +77,11 @@ void main() {
       jsonDecode(r.body) as Map<String, dynamic>;
 
   Map<String, dynamic> creativeJson([Map<String, dynamic>? experience]) => {
-        'contents': [],
-        'advertiser': {},
-        'tracking': {},
-        if (experience != null) 'interactiveExperience': experience,
-      };
+    'contents': [],
+    'advertiser': {},
+    'tracking': {},
+    if (experience != null) 'interactiveExperience': experience,
+  };
 
   String responseWith(List<List<Map<String, dynamic>>> placements) =>
       jsonEncode({
@@ -111,8 +114,10 @@ void main() {
 
   test('the SDK keys match the contract catalog, in order', () {
     final catalog = fixture('standard-fields.json');
-    expect(StandardAttributeKey.values.map((k) => k.wireName).toList(),
-        equals((catalog['prefillKeys'] as List).cast<String>()));
+    expect(
+      StandardAttributeKey.values.map((k) => k.wireName).toList(),
+      equals((catalog['prefillKeys'] as List).cast<String>()),
+    );
   });
 
   scenario('An SDK update alone does not advertise Lead Generation', () async {
@@ -120,37 +125,45 @@ void main() {
     await t.sdk.requestAds(request(t.sdk));
     expect(bodyOf(t.sent.single).containsKey('interactiveExperience'), isFalse);
     expect(
-        t.sdk
-            .getHttpRequest(request(t.sdk))
-            .body!
-            .contains('interactiveExperience'),
-        isFalse);
+      t.sdk
+          .getHttpRequest(request(t.sdk))
+          .body!
+          .contains('interactiveExperience'),
+      isFalse,
+    );
   });
 
-  scenario('An app that hosts the form advertises the keys it can fill',
-      () async {
-    final t = build(
-      provider: _Provider({
-        StandardAttributeKey.phone,
-        StandardAttributeKey.email,
-        StandardAttributeKey.fullName,
-      }),
-    );
-    await t.sdk.requestAds(request(t.sdk));
-    final expected =
-        fixture('request-supported-with-keys.json')['interactiveExperience'];
-    expect(bodyOf(t.sent.single)['interactiveExperience'], equals(expected));
-    expect((expected as Map)['availableAttributeKeys'],
-        equals(['fullName', 'email', 'phone']));
-  });
+  scenario(
+    'An app that hosts the form advertises the keys it can fill',
+    () async {
+      final t = build(
+        provider: _Provider({
+          StandardAttributeKey.phone,
+          StandardAttributeKey.email,
+          StandardAttributeKey.fullName,
+        }),
+      );
+      await t.sdk.requestAds(request(t.sdk));
+      final expected = fixture(
+        'request-supported-with-keys.json',
+      )['interactiveExperience'];
+      expect(bodyOf(t.sent.single)['interactiveExperience'], equals(expected));
+      expect(
+        (expected as Map)['availableAttributeKeys'],
+        equals(['fullName', 'email', 'phone']),
+      );
+    },
+  );
 
   scenario('An app with no prefill still advertises support', () async {
     final t = build(provider: _Provider(const {}));
     await t.sdk.requestAds(request(t.sdk));
     expect(
-        bodyOf(t.sent.single)['interactiveExperience'],
-        equals(fixture(
-            'request-supported-empty-keys.json')['interactiveExperience']));
+      bodyOf(t.sent.single)['interactiveExperience'],
+      equals(
+        fixture('request-supported-empty-keys.json')['interactiveExperience'],
+      ),
+    );
   });
 
   scenario('Building and sending a request reads only the keys', () async {
@@ -161,39 +174,58 @@ void main() {
     expect(provider.keyReads, 2);
   });
 
-  scenario('A provider that fails to list keys does not block the request',
-      () async {
-    final t = build(provider: _ThrowingKeys());
-    await t.sdk.requestAds(request(t.sdk));
-    expect(bodyOf(t.sent.single)['interactiveExperience'],
-        equals({'supported': true, 'availableAttributeKeys': <String>[]}));
-    expect(t.logs.map((r) => r.message).join('\n'),
-        isNot(contains('secret-user-data')));
-  });
-
-  scenario('An app that turns Lead Generation off stops advertising it',
-      () async {
-    final t = build(provider: _Provider({StandardAttributeKey.email}));
-    t.sdk.disableInteractiveExperiences();
-    await t.sdk.requestAds(request(t.sdk));
-    expect(bodyOf(t.sent.single).containsKey('interactiveExperience'), isFalse);
-  });
+  scenario(
+    'A provider that fails to list keys does not block the request',
+    () async {
+      final t = build(provider: _ThrowingKeys());
+      await t.sdk.requestAds(request(t.sdk));
+      expect(
+        bodyOf(t.sent.single)['interactiveExperience'],
+        equals({'supported': true, 'availableAttributeKeys': <String>[]}),
+      );
+      expect(
+        t.logs.map((r) => r.message).join('\n'),
+        isNot(contains('secret-user-data')),
+      );
+    },
+  );
 
   scenario(
-      'A device that cannot host the form does not advertise Lead Generation',
-      () async {
-    final t = build(
-        provider: _Provider({StandardAttributeKey.email}), surface: false);
-    await t.sdk.requestAds(request(t.sdk));
-    expect(bodyOf(t.sent.single).containsKey('interactiveExperience'), isFalse);
-    expect(t.logs.where((r) => r.level >= Level.WARNING), isEmpty);
-  });
+    'An app that turns Lead Generation off stops advertising it',
+    () async {
+      final t = build(provider: _Provider({StandardAttributeKey.email}));
+      t.sdk.disableInteractiveExperiences();
+      await t.sdk.requestAds(request(t.sdk));
+      expect(
+        bodyOf(t.sent.single).containsKey('interactiveExperience'),
+        isFalse,
+      );
+    },
+  );
+
+  scenario(
+    'A device that cannot host the form does not advertise Lead Generation',
+    () async {
+      final t = build(
+        provider: _Provider({StandardAttributeKey.email}),
+        surface: false,
+      );
+      await t.sdk.requestAds(request(t.sdk));
+      expect(
+        bodyOf(t.sent.single).containsKey('interactiveExperience'),
+        isFalse,
+      );
+      expect(t.logs.where((r) => r.level >= Level.WARNING), isEmpty);
+    },
+  );
 
   scenario('Each creative carries its own experience', () async {
-    final creatives = await decode(responseWith([
-      [creativeJson(descriptor()), creativeJson()],
-      [creativeJson()],
-    ]));
+    final creatives = await decode(
+      responseWith([
+        [creativeJson(descriptor()), creativeJson()],
+        [creativeJson()],
+      ]),
+    );
     expect(creatives, hasLength(3));
     final d = descriptor();
     final lead = creatives[0].interactiveExperience as LeadGenerationExperience;
@@ -206,27 +238,33 @@ void main() {
     expect(launch.preparationToken, d['preparationToken']);
     expect(lead.expiresAt, DateTime.utc(2026, 11, 12, 15, 15));
     expect(lead.expiresAt.isUtc, isTrue);
-    expect(lead.prefillAttributeKeys,
-        [StandardAttributeKey.fullName, StandardAttributeKey.email]);
+    expect(lead.prefillAttributeKeys, [
+      StandardAttributeKey.fullName,
+      StandardAttributeKey.email,
+    ]);
     expect(creatives[1].interactiveExperience, isNull);
     expect(creatives[2].interactiveExperience, isNull);
   });
 
   scenario('Responses without an experience are unchanged', () async {
-    final creatives = await decode(responseWith([
-      [creativeJson(), creativeJson()],
-    ]));
+    final creatives = await decode(
+      responseWith([
+        [creativeJson(), creativeJson()],
+      ]),
+    );
     expect(creatives, isNotEmpty);
     expect(creatives.every((c) => c.interactiveExperience == null), isTrue);
   });
 
   scenario('An unknown experience type is exposed as unsupported', () async {
-    final creatives = await decode(responseWith([
-      [
-        creativeJson({'type': 'quiz'}),
-        creativeJson(descriptor()),
-      ],
-    ]));
+    final creatives = await decode(
+      responseWith([
+        [
+          creativeJson({'type': 'quiz'}),
+          creativeJson(descriptor()),
+        ],
+      ]),
+    );
     final u = creatives[0].interactiveExperience;
     expect(u, isA<UnsupportedInteractiveExperience>());
     expect(u!.type, 'quiz');
@@ -245,17 +283,21 @@ void main() {
       'prefill not a list': descriptor()..['prefillAttributeKeys'] = 'email',
     };
     for (final entry in cases.entries) {
-      final creatives = await decode(responseWith([
-        [
-          creativeJson(descriptor()),
-          creativeJson(null)..['interactiveExperience'] = entry.value
-        ],
-      ]));
+      final creatives = await decode(
+        responseWith([
+          [
+            creativeJson(descriptor()),
+            creativeJson(null)..['interactiveExperience'] = entry.value,
+          ],
+        ]),
+      );
       final x = creatives[1].interactiveExperience;
       expect(x, isA<UnsupportedInteractiveExperience>(), reason: entry.key);
       expect(
-          creatives[0].interactiveExperience, isA<LeadGenerationExperience>(),
-          reason: entry.key);
+        creatives[0].interactiveExperience,
+        isA<LeadGenerationExperience>(),
+        reason: entry.key,
+      );
       if (entry.value is Map) {
         expect(x!.type, 'lead_generation', reason: entry.key);
       } else {
@@ -265,24 +307,32 @@ void main() {
   });
 
   scenario('Keys the SDK does not know are ignored', () async {
-    final unknown = fixture('request-unknown-key.json')['interactiveExperience']
-        as Map<String, dynamic>;
-    final creatives = await decode(responseWith([
-      [
-        creativeJson(descriptor()
-          ..['prefillAttributeKeys'] = unknown['availableAttributeKeys'])
-      ],
-    ]));
+    final unknown =
+        fixture('request-unknown-key.json')['interactiveExperience']
+            as Map<String, dynamic>;
+    final creatives = await decode(
+      responseWith([
+        [
+          creativeJson(
+            descriptor()
+              ..['prefillAttributeKeys'] = unknown['availableAttributeKeys'],
+          ),
+        ],
+      ]),
+    );
     expect(
-        (creatives.single.interactiveExperience as LeadGenerationExperience)
-            .prefillAttributeKeys,
-        [StandardAttributeKey.email]);
+      (creatives.single.interactiveExperience as LeadGenerationExperience)
+          .prefillAttributeKeys,
+      [StandardAttributeKey.email],
+    );
   });
 
   scenario('The preparation token never appears in debug output', () async {
-    final creatives = await decode(responseWith([
-      [creativeJson(descriptor())],
-    ]));
+    final creatives = await decode(
+      responseWith([
+        [creativeJson(descriptor())],
+      ]),
+    );
     final token = descriptor()['preparationToken'] as String;
     final experience = creatives.single.interactiveExperience!;
     expect(experience.toString(), isNot(contains(token)));
@@ -294,9 +344,11 @@ void main() {
     final t = build(apiVersion: null, provider: _Provider(const {}));
     await t.sdk.requestAds(request(t.sdk));
     final warnings = t.logs
-        .where((r) =>
-            r.level == Level.WARNING &&
-            r.message.contains('Interactive experiences enabled but'))
+        .where(
+          (r) =>
+              r.level == Level.WARNING &&
+              r.message.contains('Interactive experiences enabled but'),
+        )
         .length;
     expect(warnings, 1);
   });

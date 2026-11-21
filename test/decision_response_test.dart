@@ -27,25 +27,27 @@ void main() {
       expect(metadata.style, equals('fullscreen'));
     });
 
-    test('video metadata fields are null when absent (backward compatible)',
-        () {
-      final json = {
-        'adId': 'ad_1',
-        'creativeId': 'cr_1',
-        'advertiserId': 'adv_1',
-        'templateId': 't_1',
-        'placementId': 'p_1',
-        'priority': 'standard',
-        'language': 'en',
-      };
+    test(
+      'video metadata fields are null when absent (backward compatible)',
+      () {
+        final json = {
+          'adId': 'ad_1',
+          'creativeId': 'cr_1',
+          'advertiserId': 'adv_1',
+          'templateId': 't_1',
+          'placementId': 'p_1',
+          'priority': 'standard',
+          'language': 'en',
+        };
 
-      final metadata = Metadata.fromJson(json);
-      expect(metadata.duration, isNull);
-      expect(metadata.aspectRatio, isNull);
-      expect(metadata.isSkippable, isNull);
-      expect(metadata.format, isNull);
-      expect(metadata.style, isNull);
-    });
+        final metadata = Metadata.fromJson(json);
+        expect(metadata.duration, isNull);
+        expect(metadata.aspectRatio, isNull);
+        expect(metadata.isSkippable, isNull);
+        expect(metadata.format, isNull);
+        expect(metadata.style, isNull);
+      },
+    );
 
     test('Metadata.advertiserId is nullable', () {
       final json = {
@@ -152,8 +154,8 @@ void main() {
     test('Tracking parses without impressions', () {
       final tracking = Tracking.fromJson({
         'clicks': [
-          {'key': 'default', 'url': 'https://example.com/click'}
-        ]
+          {'key': 'default', 'url': 'https://example.com/click'},
+        ],
       });
       expect(tracking.impressions, isNull);
       expect(tracking.clicks?.length, equals(1));
@@ -162,11 +164,15 @@ void main() {
     test('hasTrackingFor handles null impressions gracefully', () {
       final tracking = Tracking.fromJson({});
       expect(
-          tracking.hasTrackingFor(TrackingType.impression, 'default'), isFalse);
+        tracking.hasTrackingFor(TrackingType.impression, 'default'),
+        isFalse,
+      );
       expect(tracking.hasTrackingFor(TrackingType.click, 'default'), isFalse);
       expect(tracking.hasTrackingFor(TrackingType.custom, 'k'), isFalse);
       expect(
-          tracking.hasTrackingFor(TrackingType.videoEvent, 'start'), isFalse);
+        tracking.hasTrackingFor(TrackingType.videoEvent, 'start'),
+        isFalse,
+      );
     });
 
     test('Tracking with empty object does not throw', () {
@@ -184,9 +190,7 @@ void main() {
     });
 
     test('getContent returns the entry when present', () {
-      final contents = [
-        Content(key: 'headline', value: 'a', type: 'text'),
-      ];
+      final contents = [Content(key: 'headline', value: 'a', type: 'text')];
       final found = contents.getContent('headline');
       expect(found, isNotNull);
       expect(found!.value, equals('a'));
@@ -195,19 +199,21 @@ void main() {
     test('getImpressionUrl returns null for unknown key', () {
       final tracking = Tracking.fromJson({
         'impressions': [
-          {'key': 'default', 'url': 'https://example.com/imp'}
-        ]
+          {'key': 'default', 'url': 'https://example.com/imp'},
+        ],
       });
       expect(tracking.getImpressionUrl(key: 'viewable'), isNull);
-      expect(tracking.getImpressionUrl(key: 'default'),
-          equals('https://example.com/imp'));
+      expect(
+        tracking.getImpressionUrl(key: 'default'),
+        equals('https://example.com/imp'),
+      );
     });
 
     test('getClickUrl returns null for unknown key', () {
       final tracking = Tracking.fromJson({
         'clicks': [
-          {'key': 'default', 'url': 'https://example.com/click'}
-        ]
+          {'key': 'default', 'url': 'https://example.com/click'},
+        ],
       });
       expect(tracking.getClickUrl(key: 'cta'), isNull);
     });
@@ -215,8 +221,8 @@ void main() {
     test('getCustomUrl returns null for unknown key', () {
       final tracking = Tracking.fromJson({
         'custom': [
-          {'key': 'foo', 'url': 'https://example.com/foo'}
-        ]
+          {'key': 'foo', 'url': 'https://example.com/foo'},
+        ],
       });
       expect(tracking.getCustomUrl(key: 'bar'), isNull);
     });
@@ -224,8 +230,8 @@ void main() {
     test('getVideoEventUrl returns null for unknown key', () {
       final tracking = Tracking.fromJson({
         'videoEvents': [
-          {'key': 'start', 'url': 'https://example.com/start'}
-        ]
+          {'key': 'start', 'url': 'https://example.com/start'},
+        ],
       });
       expect(tracking.getVideoEventUrl(key: 'midpoint'), isNull);
     });

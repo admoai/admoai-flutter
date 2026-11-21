@@ -35,8 +35,10 @@ void main() {
       calls++;
       return {'carrier': 'T-Mobile', 'category': 'tablet'};
     });
-    messenger.setMockMethodCallHandler(timezone,
-        (call) async => call.method == 'getLocalTimezone' ? 'UTC' : null);
+    messenger.setMockMethodCallHandler(
+      timezone,
+      (call) async => call.method == 'getLocalTimezone' ? 'UTC' : null,
+    );
   });
 
   tearDown(() {
@@ -68,30 +70,35 @@ void main() {
       ..setUserConfig(id: 'user-1', ip: '203.0.113.7', timezone: 'UTC');
   }
 
-  String requestJson(AdMoai sdk) => jsonEncode((sdk.createRequestBuilder()
-        ..addPlacement(key: 'home', count: 2))
-      .build()
-      .toJson());
+  String requestJson(AdMoai sdk) => jsonEncode(
+    (sdk.createRequestBuilder()..addPlacement(key: 'home', count: 2))
+        .build()
+        .toJson(),
+  );
 
-  test('the default SDK never calls the channel and its request is unchanged',
-      () async {
-    final sdk = await AdMoai.initialize(config: SDKConfig(baseUrl: _baseUrl));
-    expect(calls, 0);
-    expect(sdk.deviceConfig.carrier, isNull);
-    expect(sdk.deviceConfig.category, isNull);
+  test(
+    'the default SDK never calls the channel and its request is unchanged',
+    () async {
+      final sdk = await AdMoai.initialize(config: SDKConfig(baseUrl: _baseUrl));
+      expect(calls, 0);
+      expect(sdk.deviceConfig.carrier, isNull);
+      expect(sdk.deviceConfig.category, isNull);
 
-    fillGoldenFields(sdk);
-    expect(requestJson(sdk), _plainGolden);
-  });
+      fillGoldenFields(sdk);
+      expect(requestJson(sdk), _plainGolden);
+    },
+  );
 
-  test('resetDeviceConfig on the default SDK does not collect either',
-      () async {
-    final sdk = await AdMoai.initialize(config: SDKConfig(baseUrl: _baseUrl));
-    await sdk.resetDeviceConfig();
-    expect(calls, 0);
-    expect(sdk.deviceConfig.carrier, isNull);
-    expect(sdk.deviceConfig.category, isNull);
-  });
+  test(
+    'resetDeviceConfig on the default SDK does not collect either',
+    () async {
+      final sdk = await AdMoai.initialize(config: SDKConfig(baseUrl: _baseUrl));
+      await sdk.resetDeviceConfig();
+      expect(calls, 0);
+      expect(sdk.deviceConfig.carrier, isNull);
+      expect(sdk.deviceConfig.category, isNull);
+    },
+  );
 
   test('collectDeviceSignals: true collects and sends both fields', () async {
     final sdk = await AdMoai.initialize(

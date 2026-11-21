@@ -39,13 +39,17 @@ void main() {
   // These tests cover the opted-in behaviour; the default SDK (opt-in off) is
   // covered by device_signals_opt_in_test.dart and the default-SDK group below.
   Future<AdMoai> init() => AdMoai.initialize(
-      config: SDKConfig(
-          baseUrl: 'https://mock.api.admoai.com', collectDeviceSignals: true));
+    config: SDKConfig(
+      baseUrl: 'https://mock.api.admoai.com',
+      collectDeviceSignals: true,
+    ),
+  );
 
   Map<String, dynamic> device(AdMoai sdk) {
     final b = sdk.createRequestBuilder()..addPlacement(key: 'p');
     return (jsonDecode(jsonEncode(b.build().toJson()))
-        as Map<String, dynamic>)['device'] as Map<String, dynamic>;
+            as Map<String, dynamic>)['device']
+        as Map<String, dynamic>;
   }
 
   test('systemDefault fills carrier and category and turns auto on', () async {
@@ -55,19 +59,23 @@ void main() {
     expect(autoStateOf(c).auto, isTrue);
   });
 
-  test('systemDefault on a non-mobile host does not call the channel',
-      () async {
-    debugMobileHostOverride = false;
-    final c = await DeviceConfig.systemDefault(collectSignals: true);
-    expect(calls, 0);
-    expect(c.carrier, isNull);
-    expect(c.category, isNull);
-    expect(autoStateOf(c).auto, isTrue);
-  });
+  test(
+    'systemDefault on a non-mobile host does not call the channel',
+    () async {
+      debugMobileHostOverride = false;
+      final c = await DeviceConfig.systemDefault(collectSignals: true);
+      expect(calls, 0);
+      expect(c.carrier, isNull);
+      expect(c.category, isNull);
+      expect(autoStateOf(c).auto, isTrue);
+    },
+  );
 
   test('channel failure keeps existing device fields', () async {
     messenger.setMockMethodCallHandler(
-        channel, (call) async => throw PlatformException(code: 'boom'));
+      channel,
+      (call) async => throw PlatformException(code: 'boom'),
+    );
     final sdk = await init();
     sdk.setDeviceConfig(id: 'd1', model: 'M');
     expect(sdk.deviceConfig.carrier, isNull);
@@ -84,19 +92,21 @@ void main() {
     expect(autoStateOf(DeviceConfig.clear()).auto, isFalse);
   });
 
-  test('manual values win and survive setDeviceConfig of other fields',
-      () async {
-    final sdk = await init();
-    sdk.setDeviceConfig(carrier: 'Manual Co');
-    expect(sdk.deviceConfig.carrier, 'Manual Co');
-    expect(sdk.deviceConfig.category, DeviceCategory.tablet);
-    final s = autoStateOf(sdk.deviceConfig);
-    expect(s.auto, isTrue);
-    expect(s.manualCarrier, isTrue);
-    expect(s.manualCategory, isFalse);
-    sdk.setDeviceConfig(model: 'X');
-    expect(autoStateOf(sdk.deviceConfig).manualCarrier, isTrue);
-  });
+  test(
+    'manual values win and survive setDeviceConfig of other fields',
+    () async {
+      final sdk = await init();
+      sdk.setDeviceConfig(carrier: 'Manual Co');
+      expect(sdk.deviceConfig.carrier, 'Manual Co');
+      expect(sdk.deviceConfig.category, DeviceCategory.tablet);
+      final s = autoStateOf(sdk.deviceConfig);
+      expect(s.auto, isTrue);
+      expect(s.manualCarrier, isTrue);
+      expect(s.manualCategory, isFalse);
+      sdk.setDeviceConfig(model: 'X');
+      expect(autoStateOf(sdk.deviceConfig).manualCarrier, isTrue);
+    },
+  );
 
   test('auto refresh never overwrites manual fields', () async {
     final sdk = await init();
@@ -121,8 +131,9 @@ void main() {
     expect(sdk.deviceConfig.category, isNull);
     final before = calls;
     expect(
-        identical(await refreshAutoSignals(sdk.deviceConfig), sdk.deviceConfig),
-        isTrue);
+      identical(await refreshAutoSignals(sdk.deviceConfig), sdk.deviceConfig),
+      isTrue,
+    );
     expect(calls, before);
   });
 
@@ -146,16 +157,18 @@ void main() {
     expect(s.manualCategory, isFalse);
   });
 
-  test('disableDeviceCollection omits the whole device, new fields included',
-      () async {
-    final sdk = await init();
-    sdk.setDeviceConfig(carrier: 'Manual Co', category: DeviceCategory.phone);
-    final b = sdk.createRequestBuilder()
-      ..addPlacement(key: 'p')
-      ..disableDeviceCollection();
-    final json = jsonDecode(jsonEncode(b.build().toJson())) as Map;
-    expect(json.containsKey('device'), isFalse);
-  });
+  test(
+    'disableDeviceCollection omits the whole device, new fields included',
+    () async {
+      final sdk = await init();
+      sdk.setDeviceConfig(carrier: 'Manual Co', category: DeviceCategory.phone);
+      final b = sdk.createRequestBuilder()
+        ..addPlacement(key: 'p')
+        ..disableDeviceCollection();
+      final json = jsonDecode(jsonEncode(b.build().toJson())) as Map;
+      expect(json.containsKey('device'), isFalse);
+    },
+  );
 
   group('requestAds refreshes auto signals', () {
     late List<Map<String, dynamic>> bodies;
@@ -165,16 +178,21 @@ void main() {
       bodies = [];
       client = MockClient((req) async {
         bodies.add(jsonDecode(req.body) as Map<String, dynamic>);
-        return http.Response('{"success":true,"data":{"placements":[]}}', 200,
-            headers: {'content-type': 'application/json'});
+        return http.Response(
+          '{"success":true,"data":{"placements":[]}}',
+          200,
+          headers: {'content-type': 'application/json'},
+        );
       });
     });
 
     Future<AdMoai> initWithClient({bool optIn = true}) => AdMoai.initialize(
-        config: SDKConfig(
-            baseUrl: 'https://mock.api.admoai.com',
-            collectDeviceSignals: optIn),
-        httpClient: client);
+      config: SDKConfig(
+        baseUrl: 'https://mock.api.admoai.com',
+        collectDeviceSignals: optIn,
+      ),
+      httpClient: client,
+    );
 
     DecisionRequest build(AdMoai sdk, {bool disableDevice = false}) {
       final b = sdk.createRequestBuilder()..addPlacement(key: 'p');
@@ -185,17 +203,19 @@ void main() {
     Map<String, dynamic>? sentDevice() =>
         bodies.last['device'] as Map<String, dynamic>?;
 
-    test('(0) default SDK: no channel call and no carrier or category, ever',
-        () async {
-      final sdk = await initWithClient(optIn: false);
-      expect(autoStateOf(sdk.deviceConfig).auto, isFalse);
-      native = {'carrier': 'New Telco', 'category': 'phone'};
-      await sdk.requestAds(build(sdk));
-      await sdk.requestAds(build(sdk));
-      expect(calls, 0);
-      expect(sentDevice()!.containsKey('carrier'), isFalse);
-      expect(sentDevice()!.containsKey('category'), isFalse);
-    });
+    test(
+      '(0) default SDK: no channel call and no carrier or category, ever',
+      () async {
+        final sdk = await initWithClient(optIn: false);
+        expect(autoStateOf(sdk.deviceConfig).auto, isFalse);
+        native = {'carrier': 'New Telco', 'category': 'phone'};
+        await sdk.requestAds(build(sdk));
+        await sdk.requestAds(build(sdk));
+        expect(calls, 0);
+        expect(sentDevice()!.containsKey('carrier'), isFalse);
+        expect(sentDevice()!.containsKey('category'), isFalse);
+      },
+    );
 
     test('(a) fresh native answer reaches the body and the snapshot', () async {
       final sdk = await initWithClient();
@@ -218,103 +238,121 @@ void main() {
       return pending;
     }
 
-    test('(b) a slow native read keeps the snapshot, then refreshes it later',
-        () async {
-      final sdk = await initWithClient();
-      final request = build(sdk);
-      final late = holdNative();
-      await sdk.requestAds(request); // returns after the 300 ms budget
-      expect(sentDevice()!['carrier'], 'Auto Telco');
-      expect(sentDevice()!['category'], 'tablet');
-      expect(sdk.deviceConfig.carrier, 'Auto Telco');
+    test(
+      '(b) a slow native read keeps the snapshot, then refreshes it later',
+      () async {
+        final sdk = await initWithClient();
+        final request = build(sdk);
+        final late = holdNative();
+        await sdk.requestAds(request); // returns after the 300 ms budget
+        expect(sentDevice()!['carrier'], 'Auto Telco');
+        expect(sentDevice()!['category'], 'tablet');
+        expect(sdk.deviceConfig.carrier, 'Auto Telco');
 
-      late.complete({'carrier': 'Late Telco', 'category': 'phone'});
-      await pumpEventQueue();
-      expect(sdk.deviceConfig.carrier, 'Late Telco');
-      expect(sdk.deviceConfig.category, DeviceCategory.phone);
-    });
+        late.complete({'carrier': 'Late Telco', 'category': 'phone'});
+        await pumpEventQueue();
+        expect(sdk.deviceConfig.carrier, 'Late Telco');
+        expect(sdk.deviceConfig.category, DeviceCategory.phone);
+      },
+    );
 
-    test('(b2) concurrent and timed-out requests share one native read',
-        () async {
-      final sdk = await initWithClient();
-      calls = 0;
-      final pending = holdNative();
-      await Future.wait([
-        sdk.requestAds(build(sdk)),
-        sdk.requestAds(build(sdk)),
-      ]);
-      // Both timed out on the same read; a third request joins it too.
-      await sdk.requestAds(build(sdk));
-      expect(calls, 1);
+    test(
+      '(b2) concurrent and timed-out requests share one native read',
+      () async {
+        final sdk = await initWithClient();
+        calls = 0;
+        final pending = holdNative();
+        await Future.wait([
+          sdk.requestAds(build(sdk)),
+          sdk.requestAds(build(sdk)),
+        ]);
+        // Both timed out on the same read; a third request joins it too.
+        await sdk.requestAds(build(sdk));
+        expect(calls, 1);
 
-      pending.complete({'carrier': 'Shared Telco', 'category': 'phone'});
-      await pumpEventQueue();
-      native = {'carrier': 'Next Telco', 'category': 'phone'};
-      messenger.setMockMethodCallHandler(channel, (call) async {
-        calls++;
-        return native;
-      });
-      await sdk.requestAds(build(sdk));
-      expect(calls, 2, reason: 'a new read starts once the shared one landed');
-      expect(sentDevice()!['carrier'], 'Next Telco');
-    });
+        pending.complete({'carrier': 'Shared Telco', 'category': 'phone'});
+        await pumpEventQueue();
+        native = {'carrier': 'Next Telco', 'category': 'phone'};
+        messenger.setMockMethodCallHandler(channel, (call) async {
+          calls++;
+          return native;
+        });
+        await sdk.requestAds(build(sdk));
+        expect(
+          calls,
+          2,
+          reason: 'a new read starts once the shared one landed',
+        );
+        expect(sentDevice()!['carrier'], 'Next Telco');
+      },
+    );
 
-    test('(b3) clear while a read is pending: the read does not undo it',
-        () async {
-      final sdk = await initWithClient();
-      final pending = holdNative();
-      final sent = sdk.requestAds(build(sdk));
-      sdk.clearDeviceConfig();
-      pending.complete({'carrier': 'Old Telco', 'category': 'phone'});
-      await sent;
-      await pumpEventQueue();
-      expect(autoStateOf(sdk.deviceConfig).auto, isFalse);
-      expect(sdk.deviceConfig.carrier, isNull);
-      expect(sdk.deviceConfig.category, isNull);
-      expect(sentDevice()!.containsKey('carrier'), isFalse);
-      expect(sentDevice()!.containsKey('category'), isFalse);
-    });
+    test(
+      '(b3) clear while a read is pending: the read does not undo it',
+      () async {
+        final sdk = await initWithClient();
+        final pending = holdNative();
+        final sent = sdk.requestAds(build(sdk));
+        sdk.clearDeviceConfig();
+        pending.complete({'carrier': 'Old Telco', 'category': 'phone'});
+        await sent;
+        await pumpEventQueue();
+        expect(autoStateOf(sdk.deviceConfig).auto, isFalse);
+        expect(sdk.deviceConfig.carrier, isNull);
+        expect(sdk.deviceConfig.category, isNull);
+        expect(sentDevice()!.containsKey('carrier'), isFalse);
+        expect(sentDevice()!.containsKey('category'), isFalse);
+      },
+    );
 
-    test('(b4) a manual value set while a read is pending is kept and sent',
-        () async {
-      final sdk = await initWithClient();
-      final pending = holdNative();
-      final sent = sdk.requestAds(build(sdk));
-      sdk.setDeviceConfig(carrier: 'Manual Co');
-      pending.complete({'carrier': 'Old Telco', 'category': 'phone'});
-      await sent;
-      await pumpEventQueue();
-      expect(sdk.deviceConfig.carrier, 'Manual Co');
-      expect(sentDevice()!['carrier'], 'Manual Co');
-    });
+    test(
+      '(b4) a manual value set while a read is pending is kept and sent',
+      () async {
+        final sdk = await initWithClient();
+        final pending = holdNative();
+        final sent = sdk.requestAds(build(sdk));
+        sdk.setDeviceConfig(carrier: 'Manual Co');
+        pending.complete({'carrier': 'Old Telco', 'category': 'phone'});
+        await sent;
+        await pumpEventQueue();
+        expect(sdk.deviceConfig.carrier, 'Manual Co');
+        expect(sentDevice()!['carrier'], 'Manual Co');
+      },
+    );
 
-    test('(b5) an older read never overwrites a reset made meanwhile',
-        () async {
-      final sdk = await initWithClient();
-      final old = holdNative();
-      final sent = sdk.requestAds(build(sdk));
-      messenger.setMockMethodCallHandler(channel, (call) async {
-        calls++;
-        return {'carrier': 'Reset Telco', 'category': 'tablet'};
-      });
-      await sdk.resetDeviceConfig();
-      old.complete({'carrier': 'Old Telco', 'category': 'phone'});
-      await sent;
-      await pumpEventQueue();
-      expect(sdk.deviceConfig.carrier, 'Reset Telco');
-      expect(sdk.deviceConfig.category, DeviceCategory.tablet);
-    });
+    test(
+      '(b5) an older read never overwrites a reset made meanwhile',
+      () async {
+        final sdk = await initWithClient();
+        final old = holdNative();
+        final sent = sdk.requestAds(build(sdk));
+        messenger.setMockMethodCallHandler(channel, (call) async {
+          calls++;
+          return {'carrier': 'Reset Telco', 'category': 'tablet'};
+        });
+        await sdk.resetDeviceConfig();
+        old.complete({'carrier': 'Old Telco', 'category': 'phone'});
+        await sent;
+        await pumpEventQueue();
+        expect(sdk.deviceConfig.carrier, 'Reset Telco');
+        expect(sdk.deviceConfig.category, DeviceCategory.tablet);
+      },
+    );
 
-    test('(c) a native PlatformException keeps the previous snapshot',
-        () async {
-      final sdk = await initWithClient();
-      final request = build(sdk);
-      messenger.setMockMethodCallHandler(
-          channel, (call) async => throw PlatformException(code: 'boom'));
-      await sdk.requestAds(request);
-      expect(sentDevice()!['carrier'], 'Auto Telco');
-      expect(sentDevice()!['category'], 'tablet');
-    });
+    test(
+      '(c) a native PlatformException keeps the previous snapshot',
+      () async {
+        final sdk = await initWithClient();
+        final request = build(sdk);
+        messenger.setMockMethodCallHandler(
+          channel,
+          (call) async => throw PlatformException(code: 'boom'),
+        );
+        await sdk.requestAds(request);
+        expect(sentDevice()!['carrier'], 'Auto Telco');
+        expect(sentDevice()!['category'], 'tablet');
+      },
+    );
 
     test('(d) an answer without carrier removes it from the body', () async {
       final sdk = await initWithClient();
@@ -337,30 +375,34 @@ void main() {
       expect(sdk.deviceConfig.carrier, 'Manual Co');
     });
 
-    test('(e2) a manual carrier that normalizes to nothing stays absent',
-        () async {
-      native = {'carrier': 'T-Mobile', 'category': 'phone'};
-      final sdk = await initWithClient();
-      sdk.setDeviceConfig(carrier: 'wifi');
-      await sdk.requestAds(build(sdk));
-      expect(sentDevice()!.containsKey('carrier'), isFalse);
-      expect(sentDevice()!['category'], 'phone');
-      await sdk.requestAds(build(sdk));
-      expect(sentDevice()!.containsKey('carrier'), isFalse);
-      expect(sentDevice()!['category'], 'phone');
-    });
+    test(
+      '(e2) a manual carrier that normalizes to nothing stays absent',
+      () async {
+        native = {'carrier': 'T-Mobile', 'category': 'phone'};
+        final sdk = await initWithClient();
+        sdk.setDeviceConfig(carrier: 'wifi');
+        await sdk.requestAds(build(sdk));
+        expect(sentDevice()!.containsKey('carrier'), isFalse);
+        expect(sentDevice()!['category'], 'phone');
+        await sdk.requestAds(build(sdk));
+        expect(sentDevice()!.containsKey('carrier'), isFalse);
+        expect(sentDevice()!['category'], 'phone');
+      },
+    );
 
-    test('(f) clearDeviceConfig: no channel call, no carrier or category',
-        () async {
-      final sdk = await initWithClient();
-      sdk.clearDeviceConfig();
-      final request = build(sdk);
-      final before = calls;
-      await sdk.requestAds(request);
-      expect(calls, before);
-      expect(sentDevice()!.containsKey('carrier'), isFalse);
-      expect(sentDevice()!.containsKey('category'), isFalse);
-    });
+    test(
+      '(f) clearDeviceConfig: no channel call, no carrier or category',
+      () async {
+        final sdk = await initWithClient();
+        sdk.clearDeviceConfig();
+        final request = build(sdk);
+        final before = calls;
+        await sdk.requestAds(request);
+        expect(calls, before);
+        expect(sentDevice()!.containsKey('carrier'), isFalse);
+        expect(sentDevice()!.containsKey('category'), isFalse);
+      },
+    );
 
     test('(g) disableDeviceCollection sends no device object', () async {
       final sdk = await initWithClient();

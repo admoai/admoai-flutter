@@ -14,7 +14,7 @@ void main() {
   const ie1 = {
     'apiVersion': '2025-11-01',
     'placements': [
-      {'key': 'home'}
+      {'key': 'home'},
     ],
     'interactiveExperience': {
       'supported': true,
@@ -24,7 +24,7 @@ void main() {
   const ie2 = {
     'apiVersion': '2025-01-01',
     'placements': [
-      {'key': 'home'}
+      {'key': 'home'},
     ],
     'interactiveExperience': {
       'supported': true,
@@ -34,7 +34,7 @@ void main() {
   const ie3 = {
     'apiVersion': '2025-11-01',
     'placements': [
-      {'key': 'home'}
+      {'key': 'home'},
     ],
     'interactiveExperience': {
       'supported': true,
@@ -45,10 +45,12 @@ void main() {
   tearDown(() => AdMoai.secureSurfaceAvailableForTesting = null);
 
   AdMoai newSdk(String apiVersion) => AdMoai.forTesting(
-        config: SDKConfig(
-            baseUrl: 'https://mock.api.admoai.com', apiVersion: apiVersion),
-        httpClient: MockClient((r) async => http.Response('{}', 200)),
-      );
+    config: SDKConfig(
+      baseUrl: 'https://mock.api.admoai.com',
+      apiVersion: apiVersion,
+    ),
+    httpClient: MockClient((r) async => http.Response('{}', 200)),
+  );
 
   String bodyFor(Map<String, dynamic> request) {
     final sdk = newSdk(request['apiVersion'] as String);
@@ -61,16 +63,18 @@ void main() {
   }
 
   for (final (name, request) in [('IE1', ie1), ('IE2', ie2), ('IE3', ie3)]) {
-    test('$name: the request body carries the scenario interactiveExperience',
-        () {
-      final entry = {'id': name, 'request': request, 'expect': {}};
-      expect(validateScenarioShape(entry), isEmpty);
-      final body = bodyFor(request);
-      expect(
-        _json(body)['interactiveExperience'],
-        equals(request['interactiveExperience']),
-      );
-    });
+    test(
+      '$name: the request body carries the scenario interactiveExperience',
+      () {
+        final entry = {'id': name, 'request': request, 'expect': {}};
+        expect(validateScenarioShape(entry), isEmpty);
+        final body = bodyFor(request);
+        expect(
+          _json(body)['interactiveExperience'],
+          equals(request['interactiveExperience']),
+        );
+      },
+    );
   }
 
   test('an unknown attribute key fails with an interpreter error', () {
@@ -81,8 +85,10 @@ void main() {
         'availableAttributeKeys': ['fullName', 'shoeSize'],
       },
     };
-    expect(validateScenarioShape({'id': 'X', 'request': request, 'expect': {}}),
-        isNotEmpty);
+    expect(
+      validateScenarioShape({'id': 'X', 'request': request, 'expect': {}}),
+      isNotEmpty,
+    );
     expect(() => bodyFor(request), throwsA(isA<StateError>()));
   });
 
@@ -93,8 +99,9 @@ void main() {
       {'supported': true, 'availableAttributeKeys': 'email'},
     ]) {
       expect(
-          () => applyScenarioInteractiveExperience(newSdk('2025-11-01'), bad),
-          throwsA(isA<StateError>()));
+        () => applyScenarioInteractiveExperience(newSdk('2025-11-01'), bad),
+        throwsA(isA<StateError>()),
+      );
     }
   });
 
@@ -102,7 +109,7 @@ void main() {
     final body = bodyFor({
       'apiVersion': '2025-11-01',
       'placements': [
-        {'key': 'home'}
+        {'key': 'home'},
       ],
     });
     expect(_json(body).containsKey('interactiveExperience'), isFalse);

@@ -31,7 +31,7 @@ class ViewBeaconLedger {
   final LinkedHashSet<String> _urls = LinkedHashSet<String>();
 
   ViewBeaconLedger({int capacity = defaultCapacity})
-      : capacity = capacity < 1 ? 1 : capacity;
+    : capacity = capacity < 1 ? 1 : capacity;
 
   /// Records [url] as fired and returns `true` the first time it is seen.
   /// Returns `false` for a URL already fired, and refreshes it so a pin still on

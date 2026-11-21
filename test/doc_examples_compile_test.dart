@@ -93,10 +93,11 @@ Future<void> readmeExamples() async {
       .build();
   final headline = creative.contents.getContent('headline')?.value;
   sdk.setUserConfig(
-      id: 'user_123',
-      ip: '203.0.113.1',
-      timezone: 'UTC',
-      consent: Consent(gdpr: true));
+    id: 'user_123',
+    ip: '203.0.113.1',
+    timezone: 'UTC',
+    consent: Consent(gdpr: true),
+  );
   sdk.clearUserConfig();
 
   // Audience signals and Device sections
@@ -115,7 +116,9 @@ Future<void> readmeExamples() async {
       .build();
   await sdk.requestAds(audience);
   sdk.setDeviceConfig(
-      carrier: 'Example Mobile', category: DeviceCategory.tablet);
+    carrier: 'Example Mobile',
+    category: DeviceCategory.tablet,
+  );
   await sdk.resetDeviceConfig();
   sdk.clearDeviceConfig();
   sdk.clearAppConfig();
@@ -136,10 +139,13 @@ Future<void> readmeExamples() async {
     ),
   );
   optedIn.setDeviceConfig(
-      carrier: 'Example Mobile', category: DeviceCategory.phone);
+    carrier: 'Example Mobile',
+    category: DeviceCategory.phone,
+  );
   try {
     await optedIn.requestAds(
-        optedIn.createRequestBuilder().addPlacement(key: 'home').build());
+      optedIn.createRequestBuilder().addPlacement(key: 'home').build(),
+    );
   } on ValidationError catch (e) {
     // 422: the code is in e.errors, for example e.errors.first.code == 10028.
     for (final error in e.errors) {
