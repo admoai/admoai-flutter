@@ -43,7 +43,8 @@
   Generation support only on a device that can host the form, so an app that
   opted in is no longer served ads it cannot open on a device without it. New
   Android dependency: `androidx.webkit:webkit:1.12.1`. iOS: the form needs iOS 14
-  or later; below that the SDK does not advertise support.
+  or later; below that the SDK does not advertise support. A form message in which any
+  JSON object repeats a key is refused.
 
 - **Experimental: Lead Generation prefill, form events, hidden-form bound and
   user-change disposal.** `LeadFormValueProvider.lookUpValues(keys)` is called

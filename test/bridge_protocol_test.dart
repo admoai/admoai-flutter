@@ -192,6 +192,48 @@ void main() {
         BridgeRefusal.tooLarge);
   });
 
+  scenario('A message that repeats a key is refused', () {
+    final base = toApp['activated.json']!;
+    BridgeRefusal? of(String text) =>
+        refusal(primedFor('activated').accept(text));
+    String edit(String from, String to) {
+      expect(base, contains(from));
+      return base.replaceFirst(from, to);
+    }
+
+    expect(of(base), isNull);
+    // Envelope.
+    expect(
+        of(edit('"type": "activated",',
+            '"type": "activated", "type": "activated",')),
+        BridgeRefusal.repeatedKey);
+    // Payload.
+    expect(of(edit('"formVersionId":', '"events": [], "formVersionId":')),
+        BridgeRefusal.repeatedKey);
+    // An object nested in an array (events[1]).
+    expect(
+        of(edit('"name": "form_start",',
+            '"url": "https://a.example.invalid/x", "name": "form_start",')),
+        BridgeRefusal.repeatedKey);
+    // Escaped spelling of the same key.
+    expect(
+        of(edit(
+            '"type": "activated",', r'"type": "activated", "t\u0079pe": "x",')),
+        BridgeRefusal.repeatedKey);
+    // The same name in sibling objects of an array (`name` in each events[])
+    // and in an outer and an inner object is not a repeat. These bodies fail
+    // later, for their payload, so the reason must not be repeatedKey.
+    String raw(String payload) =>
+        '{"type":"activated","instanceId":"$instanceId","channel":"$channel",'
+        '"payload":$payload}';
+    expect(of(raw('{"a":{"a":1},"b":[{"a":1},{"a":2}]}')),
+        BridgeRefusal.badPayload);
+    expect(of(raw('{"a":{"a":1},"b":[{"a":1},{"a":2}],"a":3}')),
+        BridgeRefusal.repeatedKey);
+    // A string value that looks like a repeated key is not one.
+    expect(of(raw('{"a":"a","b":"a"}')), BridgeRefusal.badPayload);
+  });
+
   scenario('A timestamp that is not a real moment is refused', () {
     BridgeSession open() =>
         primedFor('submitted')..accept(toApp['submitting.json']!);
