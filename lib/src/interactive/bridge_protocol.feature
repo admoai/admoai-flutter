@@ -23,6 +23,16 @@ Feature: Lead Generation form bridge
     When the form sends a message one byte over the size limit
     Then the app refuses it without reading it
 
+  Scenario: A timestamp that is not a real moment is refused
+    Given a form opened by the app
+    When the form sends submitted with a date that does not exist, such as 30 February or 29 February in a common year, or an hour of 24, or a minute or second out of range
+    Then the app refuses it, and real timestamps, including 29 February in a leap year, are accepted
+
+  Scenario: A message the app builds that is over the size limit is not sent
+    Given a form opened by the app
+    When the app builds a message whose encoded size is over the limit
+    Then the app raises an error that holds no message content, and the form session is left as it was
+
   Scenario: A message for another form instance or channel is refused
     Given a form opened by the app
     When a message names another form instance or another channel
