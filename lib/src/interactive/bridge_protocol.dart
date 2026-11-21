@@ -248,11 +248,27 @@ class BridgeContract {
         !v.contains(RegExp(r'\s'));
   }
 
-  static final _rfc3339 = RegExp(
-      r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$');
+  static final _rfc3339 =
+      RegExp(r'^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})'
+          r'(?:\.\d+)?(?:Z|[+-](\d{2}):(\d{2}))$');
 
-  static bool _isTimestamp(String v) =>
-      _rfc3339.hasMatch(v) && DateTime.tryParse(v) != null;
+  /// An RFC 3339 timestamp whose every component is in range, so a date Dart
+  /// would silently normalise (`02-30`) or a leap second is refused, like Go's
+  /// RFC 3339 parse does.
+  static bool _isTimestamp(String v) {
+    final m = _rfc3339.firstMatch(v);
+    if (m == null) return false;
+    int n(int g) => int.parse(m.group(g)!);
+    final year = n(1), month = n(2), day = n(3);
+    if (month < 1 || month > 12) return false;
+    final leap = (year % 4 == 0 && year % 100 != 0) || year % 400 == 0;
+    const days = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    final inMonth = month == 2 && leap ? 29 : days[month - 1];
+    if (day < 1 || day > inMonth) return false;
+    if (n(4) > 23 || n(5) > 59 || n(6) > 59) return false;
+    if (m.group(7) != null && (n(7) > 23 || n(8) > 59)) return false;
+    return true;
+  }
 }
 
 const _channelAlphabet =
@@ -402,9 +418,10 @@ class BridgeSession {
 
   /// The JSON envelope for a message the app sends to the form. Validates
   /// direction, payload and `after` exactly like [accept]; throws [StateError]
-  /// naming the type and the rule (never a value) on a violation.
+  /// naming the rule (never a value, and the type only once it is known to be one
+  /// the contract defines) on a violation.
   String encode(String type, Map<String, Object?> payload) {
-    if (_disposed) throw StateError('bridge: $type refused: after dispose');
+    if (_disposed) throw StateError('bridge: refused: after dispose');
     final spec = contract.messages[type];
     if (spec == null) throw StateError('bridge: refused: unknown type');
     if (spec.direction != BridgeContract._toRuntime) {
@@ -423,6 +440,9 @@ class BridgeSession {
       'channel': channel,
       'payload': payload,
     });
+    if (utf8.encode(text).length > contract.maxMessageBytes) {
+      throw StateError('bridge: $type refused: too large');
+    }
     _exchanged.add(type);
     if (type == 'dispose') _disposed = true;
     return text;
