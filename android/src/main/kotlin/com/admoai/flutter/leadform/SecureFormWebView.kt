@@ -165,9 +165,9 @@ internal class SecureFormWebView(
 
         // Belt and braces: whatever slipped past the interception is stopped here.
         override fun onPageStarted(view: WebView, url: String?, favicon: Bitmap?) {
-            if (url == null || LeadFormRules.originOf(url) != launchOrigin ||
-                url.substringBefore('#') != launchUrlWithoutFragment
-            ) {
+            // Same comparison as the interception (fragment and a default :443 ignored); the
+            // launch itself is already consumed by now, so it is judged as a fresh launch here.
+            if (url == null || !LeadFormRules.isAllowedMainFrameLoad(url, "GET", launchUrlText, false)) {
                 view.stopLoading()
                 fail()
             }
