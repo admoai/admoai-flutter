@@ -14,6 +14,7 @@ import 'models/decision_request_builder.dart';
 import 'interactive/form_presentation.dart';
 import 'interactive/lead_form_controller.dart';
 import 'interactive/lead_form_host.dart';
+import 'interactive/lead_form_registry.dart';
 import 'interactive/secure_form_surface.dart';
 import 'models/interactive_experience.dart';
 import 'utils/device_signals.dart';
@@ -27,7 +28,20 @@ class AdMoai {
   final SDKConfig config;
   late AppConfig appConfig;
   late DeviceConfig deviceConfig;
-  late UserConfig userConfig;
+  late UserConfig _userConfig;
+
+  /// The current user. Setting it to a different user id disposes every Lead
+  /// Generation form, so one person's details never appear in another person's
+  /// form; setting the same id again keeps them. Apps that do not use
+  /// [UserConfig] call [disposeAllLeadForms] on sign-out or account switch.
+  UserConfig get userConfig => _userConfig;
+
+  set userConfig(UserConfig value) {
+    final previous = _userConfig;
+    _userConfig = value;
+    if (value.id != previous.id) disposeAllLeadForms();
+  }
+
   final http.Client _httpClient;
 
   /// Fires `tracking.thirdPartyTrackers` through its own credential-isolated
@@ -85,10 +99,11 @@ class AdMoai {
     required this.config,
     required this.appConfig,
     required this.deviceConfig,
-    required this.userConfig,
+    required UserConfig userConfig,
     required http.Client httpClient,
     http.Client? thirdPartyClient,
-  })  : _httpClient = httpClient,
+  })  : _userConfig = userConfig,
+        _httpClient = httpClient,
         _thirdPartyDispatcher = ThirdPartyTrackerDispatcher(
           logger: config.logger,
           httpClient: thirdPartyClient,
@@ -412,15 +427,34 @@ class AdMoai {
   /// Replaces a previous provider. A new SDK version alone never advertises
   /// support.
   void enableInteractiveExperiences(LeadFormValueProvider provider) {
+    final previous = _leadFormValueProvider;
     _leadFormValueProvider = provider;
+    // Forms opened with another provider must not outlive it.
+    if (previous != null && !identical(previous, provider)) {
+      disposeAllLeadForms();
+    }
     // Warm the device check, so the first request already knows the answer.
     unawaited(_awaitSurfaceCheck());
   }
 
   /// The next request carries no `interactiveExperience`.
+  ///
+  /// Every Lead Generation form is disposed.
   void disableInteractiveExperiences() {
     _leadFormValueProvider = null;
+    disposeAllLeadForms();
   }
+
+  final LeadFormRegistry _leadForms = LeadFormRegistry();
+
+  /// Test seam: the native surface each controller drives (null = the real one).
+  @visibleForTesting
+  LeadFormSurface Function()? leadFormSurfaceFactoryForTesting;
+
+  /// **Experimental.** Disposes every Lead Generation form this instance handed
+  /// out. Apps that do not use [UserConfig] call it on sign-out and account
+  /// switch, so one person's form never outlives them.
+  void disposeAllLeadForms() => _leadForms.disposeAll();
 
   static bool Function() _secureSurfaceAvailable = _deviceHostsSecureSurface;
 
@@ -463,17 +497,22 @@ class AdMoai {
     required FormPresentation presentation,
     required LeadFormHost host,
   }) {
-    if (_leadFormValueProvider == null || !_canHostInteractiveExperience) {
-      return null;
-    }
+    final provider = _leadFormValueProvider;
+    if (provider == null || !_canHostInteractiveExperience) return null;
     final experience = creative.interactiveExperience;
     if (experience is! LeadGenerationExperience) return null;
-    return buildLeadFormController(
+    final controller = buildLeadFormController(
       descriptor: experience,
       presentation: presentation,
       host: host,
       log: config.logger.fine,
+      valueProvider: provider,
+      fireTracking: fireTracking,
+      registry: _leadForms,
+      surface: leadFormSurfaceFactoryForTesting?.call(),
     );
+    _leadForms.register(controller);
+    return controller;
   }
 
   /// The request extension for an opted-in app, or `null` (field omitted). Reads
@@ -798,6 +837,7 @@ class AdMoai {
   }
 
   void dispose() {
+    _leadForms.disposeAll();
     _httpClient.close();
     // Closes the dispatcher's own client; a shared test-injected client is
     // left alone (already closed on the line above).

@@ -171,6 +171,16 @@ class BridgeContract {
   final Set<String> prefillKeys;
   final Set<String> genderValues;
 
+  /// The longest prefill value, in Unicode code points: the `maxLength` the
+  /// contract gives the `values` of the `prefill` message.
+  int get prefillValueMaxLength {
+    final length = messages['prefill']?.fields['values']?.maxLength;
+    if (length == null) {
+      throw StateError('bridge contract: prefill values have no maxLength');
+    }
+    return length;
+  }
+
   /// The name of the first payload field that breaks the contract, or null when
   /// [payload] is valid. Never returns a value the sender chose.
   String? firstFault(BridgeMessageSpec spec, Map<Object?, Object?> payload) =>

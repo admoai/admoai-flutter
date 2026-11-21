@@ -101,6 +101,49 @@ Feature: An app prepares and opens a Lead Generation form through one controller
     When the form asks to close
     Then the app's close callback is called with the controller
 
+  Scenario: the system back goes back one stage inside the same form
+    Given a visible controller
+    When the viewer presses the system back
+    Then the form received back with no stage
+    And the controller still shows the same form, not reloaded
+
+  Scenario: the system back is not handled before the form is visible
+    Given a controller that is ready to show but not visible
+    When the viewer presses the system back
+    Then the controller does not handle it
+    And nothing is sent to the form
+
+  Scenario: the system back is ignored after the controller is disposed
+    Given a visible controller
+    When the app disposes it
+    And the viewer presses the system back
+    Then the controller does not handle it
+    And nothing more is sent to the form
+
+  Scenario: the form asks to close in answer to back
+    Given a visible controller
+    When the viewer presses the system back
+    And the form answers with a request to close
+    Then the app's close callback is called with the controller
+
+  Scenario: the system back leaves a form the app has hidden to the app
+    Given a visible controller
+    When the app hides the form
+    And the viewer presses the system back
+    Then the controller does not handle it
+
+  Scenario: the system back on a visible form goes to the form and does not leave the screen
+    Given a visible controller shown by the form view on a screen the viewer opened
+    When the viewer presses the system back
+    Then the form received back
+    And the screen is still showing
+
+  Scenario: the system back on a form that is not visible leaves the screen
+    Given a controller that is ready to show but not visible, shown by the form view on a screen the viewer opened
+    When the viewer presses the system back
+    Then nothing is sent to the form
+    And the screen is closed
+
   Scenario: the privacy policy link goes to the app, never inside the form
     Given a visible controller
     When the form asks to open its privacy policy
@@ -133,3 +176,23 @@ Feature: An app prepares and opens a Lead Generation form through one controller
     Given a prepared controller
     When the app prints the controller or its state
     Then the preparation token does not appear
+
+  Scenario: each form event activation authorized is reported once
+    Given a controller activated with tracking URLs for form open, form start and website click
+    When the form reports form open twice and form start once
+    Then the form open URL and the form start URL were each fired once through the SDK's tracking transport
+
+  Scenario: an event activation did not authorize is not reported
+    Given a controller activated with a tracking URL for form open only
+    When the form reports form start
+    Then no tracking URL is fired
+
+  Scenario: the creative's click is never fired by the form
+    Given a visible controller
+    When the form goes through open, start, submit and the website link
+    Then the creative's impression and click URLs were never fired by the controller
+
+  Scenario: a form event's tracking query never appears in the SDK's log
+    Given an app with SDK logging on
+    When a form event's tracking URL is fired
+    Then the logged request shows no tracking query value

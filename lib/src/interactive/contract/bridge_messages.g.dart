@@ -85,6 +85,15 @@ const String bridgeMessagesJson = r'''{
       "payload": {}
     },
     {
+      "type": "back",
+      "direction": "app_to_runtime",
+      "after": [
+        "became_visible"
+      ],
+      "payload": {},
+      "description": "The viewer pressed the system back button. The page does what its own Back arrow does: it goes back one stage with answers kept, or answers request_close on the first stage and on Confirmation. Ignored while submitting."
+    },
+    {
       "type": "retry_prepare",
       "direction": "app_to_runtime",
       "after": [

@@ -31,12 +31,24 @@ enum StandardAttributeKey {
 }
 
 /// Supplies the standard attributes the app could fill into a Lead Generation
-/// form. Only the keys are read, when a decision request is built. The value
-/// lookup is added when forms can open; an app with no prefill returns an empty
-/// set.
+/// form, and their values once the viewer opened one. An app with no prefill
+/// returns an empty set and an empty map.
 abstract interface class LeadFormValueProvider {
-  /// The keys the app could fill for the current user.
+  /// The keys the app could fill for the current user. Answer from memory,
+  /// without reading or fetching any value: it is read each time a decision
+  /// request is built, and only key names leave the device with the request.
   Set<StandardAttributeKey> get availableKeys;
+
+  /// Called only after the viewer opened a form and it activated, only with the
+  /// [keys] that form requests, for the signed-in user. Return what you already
+  /// hold for the current user (a key you do not hold is simply absent); never
+  /// fetch from a server for this. An answer that takes longer than the shared
+  /// contract allows, one that throws, or one that arrives after the form was
+  /// disposed or the user changed is ignored. The values are the user's
+  /// personal data: the SDK never logs them and never keeps them past the
+  /// prefill message.
+  Future<Map<StandardAttributeKey, String>> lookUpValues(
+      Set<StandardAttributeKey> keys);
 }
 
 /// The `interactiveExperience` object of a decision request.
