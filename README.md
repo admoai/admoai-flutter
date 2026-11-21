@@ -33,8 +33,8 @@ AdMoai Flutter SDK is a cross-platform advertising solution that enables seamles
 
 ## Requirements
 
-- **Flutter** 3.0+
-- **Dart** 3.0+
+- **Flutter** 3.27+
+- **Dart** 3.6+
 - **iOS** 14.0+ / **Android** API 21+
 
 ## Installation

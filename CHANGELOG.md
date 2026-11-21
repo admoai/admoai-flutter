@@ -90,6 +90,8 @@
   host, state, dispose) whose examples are compile-checked.
   The Lead Generation API is public and stable, the same as in the iOS and
   Android SDKs.
+  README Requirements now state the real minimums: Flutter 3.27+ (Dart 3.6+)
+  and Android API 21+ (the plugin's `minSdk`).
 
 ### Fixed
 
