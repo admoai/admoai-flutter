@@ -75,8 +75,9 @@ void main() {
     final titles = File('lib/src/interactive/bridge_protocol.feature')
         .readAsLinesSync()
         .map((l) => l.trim())
-        .where((l) => l.startsWith('Scenario:'))
-        .map((l) => l.substring('Scenario:'.length).trim())
+        .where((l) =>
+            l.startsWith('Scenario:') || l.startsWith('Scenario Outline:'))
+        .map((l) => l.substring(l.indexOf(':') + 1).trim())
         .toSet();
 
     expect(titles, isNotEmpty);
@@ -206,6 +207,45 @@ void main() {
     // A repeated bridge_ready is allowed and counted: the reload rule is the controller's.
     expect(s.accept(toApp['bridge-ready.json']!), isA<BridgeMessage>());
     expect(s.bridgeReadyCount, 2);
+  });
+
+  scenario('A submit answer with no open submitting is refused', () {
+    BridgeSession visible() => primedFor('submitting');
+    expect(refusal(visible().accept(toApp['submitted.json']!)),
+        BridgeRefusal.outOfOrder);
+    expect(refusal(visible().accept(toApp['submit-failed.json']!)),
+        BridgeRefusal.outOfOrder);
+
+    // The earlier submitting was already answered.
+    final answered = visible();
+    expect(answered.accept(toApp['submitting.json']!), isA<BridgeMessage>());
+    expect(answered.accept(toApp['submit-failed.json']!), isA<BridgeMessage>());
+    expect(refusal(answered.accept(toApp['submitted.json']!)),
+        BridgeRefusal.outOfOrder);
+    // A refusal never changes the count: a new submitting still opens one.
+    expect(answered.accept(toApp['submitting.json']!), isA<BridgeMessage>());
+    expect(answered.accept(toApp['submitted.json']!), isA<BridgeMessage>());
+
+    // A retry starts with a new submitting.
+    final retry = visible();
+    expect(retry.accept(toApp['submitting.json']!), isA<BridgeMessage>());
+    expect(retry.accept(toApp['submit-failed.json']!), isA<BridgeMessage>());
+    expect(retry.accept(toApp['submitting.json']!), isA<BridgeMessage>());
+    expect(retry.accept(toApp['submitted.json']!), isA<BridgeMessage>());
+  });
+
+  scenario('A failed submit names a reason the app accepts', () {
+    for (final code in [
+      'unauthorized',
+      'form_not_available',
+      'invalid_request'
+    ]) {
+      final s = primedFor('submitting');
+      expect(s.accept(toApp['submitting.json']!), isA<BridgeMessage>());
+      final failed = decode(toApp['submit-failed.json']!);
+      (failed['payload'] as Map)['errorCode'] = code;
+      expect(s.accept(jsonEncode(failed)), isA<BridgeMessage>(), reason: code);
+    }
   });
 
   scenario('A page speaking an unknown bridge version gets no answer', () {

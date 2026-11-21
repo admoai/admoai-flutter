@@ -337,6 +337,11 @@ class BridgeSession {
 
   final Set<String> _exchanged = {};
   int _bridgeReadyCount = 0;
+
+  /// `submitting` messages accepted and not yet answered. Each `submitted` /
+  /// `submit_failed` answers exactly one of them; a retry starts with a new
+  /// `submitting`. Mirrors the engine's `ValidateBridgeSequence`.
+  int _openSubmissions = 0;
   bool _disposed = false;
 
   /// True once the session sent `dispose`.
@@ -391,6 +396,14 @@ class BridgeSession {
     }
     if (!_afterSatisfied(spec)) {
       return const BridgeRefused(BridgeRefusal.outOfOrder);
+    }
+    if (type == 'submitting') {
+      _openSubmissions++;
+    } else if (type == 'submitted' || type == 'submit_failed') {
+      if (_openSubmissions == 0) {
+        return const BridgeRefused(BridgeRefusal.outOfOrder);
+      }
+      _openSubmissions--;
     }
     _exchanged.add(type);
     if (type == 'bridge_ready') _bridgeReadyCount++;
