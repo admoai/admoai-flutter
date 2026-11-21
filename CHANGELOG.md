@@ -1,3 +1,25 @@
+## Unreleased
+
+### Added
+
+- E2E runner: scenarios schemaVersion 7 — `request.interactiveExperience` sent through the opt-in.
+- **Experimental: Lead Generation opt-in, keys-only availability and
+  interactive experience decode.** `AdMoai.enableInteractiveExperiences(provider)`
+  declares that the app hosts the Lead Generation form and
+  `disableInteractiveExperiences()` withdraws it. The `LeadFormValueProvider`
+  lists the `StandardAttributeKey`s the app could fill (keys only; the value
+  lookup is added when forms can open). The request carries an
+  `InteractiveExperienceCapability` (`supported`, `availableAttributeKeys`) only
+  when the app enabled it. This version never advertises support because the
+  form surface is not in it yet, so enabling has no effect on requests until the
+  form controller ships. Each `Creative` exposes `interactiveExperience`: a
+  `LeadGenerationExperience` descriptor (type, formId, formInstanceId,
+  preparedVersionId, prefillAttributeKeys, expiresAt; the launch URL and
+  preparation token are not public), an `UnsupportedInteractiveExperience` for an
+  unknown or malformed one (treat the creative as not openable), or `null` for an
+  ordinary creative. Lead Generation ads are served on `apiVersion` `2025-11-01`
+  or later; the SDK warns when enabled without one.
+
 ## 0.8.0 - 2026-11-18
 
 ### Added

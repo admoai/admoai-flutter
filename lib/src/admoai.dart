@@ -11,6 +11,7 @@ import 'models/audience_signals.dart';
 import 'models/decision_request.dart';
 import 'models/decision_response.dart';
 import 'models/decision_request_builder.dart';
+import 'models/interactive_experience.dart';
 import 'utils/device_signals.dart';
 import 'utils/device_signals_state.dart';
 import 'view_beacon_ledger.dart';
@@ -306,7 +307,9 @@ class AdMoai {
       }
     }
     _warnIfAudienceWithoutApiVersion(toSend);
-    return _client.requestDecision(toSend);
+    _warnIfInteractiveExperienceWithoutApiVersion();
+    return _client.requestDecision(toSend,
+        interactiveExperience: _interactiveExperienceCapability());
   }
 
   /// Joins the native read in flight, or starts one. The result is written
@@ -343,7 +346,9 @@ class AdMoai {
   HTTPRequest getHttpRequest(DecisionRequest request) {
     _warnIfJourneyWithoutApiVersion(request);
     _warnIfAudienceWithoutApiVersion(request);
-    return _client.getDecisionRequest(request);
+    _warnIfInteractiveExperienceWithoutApiVersion();
+    return _client.getDecisionRequest(request,
+        interactiveExperience: _interactiveExperienceCapability());
   }
 
   /// The decision endpoint version-routes on `X-Decision-Version`; Journey fields
@@ -393,6 +398,66 @@ class AdMoai {
       'Audience signals set but apiVersion is null; they are matched but not '
       'recorded as audience dimensions in reporting. Set apiVersion '
       '"2025-11-01".',
+    );
+  }
+
+  LeadFormValueProvider? _leadFormValueProvider;
+
+  /// **Experimental.** Declares that the app hosts the Lead Generation form.
+  /// Replaces a previous provider. A new SDK version alone never advertises
+  /// support.
+  void enableInteractiveExperiences(LeadFormValueProvider provider) {
+    _leadFormValueProvider = provider;
+  }
+
+  /// The next request carries no `interactiveExperience`.
+  void disableInteractiveExperiences() {
+    _leadFormValueProvider = null;
+  }
+
+  static bool Function() _secureSurfaceAvailable = _noSecureSurface;
+
+  static bool _noSecureSurface() => false;
+
+  @visibleForTesting
+  static set secureSurfaceAvailableForTesting(bool Function()? check) {
+    _secureSurfaceAvailable = check ?? _noSecureSurface;
+  }
+
+  /// This SDK version has no secure form surface yet, so it never advertises
+  /// support, even when enabled; the surface and its device check arrive with
+  /// the form controller. This prevents an app on a release cut before the
+  /// controller from receiving ads it cannot open.
+  bool get _canHostInteractiveExperience => _secureSurfaceAvailable();
+
+  /// The request extension for an opted-in app, or `null` (field omitted). Reads
+  /// only the keys. A provider that throws advertises support with no keys; the
+  /// exception is not logged because it could carry user data.
+  InteractiveExperienceCapability? _interactiveExperienceCapability() {
+    final provider = _leadFormValueProvider;
+    if (provider == null || !_canHostInteractiveExperience) return null;
+    Set<StandardAttributeKey> keys;
+    try {
+      keys = provider.availableKeys;
+    } catch (_) {
+      config.logger.fine(
+        'availableKeys threw; advertising support with no prefill keys',
+      );
+      keys = const <StandardAttributeKey>{};
+    }
+    return InteractiveExperienceCapability(availableAttributeKeys: keys);
+  }
+
+  /// Lead Generation ads are version-routed like Journey: without
+  /// [SDKConfig.apiVersion] the engine ignores the opt-in. Warn during
+  /// integration.
+  void _warnIfInteractiveExperienceWithoutApiVersion() {
+    if (_leadFormValueProvider == null || config.apiVersion != null) {
+      return;
+    }
+    config.logger.warning(
+      'Interactive experiences enabled but apiVersion is null; Lead '
+      'Generation ads are served only on 2025-11-01 or later.',
     );
   }
 
