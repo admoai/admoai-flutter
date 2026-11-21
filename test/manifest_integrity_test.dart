@@ -20,10 +20,8 @@ void main() {
       isNotEmpty,
       reason: 'the manifest declares at least one scenario',
     );
-    final ids = scenarios
-        .map((s) => s['id'] as String?)
-        .whereType<String>()
-        .toList();
+    final ids =
+        scenarios.map((s) => s['id'] as String?).whereType<String>().toList();
     expect(
       ids.length,
       equals(scenarios.length),
@@ -63,8 +61,8 @@ void main() {
       reason: 'this SDK vendors a schemaVersion 7 manifest',
     );
 
-    final fixtureScenarios = (root['fixtureScenarios'] as List)
-        .cast<Map<String, dynamic>>();
+    final fixtureScenarios =
+        (root['fixtureScenarios'] as List).cast<Map<String, dynamic>>();
     expect(
       fixtureScenarios,
       isNotEmpty,
