@@ -2,6 +2,7 @@
 
 ### Added
 
+- E2E runner: scenarios schemaVersion 7 — `request.interactiveExperience` sent through the opt-in.
 - **Experimental: Lead Generation opt-in, keys-only availability and
   interactive experience decode.** `AdMoai.enableInteractiveExperiences(provider)`
   declares that the app hosts the Lead Generation form and

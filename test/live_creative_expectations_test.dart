@@ -116,8 +116,8 @@ void main() {
     _fails({'templateKey': 'card', 'somethingFromSchemaVersion5': true});
   });
 
-  test('the runner refuses every schemaVersion but 6', () {
-    expect(supportedSchemaVersion, equals(6));
+  test('the runner refuses every schemaVersion but 6 and 7', () {
+    expect(supportedSchemaVersions, equals({6, 7}));
   });
 
   test('a scenario key the runner does not execute is known or fails', () {
