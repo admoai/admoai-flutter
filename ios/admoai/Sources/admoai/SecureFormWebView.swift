@@ -34,6 +34,7 @@ final class SecureFormWebView: NSObject, WKScriptMessageHandler, WKNavigationDel
   private let launchOrigin: LeadFormOrigin
   private let onEvent: (LeadFormEventKind, String?) -> Void
   private var launchConsumed = false
+  private var documentCommitted = false
   private var destroyed = false
 
   /// nil when [launchURL] is not an https URL with a host.
@@ -120,7 +121,17 @@ final class SecureFormWebView: NSObject, WKScriptMessageHandler, WKNavigationDel
       decisionHandler(.allow)
     } else {
       decisionHandler(.cancel)
+      // A main-frame navigation refused before the form's document committed (e.g. the launch
+      // URL redirecting) leaves no form at all: report it, or the controller waits forever. Once
+      // the form is on screen a refused navigation leaves it usable, so it stays silent.
+      if !destroyed, !documentCommitted, navigationAction.targetFrame?.isMainFrame == true {
+        fail("blocked")
+      }
     }
+  }
+
+  func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
+    documentCommitted = true
   }
 
   func webView(
@@ -131,18 +142,18 @@ final class SecureFormWebView: NSObject, WKScriptMessageHandler, WKNavigationDel
       let http = navigationResponse.response as? HTTPURLResponse, http.statusCode >= 400
     {
       decisionHandler(.cancel)
-      fail()
+      fail("http:\(http.statusCode)")
     } else {
       decisionHandler(.allow)
     }
   }
 
   func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
-    fail()
+    failUnlessCancelled(error)
   }
 
   func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
-    fail()
+    failUnlessCancelled(error)
   }
 
   func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
@@ -162,7 +173,17 @@ final class SecureFormWebView: NSObject, WKScriptMessageHandler, WKNavigationDel
     nil
   }
 
-  private func fail() {
-    if !destroyed { onEvent(.loadFailed, nil) }
+  /// The SDK's own policy cancels (a link, a redirect, a refused response) come back as a failed
+  /// navigation: they are not a load failure and are never reported.
+  private func failUnlessCancelled(_ error: Error) {
+    let ns = error as NSError
+    if ns.domain == NSURLErrorDomain && ns.code == NSURLErrorCancelled { return }
+    if ns.domain == "WebKitErrorDomain" && ns.code == 102 { return }
+    fail("network")
+  }
+
+  /// The reason travels as the event's text: "http:<status>" or "network".
+  private func fail(_ reason: String) {
+    if !destroyed { onEvent(.loadFailed, reason) }
   }
 }

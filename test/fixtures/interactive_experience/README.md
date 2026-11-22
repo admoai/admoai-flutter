@@ -2,7 +2,7 @@
 
 Verbatim copy of adhub `shared/interactiveexperience/contract/` (decision
 fixtures, `standard-fields.json`, `bridge-messages.json` and `bridge/`, the
-bridge message fixtures with `context.json` and `invalid/`). The source of truth
+bridge message fixtures with `context.json`, `invalid/` and `tolerated/`). The source of truth
 is the contract pack: refresh by copying, never hand-edit.
 
 The bridge files are refreshed together with the embedded copy the SDK reads
@@ -10,6 +10,9 @@ The bridge files are refreshed together with the embedded copy the SDK reads
 
     tool/sync_contract.sh <path to the contract pack directory>
     flutter test test/bridge_protocol_test.dart
+
+`bridge/tolerated/` holds app-to-runtime prefill the form accepts in part
+(each with an `.outcome.json` of what the form does); the SDK never sends them.
 
 The decision fixtures (`creative-descriptor.json`, `request-*.json`) are copied
 by hand.

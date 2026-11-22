@@ -6,16 +6,74 @@ import 'package:flutter/services.dart';
 /// What the native secure web view reports for one surface id.
 enum SurfaceEventKind { message, renderGone, loadFailed }
 
+/// Why the main frame of a surface failed to load.
+enum LoadFailureKind {
+  /// The server answered the main frame with an HTTP error ([LoadFailure.httpStatus]).
+  http,
+
+  /// The main frame could not be fetched and there is no HTTP status.
+  network,
+
+  /// The SDK's own navigation guard refused a main-frame load.
+  blocked,
+}
+
+/// The reason of a [SurfaceEventKind.loadFailed] event. On the wire it is the
+/// event's `text`: `http:<status>`, `network` or `blocked`; an older plugin
+/// that sends none reads as [LoadFailureKind.network].
+@immutable
+class LoadFailure {
+  const LoadFailure._(this.kind, [this.httpStatus]);
+
+  /// The server answered the main frame with [status] (>= 400).
+  const LoadFailure.http(int status) : this._(LoadFailureKind.http, status);
+
+  /// The main frame could not be fetched.
+  const LoadFailure.network() : this._(LoadFailureKind.network);
+
+  /// The SDK's own navigation guard refused a main-frame load.
+  const LoadFailure.blocked() : this._(LoadFailureKind.blocked);
+
+  /// Reads the wire text; anything unknown is a network failure.
+  factory LoadFailure.parse(String? text) {
+    if (text == 'blocked') return const LoadFailure.blocked();
+    if (text != null && text.startsWith('http:')) {
+      final status = int.tryParse(text.substring(5));
+      if (status != null) return LoadFailure.http(status);
+    }
+    return const LoadFailure.network();
+  }
+
+  final LoadFailureKind kind;
+
+  /// The HTTP status, only for [LoadFailureKind.http].
+  final int? httpStatus;
+
+  @override
+  bool operator ==(Object other) =>
+      other is LoadFailure &&
+      other.kind == kind &&
+      other.httpStatus == httpStatus;
+
+  @override
+  int get hashCode => Object.hash(kind, httpStatus);
+
+  @override
+  String toString() => 'LoadFailure(${kind.name}, $httpStatus)';
+}
+
 /// One event from a native surface. [text] is set only for
 /// [SurfaceEventKind.message]: it is untrusted web content, so it only ever goes
-/// to the bridge validator and never to a log.
+/// to the bridge validator and never to a log. [failure] is set only for
+/// [SurfaceEventKind.loadFailed]; absent, it reads as a network failure.
 @immutable
 class SurfaceEvent {
-  const SurfaceEvent(this.id, this.kind, [this.text]);
+  const SurfaceEvent(this.id, this.kind, [this.text, this.failure]);
 
   final String id;
   final SurfaceEventKind kind;
   final String? text;
+  final LoadFailure? failure;
 
   @override
   String toString() => 'SurfaceEvent($id, ${kind.name})';
@@ -125,7 +183,8 @@ class PlatformLeadFormSurface extends LeadFormSurface {
       case 'renderGone':
         _events.add(SurfaceEvent(id, SurfaceEventKind.renderGone));
       case 'loadFailed':
-        _events.add(SurfaceEvent(id, SurfaceEventKind.loadFailed));
+        _events.add(SurfaceEvent(id, SurfaceEventKind.loadFailed, null,
+            LoadFailure.parse(text is String ? text : null)));
     }
     return null;
   }

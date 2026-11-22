@@ -100,11 +100,19 @@ class BridgeContract {
     required this.messages,
     required this.prefillKeys,
     required this.genderValues,
+    required this.finalErrorKeys,
   });
 
-  factory BridgeContract.parse(String bridgeJson, String fieldsJson) {
+  factory BridgeContract.parse(
+      String bridgeJson, String fieldsJson, String errorCodesJson) {
     final bridge = jsonDecode(bridgeJson) as Map<String, dynamic>;
     final fields = jsonDecode(fieldsJson) as Map<String, dynamic>;
+    final finalErrorKeys = {
+      for (final c in (jsonDecode(errorCodesJson)
+          as Map<String, dynamic>)['codes'] as List)
+        if ((c as Map<String, dynamic>)['retryable'] == false)
+          c['key'] as String,
+    };
     final prefillKeys = (fields['prefillKeys'] as List).cast<String>().toSet();
     final genderValues = {
       for (final o in fields['genderOptions'] as List)
@@ -151,11 +159,12 @@ class BridgeContract {
       messages: messages,
       prefillKeys: prefillKeys,
       genderValues: genderValues,
+      finalErrorKeys: finalErrorKeys,
     );
   }
 
-  static final BridgeContract shipped =
-      BridgeContract.parse(bridgeMessagesJson, standardFieldsJson);
+  static final BridgeContract shipped = BridgeContract.parse(
+      bridgeMessagesJson, standardFieldsJson, errorCodesJson);
 
   static const _toApp = 'runtime_to_app';
   static const _toRuntime = 'app_to_runtime';
@@ -170,6 +179,10 @@ class BridgeContract {
   /// The catalog's prefill keys, in no particular order.
   final Set<String> prefillKeys;
   final Set<String> genderValues;
+
+  /// The error keys the contract marks `retryable: false`. A form that reports
+  /// one of them is never retryable, whatever the page says.
+  final Set<String> finalErrorKeys;
 
   /// The longest prefill value, in Unicode code points: the `maxLength` the
   /// contract gives the `values` of the `prefill` message.

@@ -150,6 +150,9 @@ void main() {
       await fromNative({'id': 'a', 'kind': 'message', 'text': 'hello'});
       await fromNative({'id': 'a', 'kind': 'renderGone'});
       await fromNative({'id': 'b', 'kind': 'loadFailed'});
+      await fromNative({'id': 'c', 'kind': 'loadFailed', 'text': 'http:404'});
+      await fromNative({'id': 'd', 'kind': 'loadFailed', 'text': 'blocked'});
+      await fromNative({'id': 'e', 'kind': 'loadFailed', 'text': 'http:x'});
       await fromNative({'id': 'a', 'kind': 'message'});
       await fromNative({'id': 'a', 'kind': 'message', 'text': 5});
       await fromNative({'id': 'a', 'kind': 'unknown'});
@@ -162,6 +165,15 @@ void main() {
         ('a', SurfaceEventKind.message, 'hello'),
         ('a', SurfaceEventKind.renderGone, null),
         ('b', SurfaceEventKind.loadFailed, null),
+        ('c', SurfaceEventKind.loadFailed, null),
+        ('d', SurfaceEventKind.loadFailed, null),
+        ('e', SurfaceEventKind.loadFailed, null),
+      ]);
+      expect(seen.skip(2).map((e) => e.failure), [
+        const LoadFailure.network(),
+        const LoadFailure.http(404),
+        const LoadFailure.blocked(),
+        const LoadFailure.network(),
       ]);
       expect(seen.first.toString(), isNot(contains('hello')));
     });
@@ -253,8 +265,8 @@ void main() {
 
       c.surface.emit(SurfaceEvent(
           leadFormSurfaceId(c.controller), SurfaceEventKind.loadFailed));
-      expect(
-          c.controller.state.value, const LeadFormFailed('load_failed', true));
+      expect(c.controller.state.value,
+          const LeadFormFailed('temporary_failure', true));
       // The restart destroys and recreates the surface with no frame between.
       await tester.runAsync(c.controller.retry);
       await tester.pump();

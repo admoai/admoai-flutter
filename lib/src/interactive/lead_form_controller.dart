@@ -349,25 +349,44 @@ class LeadFormController {
         final text = event.text;
         if (text != null) _onMessage(text);
       case SurfaceEventKind.renderGone:
-        _set(const LeadFormFailed('renderer_gone', false));
-        unawaited(_destroySurface());
-      case SurfaceEventKind.loadFailed:
-        final s = _state.value;
-        if (s is LeadFormPreparing && !_activatedReceived) {
+        if (_activatedReceived) {
+          _failTerminal('renderer_gone');
+        } else {
+          // Before the form opened nothing is lost: retry() recreates the view
+          // and loads the form again, as after a load failure.
           _loadFailed = true;
-          _set(const LeadFormFailed('load_failed', true));
-        } else if (s is LeadFormActivating ||
-            s is LeadFormReadyToShow ||
-            s is LeadFormVisible ||
-            s is LeadFormSubmitting ||
-            s is LeadFormSubmitted) {
-          // The page was navigated away after the form activated (the platform
-          // blocked or stopped the load). The activated instance cannot be
-          // trusted to be on screen: fail for good, a new controller is the
-          // way back. Destroying the surface frees its preparation slot.
-          _failTerminal('load_failed');
+          _set(const LeadFormFailed('renderer_gone', true));
+          unawaited(_destroySurface());
         }
+      case SurfaceEventKind.loadFailed:
+        _onLoadFailed(event.failure ?? const LoadFailure.network());
     }
+  }
+
+  // The codes are the Android SDK's. The SDK's own guard block is always
+  // terminal. Past the first accepted bridge_ready no second main-frame load
+  // can happen, so any other load error is not about the form on screen.
+  void _onLoadFailed(LoadFailure failure) {
+    if (_ended) return;
+    if (failure.kind == LoadFailureKind.blocked) {
+      _failTerminal('navigation_blocked');
+      return;
+    }
+    if (_session.bridgeReadyCount > 0) return;
+    if (_state.value is LeadFormFailed) return;
+    if (failure.kind == LoadFailureKind.http &&
+        failure.httpStatus != null &&
+        failure.httpStatus! >= 400 &&
+        failure.httpStatus! < 500 &&
+        // 408 (timeout) and 429 (rate_limited: a pod at its in-flight cap) are
+        // transient by contract: they fall through to temporary_failure.
+        failure.httpStatus != 408 &&
+        failure.httpStatus != 429) {
+      _failTerminal('form_not_available');
+      return;
+    }
+    _loadFailed = true;
+    _set(const LeadFormFailed('temporary_failure', true));
   }
 
   void _onMessage(String text) {
@@ -427,7 +446,7 @@ class LeadFormController {
 
   void _onBridgeReady() {
     if (_activatedReceived) {
-      _failTerminal('page_reloaded');
+      _failTerminal('reloaded');
       return;
     }
     if (_session.bridgeReadyCount > 1) {
@@ -580,7 +599,11 @@ class LeadFormController {
       _set(const LeadFormExpired());
       return;
     }
-    _set(LeadFormFailed(code, payload['retryable'] == true));
+    // A code the contract marks final is never retryable, whatever the page
+    // says; a code it does not list keeps the page's flag.
+    final retryable = payload['retryable'] == true &&
+        !_contract.finalErrorKeys.contains(code);
+    _set(LeadFormFailed(code, retryable));
   }
 
   void _onFatal(String code) {

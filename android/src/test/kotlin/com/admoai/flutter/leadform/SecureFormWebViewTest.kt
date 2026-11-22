@@ -141,7 +141,7 @@ class SecureFormWebViewTest {
         val blocked = client.shouldInterceptRequest(b.view.webView, request(launchUrl, "POST"))
         assertEquals(204, blocked!!.statusCode)
         org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
-        assertEquals(listOf(SurfaceEventKind.LOAD_FAILED), b.events.map { it.first })
+        assertEquals(listOf(SurfaceEventKind.LOAD_FAILED to "blocked"), b.events)
     }
 
     @Test fun `a binary message from the page is not a text and never throws`() {
@@ -228,7 +228,7 @@ class SecureFormWebViewTest {
             },
             android.webkit.WebResourceResponse("text/html", "utf-8", 503, "Unavailable", emptyMap(), java.io.ByteArrayInputStream(ByteArray(0))),
         )
-        assertEquals(listOf(SurfaceEventKind.LOAD_FAILED to null), b.events)
+        assertEquals(listOf(SurfaceEventKind.LOAD_FAILED to "http:503"), b.events)
 
         val handled = client.onRenderProcessGone(
             b.view.webView,

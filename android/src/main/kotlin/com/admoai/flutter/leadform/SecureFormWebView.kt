@@ -161,7 +161,7 @@ internal class SecureFormWebView(
                 request.url.toString(), request.method, launchUrlText, launchConsumed.get(),
             ) && launchConsumed.compareAndSet(false, true)
             if (isLaunch) return FormTestHooks.intercept(request)
-            mainHandler.post { fail() }
+            mainHandler.post { fail(LOAD_BLOCKED) }
             return WebResourceResponse("text/plain", "utf-8", 204, "No Content", emptyMap(), ByteArrayInputStream(ByteArray(0)))
         }
 
@@ -171,7 +171,7 @@ internal class SecureFormWebView(
             // launch itself is already consumed by now, so it is judged as a fresh launch here.
             if (url == null || !LeadFormRules.isAllowedMainFrameLoad(url, "GET", launchUrlText, false)) {
                 view.stopLoading()
-                fail()
+                fail(LOAD_BLOCKED)
             }
         }
 
@@ -184,16 +184,16 @@ internal class SecureFormWebView(
         override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean = true
 
         override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
-            if (request.isForMainFrame) fail()
+            if (request.isForMainFrame) fail(LOAD_NETWORK)
         }
 
         override fun onReceivedHttpError(view: WebView, request: WebResourceRequest, errorResponse: WebResourceResponse) {
-            if (request.isForMainFrame && errorResponse.statusCode >= 400) fail()
+            if (request.isForMainFrame && errorResponse.statusCode >= 400) fail("http:${errorResponse.statusCode}")
         }
 
         override fun onReceivedSslError(view: WebView, handler: SslErrorHandler, error: SslError) {
             handler.cancel()
-            if (error.url?.substringBefore('#') == launchUrlWithoutFragment) fail()
+            if (error.url?.substringBefore('#') == launchUrlWithoutFragment) fail(LOAD_NETWORK)
         }
 
         override fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean {
@@ -203,8 +203,9 @@ internal class SecureFormWebView(
             return true
         }
 
-        private fun fail() {
-            if (!destroyed) onEvent(SurfaceEventKind.LOAD_FAILED, null)
+        // The reason travels as the event's text: "http:<status>", "network" or "blocked".
+        private fun fail(reason: String) {
+            if (!destroyed) onEvent(SurfaceEventKind.LOAD_FAILED, reason)
         }
     }
 
@@ -231,6 +232,9 @@ internal class SecureFormWebView(
     }
 
     companion object {
+        const val LOAD_NETWORK = "network"
+        const val LOAD_BLOCKED = "blocked"
+
         @SuppressLint("RequiresFeature")
         fun defaultProfileSupport(): Boolean = try {
             WebViewFeature.isFeatureSupported(WebViewFeature.MULTI_PROFILE)

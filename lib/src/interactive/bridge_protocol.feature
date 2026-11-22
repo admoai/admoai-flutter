@@ -74,6 +74,11 @@ Feature: Lead Generation form bridge
     When the app prefills a value with quotes, backslashes, script tags, line separators, emoji and newlines
     Then the form receives the value unchanged, as data, and a value over its length limit is refused
 
+  Scenario: Prefill the form would only partly accept is never sent
+    Given a form opened by the app
+    When the app prefills a value the form would drop, an unknown field or a value over its limit
+    Then the app refuses the prefill and sends nothing, even if the rest of it is valid
+
   Scenario: Nothing is accepted after dispose
     Given a form opened by the app
     When the app has disposed the form and the page still sends messages

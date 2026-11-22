@@ -1965,6 +1965,17 @@ before the view was on screen. Call it from the frame after `LeadFormView` is at
 that `lookUpValues` answers within 1.5 seconds and does not throw, and that the values are not blank,
 too long, or a `gender` the form does not offer. The SDK never logs values, so check on your side.
 
+**The form failed to load (`LeadFormFailed`).** The `code` says why. `form_not_available` (the form's page answered 404 or another 4xx, except 408 and 429): Lead Generation
+is not available for this tenant or app right now; not retryable, stop offering the form on this ad.
+`temporary_failure`: the form page could not be loaded (a 5xx server error, 429 rate limited, 408 timeout, or no network); retryable, call
+`retry()`. `navigation_blocked`: the page tried to leave the form, so the SDK closed it; not retryable.
+`renderer_gone`: the system stopped the form's web content process; retryable until the form was opened.
+`reloaded`: the form's page reloaded after it opened; not retryable.
+`bridge_error`: the page speaks an unsupported bridge version, or a message could not be sent; not retryable.
+`surface_error`: the device could not create the form's view; not retryable.
+The same codes as the Android and iOS SDKs. Decide whether to retry from the state's `retryable` field, never
+from the code: a code can be retryable in one case and not in another. Never show the code to the viewer.
+
 **`createLeadFormController` returned `null`.** The app has not opted in, the device cannot host the
 form, or the creative is not a `LeadGenerationExperience`. Render it as an ordinary ad.
 

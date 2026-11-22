@@ -7,9 +7,10 @@
 #   tool/sync_contract.sh <path to the contract pack directory>
 #
 # Writes:
-#   lib/src/interactive/contract/bridge_messages.g.dart  (the two JSON files, embedded verbatim)
+#   lib/src/interactive/contract/bridge_messages.g.dart  (the three JSON files, embedded verbatim)
 #   test/fixtures/interactive_experience/bridge-messages.json
 #   test/fixtures/interactive_experience/standard-fields.json
+#   test/fixtures/interactive_experience/error-codes.json
 #   test/fixtures/interactive_experience/bridge/**       (verbatim fixtures)
 #
 # Verify with: flutter test test/bridge_protocol_test.dart
@@ -25,10 +26,10 @@ fi
 src="$(cd "$1" && pwd)"
 cd "$(dirname "$0")/.."
 
-for f in bridge-messages.json standard-fields.json fixtures/bridge/context.json; do
+for f in bridge-messages.json standard-fields.json error-codes.json fixtures/bridge/context.json; do
   [[ -f "$src/$f" ]] || { echo "missing $src/$f: not a contract pack directory" >&2; exit 1; }
 done
-if grep -q "'''" "$src/bridge-messages.json" "$src/standard-fields.json"; then
+if grep -q "'''" "$src/bridge-messages.json" "$src/standard-fields.json" "$src/error-codes.json"; then
   echo "a contract file contains ''' and cannot be embedded as a raw string" >&2
   exit 1
 fi
@@ -48,14 +49,19 @@ mkdir -p "$(dirname "$gen")" "$fx"
   printf "const String standardFieldsJson = r'''"
   cat "$src/standard-fields.json"
   echo "''';"
+  echo
+  printf "const String errorCodesJson = r'''"
+  cat "$src/error-codes.json"
+  echo "''';"
 } > "$gen"
 
 cp "$src/bridge-messages.json" "$fx/bridge-messages.json"
 cp "$src/standard-fields.json" "$fx/standard-fields.json"
+cp "$src/error-codes.json" "$fx/error-codes.json"
 rm -rf "$fx/bridge"
 cp -R "$src/fixtures/bridge" "$fx/bridge"
 
 echo "wrote $gen"
-echo "wrote $fx/bridge-messages.json, $fx/standard-fields.json"
+echo "wrote $fx/bridge-messages.json, $fx/standard-fields.json, $fx/error-codes.json"
 echo "wrote $fx/bridge/ ($(find "$fx/bridge" -type f | wc -l | tr -d ' ') files)"
 echo "verify: flutter test test/bridge_protocol_test.dart"
