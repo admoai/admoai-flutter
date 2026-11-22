@@ -135,29 +135,32 @@ void main() {
       'back-with-payload.json': 'back',
       'initialize-missing-presentation.json': 'initialize',
       'initialize-unknown-presentation.json': 'initialize',
-      'oversized-value.json': 'prefill',
-      'unknown-prefill-key.json': 'prefill',
+      'prefill-non-string-value.json': 'prefill',
     };
     final reason = <String, String>{
       'back-before-visible.json': 'out of order',
       'back-with-payload.json': 'bad payload',
       'initialize-missing-presentation.json': 'bad payload',
       'initialize-unknown-presentation.json': 'bad payload',
-      'oversized-value.json': 'bad payload',
+      'prefill-non-string-value.json': 'bad payload',
       'runtime-message-from-app.json': 'wrong direction',
-      'unknown-prefill-key.json': 'bad payload',
       'unknown-type.json': 'unknown type',
     };
-    const envelopeFaults = {'wrong-instance.json'};
+    // A repeated key cannot survive decoding into a Map, so its raw text is
+    // judged through `accept`, like the identity fault.
+    const envelopeFaults = {
+      'wrong-instance.json': BridgeRefusal.wrongInstance,
+      'prefill-repeated-key.json': BridgeRefusal.repeatedKey,
+    };
     final invalid = files('invalid/app-to-runtime');
-    expect(invalid.keys.toSet(), {...reason.keys, ...envelopeFaults});
+    expect(invalid.keys.toSet(), {...reason.keys, ...envelopeFaults.keys});
     invalid.forEach((name, text) {
       final fixture = decode(text);
       final type = fixture['type'] as String;
       final payload = Map<String, Object?>.from(fixture['payload'] as Map);
-      if (envelopeFaults.contains(name)) {
+      if (envelopeFaults.containsKey(name)) {
         final got = refusal(primedFor(type).accept(text));
-        expect(got, isNotNull, reason: name);
+        expect(got, envelopeFaults[name], reason: name);
         outcomes['app-to-runtime/$name'] = 'receiver refuses ${got!.name}';
         return;
       }
@@ -172,6 +175,39 @@ void main() {
     expect(outcomes, isNotEmpty);
     // ignore: avoid_print
     print(const JsonEncoder.withIndent('  ').convert(outcomes));
+  });
+
+  scenario('Prefill the form would only partly accept is never sent', () {
+    final tolerated = files('tolerated/app-to-runtime');
+    final fixtures = tolerated.keys.where((n) => !n.endsWith('.outcome.json'));
+    expect(fixtures.toSet(), {
+      'integer-like-key.json',
+      'mixed-entries.json',
+      'oversized-value.json',
+      'unknown-prefill-key.json',
+    });
+    for (final name in fixtures) {
+      // The form's own behaviour is described by the sibling outcome; the SDK
+      // only has to never send what the form would have to drop.
+      expect(tolerated.containsKey(name.replaceFirst('.json', '.outcome.json')),
+          isTrue,
+          reason: '$name has no outcome');
+      final fixture = decode(tolerated[name]!);
+      final s = primedFor('prefill');
+      expect(
+          () => s.encode(fixture['type'] as String,
+              Map<String, Object?>.from(fixture['payload'] as Map)),
+          throwsA(isA<StateError>()
+              .having((e) => e.message, 'message', contains('bad payload'))),
+          reason: name);
+      // Refused, so nothing was recorded: the same session still prefills.
+      expect(
+          s.encode('prefill', {
+            'values': {'email': 'alex@example.invalid'}
+          }),
+          contains('prefill'),
+          reason: name);
+    }
   });
 
   scenario('An oversized message is refused before it is read', () {
