@@ -4,6 +4,9 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.content.MutableContextWrapper
 import android.net.http.SslError
+import android.os.Handler
+import android.os.Looper
+import android.graphics.Bitmap
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.CookieManager
@@ -21,6 +24,8 @@ import androidx.webkit.ProfileStore
 import androidx.webkit.WebMessageCompat
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
+import java.io.ByteArrayInputStream
+import java.util.concurrent.atomic.AtomicBoolean
 
 /** What the page and the view report to Dart, by the names the Dart side reads. */
 internal enum class SurfaceEventKind(val wire: String) {
@@ -141,6 +146,33 @@ internal class SecureFormWebView(
     }
 
     private inner class FormClient : WebViewClient() {
+        // shouldInterceptRequest runs off the main thread, so the launch is consumed atomically.
+        private val launchConsumed = AtomicBoolean(false)
+        private val mainHandler = Handler(Looper.getMainLooper())
+
+        // shouldOverrideUrlLoading is never called for a POST form submission, so every main-frame
+        // request is judged here: only the first GET of the launch URL loads; anything else loads
+        // nothing and fails the form, which can no longer be trusted to be on screen.
+        override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
+            if (!request.isForMainFrame) return null
+            val isLaunch = LeadFormRules.isAllowedMainFrameLoad(
+                request.url.toString(), request.method, launchUrlText, launchConsumed.get(),
+            ) && launchConsumed.compareAndSet(false, true)
+            if (isLaunch) return null
+            mainHandler.post { fail() }
+            return WebResourceResponse("text/plain", "utf-8", 204, "No Content", emptyMap(), ByteArrayInputStream(ByteArray(0)))
+        }
+
+        // Belt and braces: whatever slipped past the interception is stopped here.
+        override fun onPageStarted(view: WebView, url: String?, favicon: Bitmap?) {
+            // Same comparison as the interception (fragment and a default :443 ignored); the
+            // launch itself is already consumed by now, so it is judged as a fresh launch here.
+            if (url == null || !LeadFormRules.isAllowedMainFrameLoad(url, "GET", launchUrlText, false)) {
+                view.stopLoading()
+                fail()
+            }
+        }
+
         // Every navigation the page starts (link, redirect, script) is blocked: the one load this
         // view makes is the launch URL, which goes through loadUrl and never reaches this method.
         override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean = true

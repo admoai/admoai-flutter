@@ -4,12 +4,16 @@ import 'dart:io';
 
 import 'package:admoai/admoai.dart';
 import 'package:admoai/src/interactive/lead_form_controller.dart'
-    show buildLeadFormController, leadFormActivation, leadFormSurfaceId;
+    show leadFormActivation, leadFormSurfaceId;
 import 'package:admoai/src/interactive/secure_form_surface.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:logging/logging.dart';
+
+import 'support/lead_form_support.dart';
 
 /// The scenarios of `lib/src/interactive/lead_form_controller.feature`, one test
 /// per scenario, named after it. `every scenario has a test` holds the binding.
@@ -18,6 +22,7 @@ import 'package:http/testing.dart';
 /// instance and channel the controller put in the launch URL fragment.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  hierarchicalLoggingEnabled = true;
 
   const dir = 'test/fixtures/interactive_experience';
   final scenarios = <String>{};
@@ -84,16 +89,16 @@ void main() {
           baseUrl: 'https://mock.api.admoai.com', apiVersion: apiVersion),
       httpClient: client ?? MockClient((_) async => http.Response('{}', 200)),
     );
-    if (optedIn) s.enableInteractiveExperiences(_NoPrefill());
+    if (optedIn) s.enableInteractiveExperiences(NoPrefill());
     return s;
   }
 
   // --- one controller over a fake surface -----------------------------------
 
-  _Rig rig({DateTime? now}) =>
-      _Rig(descriptor(), fixtures, now ?? beforeExpiry);
+  FakeRig rig({DateTime? now}) =>
+      FakeRig(descriptor(), fixtures, now ?? beforeExpiry);
 
-  Future<_Rig> prepared() async {
+  Future<FakeRig> prepared() async {
     final r = rig();
     await r.controller.prepare();
     r.say('bridge_ready');
@@ -102,7 +107,7 @@ void main() {
     return r;
   }
 
-  Future<_Rig> readyToShow() async {
+  Future<FakeRig> readyToShow() async {
     final r = await prepared();
     await r.controller.open();
     r.say('activated');
@@ -111,7 +116,7 @@ void main() {
     return r;
   }
 
-  Future<_Rig> visible() async {
+  Future<FakeRig> visible() async {
     final r = await readyToShow();
     r.controller.setVisible(true);
     expect(r.state, isA<LeadFormVisible>());
@@ -122,7 +127,7 @@ void main() {
 
   scenario('an app that has not opted in gets no controller', () async {
     AdMoai.secureSurfaceAvailableForTesting = () => true;
-    final host = _Host();
+    final host = FakeHost();
     final creative = creativeWith(descriptorJson);
 
     expect(
@@ -170,7 +175,7 @@ void main() {
       // Neither does a controller exist on a device that cannot host the form.
       expect(
           s.createLeadFormController(creativeWith(descriptorJson),
-                  presentation: FormPresentation.inline, host: _Host()) !=
+                  presentation: FormPresentation.inline, host: FakeHost()) !=
               null,
           expected);
     }
@@ -196,7 +201,7 @@ void main() {
     ]) {
       expect(
           s.createLeadFormController(creativeWith(experience),
-              presentation: FormPresentation.inline, host: _Host()),
+              presentation: FormPresentation.inline, host: FakeHost()),
           isNull,
           reason: '$experience');
     }
@@ -249,7 +254,7 @@ void main() {
     expect(init['channel'], r.channel);
     expect(r.sent, isNot(contains('activate')));
 
-    final full = _Rig(descriptor(), fixtures, beforeExpiry,
+    final full = FakeRig(descriptor(), fixtures, beforeExpiry,
         presentation: FormPresentation.fullScreen);
     await full.controller.prepare();
     full.say('bridge_ready');
@@ -370,7 +375,8 @@ void main() {
 
     // Prepared in time but opened too late.
     var now = beforeExpiry;
-    final late = _Rig(descriptor(), fixtures, beforeExpiry, clock: () => now);
+    final late =
+        FakeRig(descriptor(), fixtures, beforeExpiry, clock: () => now);
     await late.controller.prepare();
     late.say('bridge_ready');
     late.say('prepared');
@@ -389,7 +395,7 @@ void main() {
   scenario('a preparation that expires while the form is loading never opens',
       () async {
     var now = beforeExpiry;
-    final r = _Rig(descriptor(), fixtures, beforeExpiry, clock: () => now);
+    final r = FakeRig(descriptor(), fixtures, beforeExpiry, clock: () => now);
     await r.controller.prepare();
     await r.controller.open();
     expect(r.state, isA<LeadFormPreparing>());
@@ -499,6 +505,119 @@ void main() {
     expect(r.state, isA<LeadFormVisible>());
   });
 
+  scenario('the system back goes back one stage inside the same form',
+      () async {
+    final r = await visible();
+
+    expect(r.controller.handleBack(), isTrue);
+
+    expect(r.sent.last, 'back');
+    expect(r.posted('back')['payload'], isEmpty,
+        reason: 'the app never names a stage');
+    expect(r.surface.created, hasLength(1));
+    expect(r.surface.destroyed, isEmpty);
+    expect(r.state, isA<LeadFormVisible>());
+    expect(r.host.closes, isEmpty);
+    r.say('submitting');
+    expect(r.controller.handleBack(), isTrue, reason: 'the page ignores it');
+    r.say('submitted');
+    expect(r.controller.handleBack(), isTrue);
+    expect(r.sent.where((t) => t == 'back'), hasLength(3));
+  });
+
+  scenario('the system back is not handled before the form is visible',
+      () async {
+    final r = await readyToShow();
+    final before = List<String>.of(r.sent);
+
+    expect(r.controller.handleBack(), isFalse);
+
+    expect(r.sent, before);
+    expect(r.state, isA<LeadFormReadyToShow>());
+  });
+
+  scenario('the system back is ignored after the controller is disposed',
+      () async {
+    final r = await visible();
+    await r.controller.dispose();
+    final before = List<String>.of(r.sent);
+
+    expect(r.controller.handleBack(), isFalse);
+
+    expect(r.sent, before);
+    expect(r.sent.last, 'dispose');
+  });
+
+  scenario('the form asks to close in answer to back', () async {
+    final r = await visible();
+
+    expect(r.controller.handleBack(), isTrue);
+    r.say('request_close');
+
+    expect(r.host.closes, [r.controller]);
+    expect(r.state, isA<LeadFormVisible>());
+    expect(r.surface.destroyed, isEmpty);
+  });
+
+  scenario('the system back leaves a form the app has hidden to the app',
+      () async {
+    final r = await visible();
+    r.controller.setVisible(false);
+    final before = List<String>.of(r.sent);
+
+    expect(r.controller.handleBack(), isFalse);
+
+    expect(r.sent, before);
+    expect(before.last, 'became_hidden');
+  });
+
+  Widget routes(LeadFormController controller) => WidgetsApp(
+        color: const Color(0xFFFFFFFF),
+        pageRouteBuilder: <T>(settings, builder) => PageRouteBuilder<T>(
+            settings: settings, pageBuilder: (c, _, __) => builder(c)),
+        onGenerateRoute: (_) => null,
+        onGenerateInitialRoutes: (_) => [
+          PageRouteBuilder<void>(
+              pageBuilder: (_, __, ___) => const Text('home')),
+          PageRouteBuilder<void>(
+              pageBuilder: (_, __, ___) =>
+                  LeadFormView(controller: controller)),
+        ],
+      );
+
+  const backOnVisible =
+      'the system back on a visible form goes to the form and does not leave the screen';
+  scenarios.add(backOnVisible);
+  testWidgets(backOnVisible, (tester) async {
+    final r = (await tester.runAsync(visible))!;
+    await tester.pumpWidget(routes(r.controller));
+    expect(find.text('home'), findsNothing, reason: 'the form screen is top');
+    final before = r.sent.length;
+
+    await tester.binding.handlePopRoute();
+    await tester.pump();
+
+    expect(r.sent.skip(before), ['back']);
+    expect(find.byType(LeadFormView), findsOneWidget);
+    await tester.runAsync(r.controller.dispose);
+  });
+
+  const backOnHidden =
+      'the system back on a form that is not visible leaves the screen';
+  scenarios.add(backOnHidden);
+  testWidgets(backOnHidden, (tester) async {
+    final r = (await tester.runAsync(readyToShow))!;
+    await tester.pumpWidget(routes(r.controller));
+    final before = r.sent.length;
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+
+    expect(r.sent.length, before);
+    expect(find.byType(LeadFormView), findsNothing);
+    await tester.runAsync(r.controller.dispose);
+  });
+
   scenario('the privacy policy link goes to the app, never inside the form',
       () async {
     final r = await visible();
@@ -557,6 +676,36 @@ void main() {
     expect(r.state, const LeadFormFailed('page_reloaded', false));
     expect(r.surface.destroyed, [leadFormSurfaceId(r.controller)]);
     expect(r.sent.where((t) => t == 'initialize'), hasLength(1));
+  });
+
+  scenario('A form that is navigated away after it opened fails', () async {
+    final r = await visible();
+
+    r.surface.emit(SurfaceEvent(
+        leadFormSurfaceId(r.controller), SurfaceEventKind.loadFailed));
+
+    expect(r.state, const LeadFormFailed('load_failed', false));
+    expect(r.surface.destroyed, [leadFormSurfaceId(r.controller)]);
+    await r.controller.retry();
+    expect(r.state, const LeadFormFailed('load_failed', false));
+    expect(r.surface.created, hasLength(1));
+  });
+
+  const backFollowsVisibility =
+      "the system back follows the form's visibility while it is shown";
+  scenarios.add(backFollowsVisibility);
+  testWidgets(backFollowsVisibility, (tester) async {
+    final r = (await tester.runAsync(visible))!;
+    await tester.pumpWidget(routes(r.controller));
+    expect(find.text('home'), findsNothing, reason: 'the form screen is top');
+
+    r.controller.setVisible(false);
+    await tester.pump();
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+
+    expect(find.byType(LeadFormView), findsNothing);
+    await tester.runAsync(r.controller.dispose);
   });
 
   scenario('disposing ends the form and ignores everything after', () async {
@@ -620,6 +769,132 @@ void main() {
     }
     expect(r.controller.toString(), contains('formInstanceId'));
     expect(logs.join('\n'), isNot(contains(token)));
+  });
+
+  // --- form events through the SDK's own tracking transport -------------------
+
+  String eventUrl(String name) =>
+      ((fixtures['activated']!['payload'] as Map)['events'] as List)
+          .cast<Map>()
+          .firstWhere((e) => e['name'] == name)['url'] as String;
+
+  /// An SDK whose tracking transport records every GET, and a rig whose
+  /// controller fires through it.
+  ({
+    AdMoai sdk,
+    List<Uri> beacons,
+    List<LogRecord> logs,
+    FakeRig rig,
+  }) trackedRig({Object? failWith}) {
+    final beacons = <Uri>[];
+    final logs = <LogRecord>[];
+    final logger = Logger('lead-events-${scenarios.length}')
+      ..level = Level.ALL
+      ..onRecord.listen(logs.add);
+    final s = AdMoai.forTesting(
+      config: SDKConfig(baseUrl: 'https://mock.api.admoai.com', logger: logger),
+      httpClient: MockClient((r) async {
+        beacons.add(r.url);
+        if (failWith != null) throw failWith;
+        return http.Response('', 204);
+      }),
+    );
+    final r = FakeRig(descriptor(), fixtures, beforeExpiry,
+        fireTracking: s.fireTracking);
+    return (sdk: s, beacons: beacons, logs: logs, rig: r);
+  }
+
+  Future<void> bringToVisible(FakeRig r) async {
+    await r.controller.prepare();
+    r.say('bridge_ready');
+    r.say('prepared');
+    await r.controller.open();
+    r.say('activated');
+    r.say('prefill_applied');
+    r.controller.setVisible(true);
+    expect(r.state, isA<LeadFormVisible>());
+  }
+
+  scenario('each form event activation authorized is reported once', () async {
+    final t = trackedRig();
+    await bringToVisible(t.rig);
+
+    t.rig.say('event', {'name': 'form_open'});
+    t.rig.say('event', {'name': 'form_open'});
+    t.rig.say('event', {'name': 'form_start'});
+    await pumpEventQueue();
+
+    expect([for (final u in t.beacons) u.toString()],
+        [eventUrl('form_open'), eventUrl('form_start')]);
+  });
+
+  scenario('an event activation did not authorize is not reported', () async {
+    final t = trackedRig();
+    await t.rig.controller.prepare();
+    t.rig.say('bridge_ready');
+    t.rig.say('prepared');
+    await t.rig.controller.open();
+    t.rig.say('activated', {
+      'events': [
+        {'name': 'form_open', 'url': eventUrl('form_open')},
+      ],
+    });
+    t.rig.say('prefill_applied');
+    t.rig.controller.setVisible(true);
+
+    t.rig.say('event', {'name': 'form_start'});
+    await pumpEventQueue();
+    expect(t.beacons, isEmpty);
+
+    t.rig.say('event', {'name': 'form_open'});
+    await pumpEventQueue();
+    expect([for (final u in t.beacons) u.toString()], [eventUrl('form_open')]);
+  });
+
+  scenario("the creative's click is never fired by the form", () async {
+    final t = trackedRig();
+    await bringToVisible(t.rig);
+
+    t.rig.say('event', {'name': 'form_open'});
+    t.rig.say('event', {'name': 'form_start'});
+    t.rig.say('submitting');
+    t.rig.say('submitted');
+    t.rig.say('request_external_url', {
+      'purpose': 'website_cta',
+      'url': 'https://advertiser.example.invalid/',
+    });
+    t.rig.say('event', {'name': 'website_cta_click'});
+    await pumpEventQueue();
+
+    // Exactly the three authorized URLs, in order: no impression, no creative
+    // click, no request to the advertiser's site.
+    expect([
+      for (final u in t.beacons) u.toString()
+    ], [
+      eventUrl('form_open'),
+      eventUrl('form_start'),
+      eventUrl('website_cta_click'),
+    ]);
+    expect(
+        t.beacons.every((u) => u.host == 'api.tenant.example.invalid'), isTrue);
+  });
+
+  scenario("a form event's tracking query never appears in the SDK's log",
+      () async {
+    final t = trackedRig(failWith: http.ClientException('boom'));
+    await bringToVisible(t.rig);
+
+    t.rig.say('event', {'name': 'form_open'});
+    await pumpEventQueue();
+
+    expect(t.beacons, hasLength(1), reason: 'the beacon was attempted');
+    final log = t.logs.map((l) => l.message).join('\n') +
+        t.rig.logs.join('\n') +
+        t.rig.controller.toString();
+    expect(log, isNotEmpty);
+    expect(log, isNot(contains('REDACTED_TRACKING_ONLY')));
+    expect(log, isNot(contains('?t=')));
+    expect(log, isNot(contains('api.tenant.example.invalid')));
   });
 
   // --- behaviour beyond the scenarios -----------------------------------------
@@ -772,127 +1047,4 @@ void main() {
       expect(r.logs.last, isNot(contains('StateError:')));
     });
   });
-}
-
-class _NoPrefill implements LeadFormValueProvider {
-  @override
-  Set<StandardAttributeKey> get availableKeys => const {};
-}
-
-class _Host implements LeadFormHost {
-  final closes = <LeadFormController>[];
-  final links = <(LeadFormController, ExternalLinkPurpose, Uri)>[];
-  bool throwOnClose = false;
-
-  @override
-  void onOpenExternalLink(
-      LeadFormController controller, ExternalLinkPurpose purpose, Uri url) {
-    links.add((controller, purpose, url));
-  }
-
-  @override
-  void onRequestClose(LeadFormController controller) {
-    if (throwOnClose) throw StateError('boom');
-    closes.add(controller);
-  }
-}
-
-class _Created {
-  _Created(this.id, this.url);
-  final String id;
-  final Uri url;
-}
-
-/// A fake native surface: records what the controller asks of it and lets a test
-/// play the page.
-class _FakeSurface extends LeadFormSurface {
-  final created = <_Created>[];
-  final posts = <Map<String, dynamic>>[];
-  final destroyed = <String>[];
-  final _events = StreamController<SurfaceEvent>.broadcast(sync: true);
-  bool failCreate = false;
-  bool failPost = false;
-  Future<void>? createGate;
-
-  @override
-  Stream<SurfaceEvent> get events => _events.stream;
-
-  @override
-  Future<void> create(String id, Uri url) async {
-    final gate = createGate;
-    if (gate != null) await gate;
-    if (failCreate) throw PlatformException(code: 'create_failed');
-    created.add(_Created(id, url));
-  }
-
-  @override
-  Future<void> post(String id, String text) async {
-    if (failPost) throw PlatformException(code: 'no_view');
-    posts.add(jsonDecode(text) as Map<String, dynamic>);
-  }
-
-  @override
-  Future<void> destroy(String id) async => destroyed.add(id);
-
-  void emit(SurfaceEvent e) => _events.add(e);
-}
-
-/// A controller, its fake surface and host, and the page's side of the bridge.
-class _Rig {
-  _Rig(
-    LeadGenerationExperience descriptor,
-    this.fixtures,
-    DateTime now, {
-    FormPresentation presentation = FormPresentation.inline,
-    DateTime Function()? clock,
-  }) {
-    controller = buildLeadFormController(
-      descriptor: descriptor,
-      presentation: presentation,
-      host: host,
-      surface: surface,
-      clock: clock ?? () => now,
-      log: logs.add,
-    );
-  }
-
-  final Map<String, Map<String, dynamic>> fixtures;
-  final surface = _FakeSurface();
-  final host = _Host();
-  final logs = <String>[];
-  late final LeadFormController controller;
-
-  LeadFormState get state => controller.state.value;
-
-  /// The channel the controller minted, read from the launch URL it loaded.
-  String get channel =>
-      Uri.splitQueryString(surface.created.first.url.fragment)['channel']!;
-
-  List<String> get sent => [for (final p in surface.posts) p['type'] as String];
-
-  Map<String, dynamic> posted(String type) =>
-      surface.posts.lastWhere((p) => p['type'] == type);
-
-  String get _id => leadFormSurfaceId(controller);
-
-  void raw(String text) =>
-      surface.emit(SurfaceEvent(_id, SurfaceEventKind.message, text));
-
-  /// The page sends [type] from the fixtures, with the controller's identity and
-  /// [payload] merged over the fixture's.
-  void say(String type, [Map<String, Object?>? payload]) =>
-      sayWith(type, payload: payload);
-
-  void sayWith(String type,
-      {Map<String, Object?>? payload, String? instanceId, String? channel}) {
-    final base = fixtures[type]!;
-    raw(jsonEncode({
-      'type': type,
-      'instanceId': instanceId ?? base['instanceId'],
-      'channel': channel ?? this.channel,
-      'payload': payload == null
-          ? base['payload']
-          : {...(base['payload'] as Map), ...payload},
-    }));
-  }
 }

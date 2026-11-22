@@ -2,6 +2,9 @@
 
 ### Added
 
+- A form that is navigated away after it opened now fails (not retryable) instead of staying on screen; system Back follows the form's visibility; failed hidden forms no longer hold preparation capacity.
+- **Experimental: the system Back goes back one Lead Generation form stage.** `LeadFormController.handleBack()` hands the press to the visible form (it goes back one stage with answers kept, or asks to close through `LeadFormHost.onRequestClose`) and returns `false`, sending nothing, before the form is visible, while hidden and after dispose. `LeadFormView` wires Android's system Back through it with a `PopScope`. Contract re-synced for the `back` message.
+- On Android the form's web view also refuses a form submission or any other page load than the form itself, and the form fails instead of showing another page.
 - E2E runner: scenarios schemaVersion 7 — `request.interactiveExperience` sent through the opt-in.
 - **Experimental: Lead Generation opt-in, keys-only availability and
   interactive experience decode.** `AdMoai.enableInteractiveExperiences(provider)`
@@ -42,9 +45,29 @@
   Generation support only on a device that can host the form, so an app that
   opted in is no longer served ads it cannot open on a device without it. New
   Android dependency: `androidx.webkit:webkit:1.12.1`. iOS: the form needs iOS 14
-  or later; below that the SDK does not advertise support. This release does not
-  fill the form's prefill and does not fire the form's tracking events yet. A form message in which any
+  or later; below that the SDK does not advertise support. A form message in which any
   JSON object repeats a key is refused.
+
+- **Experimental: Lead Generation prefill, form events, hidden-form bound and
+  user-change disposal.** `LeadFormValueProvider.lookUpValues(keys)` is called
+  only after the viewer opened a form and it activated, only with the standard
+  keys that form requests; answer from what the app already holds, never from a
+  server. An answer later than the shared contract's lookup time, one that
+  throws, or one that arrives after the form was disposed or the user changed is
+  ignored, and values the contract does not allow (blank, over the length bound,
+  a gender outside the options) are left out. The values are never logged and
+  are not kept after the prefill message. The controller also fires the tracking
+  URL of each form event (form open, form start, website click) the activation
+  authorized, once per event, through the SDK's tracking transport; it never
+  fires the creative's click. At most as many forms as the contract allows stay
+  loaded and hidden at once: a further `prepare()` stays idle and `open()` loads
+  it anyway. `AdMoai.disposeAllLeadForms()` disposes every form; the SDK also
+  disposes them when the user id changes (`AdMoai.userConfig` is now a getter and
+  setter, source-compatible), when `disableInteractiveExperiences()` is called
+  and when `enableInteractiveExperiences` is given a different provider.
+  **Breaking for providers:** `LeadFormValueProvider` gains
+  `Future<Map<StandardAttributeKey, String>> lookUpValues(Set<StandardAttributeKey> keys)`;
+  an implementation with no values returns an empty map.
 
 - **Internal: Lead Generation bridge protocol validator.** Groundwork for the
   form surface, not a public API: the message validator the SDK will use between

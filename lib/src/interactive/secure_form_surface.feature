@@ -38,6 +38,11 @@ Feature: The form runs in a web view that only the form's own origin can talk to
     When the page tries to navigate to another address
     Then the view stays on the form
 
+  Scenario: A form submission cannot navigate the form away
+    Given a loaded form view
+    When the page submits a form
+    Then on Android the submission is blocked and the form fails, and on iOS the navigation is cancelled
+
   Scenario: the form cannot open windows or popups
     Given a loaded form view
     When the page tries to open a new window

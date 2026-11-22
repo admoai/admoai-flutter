@@ -6,6 +6,8 @@ import '../models/interactive_experience.dart';
 import 'bridge_protocol.dart';
 import 'form_presentation.dart';
 import 'lead_form_host.dart';
+import 'lead_form_prefill.dart';
+import 'lead_form_registry.dart';
 import 'lead_form_state.dart';
 import 'secure_form_surface.dart';
 
@@ -22,8 +24,14 @@ import 'secure_form_surface.dart';
 /// again), and [dispose] when the form goes away, whatever the reason.
 ///
 /// The form is untrusted web content: every message it sends goes through the
-/// bridge validator, and neither the preparation token, a message nor a URL
-/// with a query string is ever logged.
+/// bridge validator, and neither the preparation token, a message, a prefilled
+/// value nor a URL with a query string is ever logged.
+///
+/// Once the viewer opened the form and it activated, the controller asks the
+/// app's [LeadFormValueProvider] for the standard attributes that form requests,
+/// within the contract's lookup time, and prefills the form with the answer. It
+/// also fires the tracking URLs the activation authorized when the form reports
+/// those events.
 class LeadFormController {
   LeadFormController._({
     required LeadGenerationExperience descriptor,
@@ -33,7 +41,17 @@ class LeadFormController {
     required DateTime Function() clock,
     required String channel,
     required void Function(String) log,
-  })  : _descriptor = descriptor,
+    required LeadFormValueProvider valueProvider,
+    required void Function(String) fireTracking,
+    required LeadFormRegistry? registry,
+    required BridgeContract contract,
+    required Timer Function(Duration, void Function()) timer,
+  })  : _valueProvider = valueProvider,
+        _fireTracking = fireTracking,
+        _registry = registry,
+        _contract = contract,
+        _timer = timer,
+        _descriptor = descriptor,
         _host = host,
         _surface = surface,
         _clock = clock,
@@ -55,10 +73,18 @@ class LeadFormController {
   final ({Uri launchUrl, String preparationToken}) _launch;
   final String _id;
   BridgeSession _session;
+  final LeadFormValueProvider _valueProvider;
+  final void Function(String) _fireTracking;
+  final LeadFormRegistry? _registry;
+  final BridgeContract _contract;
+  final Timer Function(Duration, void Function()) _timer;
 
   final ValueNotifier<LeadFormState> _state =
       ValueNotifier<LeadFormState>(const LeadFormIdle());
   final ValueNotifier<bool> _surfaceReady = ValueNotifier<bool>(false);
+  // True exactly when handleBack() would hand the press to the form: it follows
+  // the state AND the visibility the form has on the wire.
+  final ValueNotifier<bool> _backHandled = ValueNotifier<bool>(false);
   StreamSubscription<SurfaceEvent>? _events;
 
   bool _surfaceStarted = false;
@@ -72,7 +98,17 @@ class LeadFormController {
   bool _submittedReceived = false;
   bool _loadFailed = false;
   bool _disposed = false;
+  bool _everVisible = false;
   Map<String, Object?>? _activation;
+
+  // What the activation asked for and authorized. Never holds a value the app
+  // answered: the answer goes straight into the prefill message.
+  Set<StandardAttributeKey> _requested = const <StandardAttributeKey>{};
+  Map<String, String> _authorizedEvents = const <String, String>{};
+  final Set<String> _fired = <String>{};
+  int _lookupId = 0;
+  bool _prefillDone = true;
+  Timer? _lookupTimer;
 
   /// How the app shows the form; told to the form so it draws its own close
   /// button only full screen.
@@ -87,12 +123,18 @@ class LeadFormController {
 
   /// Loads the form hidden and prepares it, so a later [open] is quick. Safe to
   /// repeat: a second call while preparing or prepared does nothing.
-  Future<void> prepare() async {
+  ///
+  /// When as many forms as the contract allows are already loaded and hidden,
+  /// this one stays idle (it does not load yet); [open] loads it anyway.
+  Future<void> prepare() => _prepare(force: false);
+
+  Future<void> _prepare({required bool force}) async {
     if (_disposed || _state.value is! LeadFormIdle) return;
     if (_expired()) {
       _set(const LeadFormExpired());
       return;
     }
+    if (!force && _registry?.mayPrepare(this) == false) return;
     _set(const LeadFormPreparing());
     await _createSurface();
   }
@@ -111,7 +153,7 @@ class LeadFormController {
     switch (s) {
       case LeadFormIdle():
         _pendingOpen = true;
-        await prepare();
+        await _prepare(force: true);
       case LeadFormPreparing():
         _pendingOpen = true;
       case LeadFormPrepared():
@@ -136,6 +178,28 @@ class LeadFormController {
     }
   }
 
+  /// Hands the viewer's system Back press to the form while it is visible, and
+  /// returns whether it did. The form decides what Back means: it goes back one
+  /// stage with every answer kept, or asks to close (answered through
+  /// [LeadFormHost.onRequestClose]) where its own Back would close it, and it
+  /// ignores the press while submitting. This never reloads the form and never
+  /// disposes the controller.
+  ///
+  /// Returns false and sends nothing before the form is visible, while the app
+  /// has it hidden, and after it failed, expired or was disposed: the press then
+  /// belongs to the app. [LeadFormView] calls this for Android's system back.
+  bool handleBack() {
+    if (!_handlesBack) return false;
+    return _send('back');
+  }
+
+  bool get _handlesBack =>
+      !_disposed &&
+      _visibleOnWire &&
+      (_state.value is LeadFormVisible ||
+          _state.value is LeadFormSubmitting ||
+          _state.value is LeadFormSubmitted);
+
   /// Retries after a failure that reported `retryable`. Does nothing in any
   /// other state. Never reloads a page that loaded: it asks the form to prepare
   /// or activate again.
@@ -158,6 +222,10 @@ class LeadFormController {
   Future<void> dispose() async {
     if (_disposed) return;
     _disposed = true;
+    _endLookup();
+    _requested = const <StandardAttributeKey>{};
+    _authorizedEvents = const <String, String>{};
+    _registry?.remove(this);
     String? farewell;
     if (_session.bridgeReadyCount > 0 &&
         _surfaceStarted &&
@@ -190,7 +258,14 @@ class LeadFormController {
 
   bool _expired() => !_clock().toUtc().isBefore(_descriptor.expiresAt);
 
-  void _set(LeadFormState next) => _state.value = next;
+  void _set(LeadFormState next) {
+    _state.value = next;
+    _syncBackHandled();
+  }
+
+  void _syncBackHandled() {
+    _backHandled.value = _handlesBack;
+  }
 
   bool get _ended {
     final s = _state.value;
@@ -255,7 +330,9 @@ class LeadFormController {
     _activatedReceived = false;
     _submittedReceived = false;
     _visibleOnWire = false;
+    _syncBackHandled();
     _activation = null;
+    _endLookup();
     _set(const LeadFormPreparing());
     await _createSurface();
   }
@@ -279,6 +356,16 @@ class LeadFormController {
         if (s is LeadFormPreparing && !_activatedReceived) {
           _loadFailed = true;
           _set(const LeadFormFailed('load_failed', true));
+        } else if (s is LeadFormActivating ||
+            s is LeadFormReadyToShow ||
+            s is LeadFormVisible ||
+            s is LeadFormSubmitting ||
+            s is LeadFormSubmitted) {
+          // The page was navigated away after the form activated (the platform
+          // blocked or stopped the load). The activated instance cannot be
+          // trusted to be on screen: fail for good, a new controller is the
+          // way back. Destroying the surface frees its preparation slot.
+          _failTerminal('load_failed');
         }
     }
   }
@@ -328,7 +415,8 @@ class LeadFormController {
         }
       case 'request_external_url':
         _onExternalUrl(payload);
-      // `event`: the page reports it; firing its tracking URL is added later.
+      case 'event':
+        _onEvent(payload);
       default:
         break;
     }
@@ -384,10 +472,84 @@ class LeadFormController {
   void _onActivated(Map<String, Object?> payload) {
     if (_state.value is! LeadFormActivating) return;
     _activatedReceived = true;
-    // Kept for the prefill lookup and the tracking events, added later; this
-    // release answers with an empty prefill.
     _activation = payload;
-    _send('prefill', {'values': <String, Object?>{}});
+    _requested = {
+      for (final name in (payload['requestedAttributeKeys'] as List))
+        if (StandardAttributeKey.fromWire(name as String) case final key?) key,
+    };
+    _authorizedEvents = {
+      for (final e in (payload['events'] as List))
+        (e as Map)['name'] as String: e['url'] as String,
+    };
+    _startPrefill();
+  }
+
+  /// Ends a lookup in flight: whatever it answers later is discarded.
+  void _endLookup() {
+    _lookupId++;
+    _lookupTimer?.cancel();
+    _lookupTimer = null;
+    _prefillDone = true;
+  }
+
+  /// Asks the app for the requested values, at most once per activation, within
+  /// the contract's lookup time. Anything but a usable answer prefills nothing.
+  void _startPrefill() {
+    _endLookup();
+    final id = _lookupId;
+    _prefillDone = false;
+    if (_requested.isEmpty) {
+      _finishPrefill(id, null);
+      return;
+    }
+    _lookupTimer = _timer(
+      Duration(milliseconds: _contract.prefillLookupTimeoutMs),
+      () => _finishPrefill(id, null),
+    );
+    try {
+      _valueProvider.lookUpValues(Set.unmodifiable(_requested)).then(
+        (Map<StandardAttributeKey, String>? values) =>
+            _finishPrefill(id, values),
+        onError: (Object e) {
+          // The type only: the message may carry user data.
+          _log('Lead Generation value lookup failed: ${e.runtimeType}');
+          _finishPrefill(id, null);
+        },
+      );
+    } catch (e) {
+      _log('Lead Generation value lookup failed: ${e.runtimeType}');
+      _finishPrefill(id, null);
+    }
+  }
+
+  void _finishPrefill(int id, Map<StandardAttributeKey, String>? values) {
+    if (_disposed || id != _lookupId || _prefillDone) return;
+    _prefillDone = true;
+    _lookupTimer?.cancel();
+    _lookupTimer = null;
+    if (_state.value is! LeadFormActivating) return;
+    Map<String, String> accepted;
+    try {
+      accepted = leadFormPrefillValues(values, _requested, _contract);
+    } catch (e) {
+      _log('Lead Generation prefill dropped: ${e.runtimeType}');
+      accepted = const <String, String>{};
+    }
+    _send('prefill', {'values': accepted});
+  }
+
+  /// Fires the tracking URL of an event the activation authorized, once per
+  /// event. The form never fires the creative's click or impression. Only the
+  /// event name may be logged, never the URL.
+  void _onEvent(Map<String, Object?> payload) {
+    final name = payload['name'] as String;
+    final url = _authorizedEvents[name];
+    if (url == null || !_fired.add(name)) return;
+    try {
+      _fireTracking(url);
+    } catch (e) {
+      _log('Lead form event not reported: $name (${e.runtimeType})');
+    }
   }
 
   void _onPrefillApplied() {
@@ -399,6 +561,7 @@ class LeadFormController {
   void _becomeVisible() {
     if (_send('became_visible')) {
       _visibleOnWire = true;
+      _everVisible = true;
       _set(const LeadFormVisible());
     }
   }
@@ -407,6 +570,7 @@ class LeadFormController {
     if (_visibleRequested == _visibleOnWire) return;
     if (_send(_visibleRequested ? 'became_visible' : 'became_hidden')) {
       _visibleOnWire = _visibleRequested;
+      _syncBackHandled();
     }
   }
 
@@ -471,6 +635,11 @@ LeadFormController buildLeadFormController({
   DateTime Function()? clock,
   String? channel,
   void Function(String)? log,
+  required LeadFormValueProvider valueProvider,
+  void Function(String)? fireTracking,
+  LeadFormRegistry? registry,
+  BridgeContract? contract,
+  Timer Function(Duration, void Function())? timer,
 }) =>
     LeadFormController._(
       descriptor: descriptor,
@@ -480,6 +649,11 @@ LeadFormController buildLeadFormController({
       clock: clock ?? DateTime.now,
       channel: channel ?? mintBridgeChannel(),
       log: log ?? (_) {},
+      valueProvider: valueProvider,
+      fireTracking: fireTracking ?? (_) {},
+      registry: registry,
+      contract: contract ?? BridgeContract.shipped,
+      timer: timer ?? Timer.new,
     );
 
 /// SDK-internal: the id of the native view [controller] owns.
@@ -498,3 +672,22 @@ ValueListenable<bool> leadFormSurfaceReady(LeadFormController controller) =>
 /// requestedAttributeKeys, events), or null before activation.
 Map<String, Object?>? leadFormActivation(LeadFormController controller) =>
     controller._activation;
+
+/// SDK-internal: true exactly when [controller.handleBack] would hand the press
+/// to the form right now. It changes with the state and with the visibility the
+/// app told the form, so [LeadFormView] listens to it rather than to the state.
+ValueListenable<bool> leadFormBackHandled(LeadFormController controller) =>
+    controller._backHandled;
+
+/// SDK-internal: whether [controller] was disposed.
+bool leadFormIsDisposed(LeadFormController controller) => controller._disposed;
+
+/// SDK-internal: whether [controller] holds a native surface (created or being
+/// created) that has never been shown, so it counts toward the bound on hidden
+/// prepared forms. A destroyed surface (creation or load failure, restart,
+/// dispose) releases its place.
+bool leadFormCountsAsHidden(LeadFormController controller) =>
+    !controller._disposed &&
+    controller._surfaceStarted &&
+    !controller._surfaceDestroyed &&
+    !controller._everVisible;

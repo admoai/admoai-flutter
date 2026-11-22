@@ -124,6 +124,26 @@ class SecureFormWebViewTest {
         assertTrue(client.shouldOverrideUrlLoading(b.view.webView, "https://evil.example.com/"))
     }
 
+    @Test fun `A form submission cannot navigate the form away`() {
+        val b = build()
+        val client = shadowOf(b.view.webView).webViewClient
+        fun request(url: String, method: String, main: Boolean = true) = object : android.webkit.WebResourceRequest {
+            override fun getUrl() = android.net.Uri.parse(url)
+            override fun isForMainFrame() = main
+            override fun isRedirect() = false
+            override fun hasGesture() = true
+            override fun getMethod() = method
+            override fun getRequestHeaders(): Map<String, String> = emptyMap()
+        }
+
+        assertNull(client.shouldInterceptRequest(b.view.webView, request(launchUrl, "GET")))
+        assertNull(client.shouldInterceptRequest(b.view.webView, request("https://evil.example.com/a.js", "GET", main = false)))
+        val blocked = client.shouldInterceptRequest(b.view.webView, request(launchUrl, "POST"))
+        assertEquals(204, blocked!!.statusCode)
+        org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper()).idle()
+        assertEquals(listOf(SurfaceEventKind.LOAD_FAILED), b.events.map { it.first })
+    }
+
     @Test fun `a binary message from the page is not a text and never throws`() {
         assertNull(textOf(androidx.webkit.WebMessageCompat(byteArrayOf(1, 2, 3))))
         assertEquals("hi", textOf(androidx.webkit.WebMessageCompat("hi")))

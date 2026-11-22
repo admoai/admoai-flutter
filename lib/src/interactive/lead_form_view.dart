@@ -43,6 +43,22 @@ class _LeadFormViewState extends State<LeadFormView> {
 
   @override
   Widget build(BuildContext context) {
+    // Only this PopScope rebuilds when back handling changes: the platform view
+    // below sits in the child, which the state listener never rebuilds.
+    return ValueListenableBuilder<bool>(
+      valueListenable: leadFormBackHandled(widget.controller),
+      child: _surface(context),
+      builder: (context, handled, child) => PopScope(
+        canPop: !handled,
+        onPopInvokedWithResult: (didPop, _) {
+          if (!didPop) widget.controller.handleBack();
+        },
+        child: child!,
+      ),
+    );
+  }
+
+  Widget _surface(BuildContext context) {
     final id = leadFormSurfaceId(widget.controller);
     return ValueListenableBuilder<bool>(
       valueListenable: _ready,
