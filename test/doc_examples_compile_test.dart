@@ -295,6 +295,10 @@ class _InlineLeadCardState extends State<InlineLeadCard>
   @override
   void initState() {
     super.initState();
+    _startController();
+  }
+
+  void _startController() {
     _controller = widget.sdk.createLeadFormController(
       widget.creative,
       presentation: FormPresentation.inline,
@@ -304,6 +308,23 @@ class _InlineLeadCardState extends State<InlineLeadCard>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) widget.sdk.fireImpression(widget.creative.tracking);
     });
+  }
+
+  @override
+  void didUpdateWidget(InlineLeadCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Flutter reuses this State for a new creative: the old controller belongs
+    // to the old creative, so release it and start one for the new one.
+    if (oldWidget.creative != widget.creative || oldWidget.sdk != widget.sdk) {
+      final old = _controller;
+      _controller = null;
+      _expanded = false;
+      if (old != null) {
+        old.setVisible(false);
+        unawaited(old.dispose());
+      }
+      _startController();
+    }
   }
 
   void _onTap() {
@@ -319,7 +340,11 @@ class _InlineLeadCardState extends State<InlineLeadCard>
   }
 
   @override
-  void onRequestClose(LeadFormController controller) {
+  void onRequestClose(LeadFormController controller) => _close(controller);
+
+  // The inline form draws no close button: this is your card's close control
+  // (the IconButton below) and the form's own close request.
+  void _close(LeadFormController controller) {
     // Collapse the card, then release the form.
     if (!mounted) return;
     controller.setVisible(false);
@@ -357,6 +382,13 @@ class _InlineLeadCardState extends State<InlineLeadCard>
             title: Text(
                 '${widget.creative.contents.getContent('headline')?.value ?? ''}'),
             onTap: controller == null ? null : _onTap,
+            trailing: _expanded && controller != null
+                ? IconButton(
+                    icon: const Icon(Icons.close),
+                    tooltip: 'Close',
+                    onPressed: () => _close(controller),
+                  )
+                : null,
           ),
           if (_expanded && controller != null)
             SizedBox(height: 480, child: LeadFormView(controller: controller)),
@@ -384,6 +416,10 @@ class _FullScreenLeadCardState extends State<FullScreenLeadCard>
   @override
   void initState() {
     super.initState();
+    _startController();
+  }
+
+  void _startController() {
     _controller = widget.sdk.createLeadFormController(
       widget.creative,
       presentation: FormPresentation.fullScreen,
@@ -393,6 +429,19 @@ class _FullScreenLeadCardState extends State<FullScreenLeadCard>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) widget.sdk.fireImpression(widget.creative.tracking);
     });
+  }
+
+  @override
+  void didUpdateWidget(FullScreenLeadCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Flutter reuses this State for a new creative: release the old controller
+    // and start one for the new creative.
+    if (oldWidget.creative != widget.creative || oldWidget.sdk != widget.sdk) {
+      final old = _controller;
+      _controller = null;
+      if (old != null) unawaited(old.dispose());
+      _startController();
+    }
   }
 
   Future<void> _onTap() async {
@@ -405,12 +454,16 @@ class _FullScreenLeadCardState extends State<FullScreenLeadCard>
     ));
     // The route is gone, by the form's close button or by the back gesture.
     unawaited(controller.dispose());
-    if (mounted) setState(() => _controller = null);
+    if (mounted && identical(_controller, controller)) {
+      setState(() => _controller = null);
+    }
   }
 
   @override
   void onRequestClose(LeadFormController controller) {
-    if (mounted) Navigator.of(context).maybePop();
+    // The form asked to close: pop the route itself. maybePop() would run Back
+    // handling, which the visible form intercepts, and the route would stay.
+    if (mounted) Navigator.of(context).pop();
   }
 
   @override

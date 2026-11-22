@@ -79,6 +79,11 @@ void main() {
     if (Platform.isAndroid) await _hooks.invokeMethod<void>('testReset');
   });
 
+  /// A test that creates a surface: skipped on a device that cannot host the view
+  /// (EXPECT_SUPPORTED=false), where only the support assertion runs.
+  void surfaceTest(String name, WidgetTesterCallback body) =>
+      testWidgets(name, body, skip: !_expectSupported);
+
   /// One form view for one test: created like the SDK does, attached like LeadFormView does.
   Future<_Form> open(
     WidgetTester tester, {
@@ -124,14 +129,14 @@ void main() {
     expect(await LeadFormSurface.isSupported(), _expectSupported);
   });
 
-  testWidgets('the form page at the launch origin reaches the app',
+  surfaceTest('the form page at the launch origin reaches the app',
       (tester) async {
     final form = await open(tester);
     await form.waitFor(2);
     expect(form.received, contains('hello'));
   });
 
-  testWidgets("the form receives the app's messages", (tester) async {
+  surfaceTest("the form receives the app's messages", (tester) async {
     final form = await open(tester);
     await form.waitFor(2);
     const text = '{"type":"initialize","quote":"\\""}';
@@ -140,7 +145,7 @@ void main() {
     expect(form.received.last, 'echo:$text');
   });
 
-  testWidgets(
+  surfaceTest(
       'the page learns its instance and channel from the launch URL fragment',
       (tester) async {
     final form = await open(tester);
@@ -154,7 +159,7 @@ void main() {
     }
   });
 
-  testWidgets('a frame from another origin cannot reach the app',
+  surfaceTest('a frame from another origin cannot reach the app',
       (tester) async {
     final form =
         await open(tester, page: 'frame-host.html', extra: '&frame=other');
@@ -163,7 +168,7 @@ void main() {
     expect(form.received, ['frame-loaded']);
   });
 
-  testWidgets('a frame from the same origin cannot reach the app',
+  surfaceTest('a frame from the same origin cannot reach the app',
       (tester) async {
     final form =
         await open(tester, page: 'frame-host.html', extra: '&frame=same');
@@ -172,7 +177,7 @@ void main() {
     expect(form.received, ['frame-loaded']);
   });
 
-  testWidgets('the form cannot navigate away', (tester) async {
+  surfaceTest('the form cannot navigate away', (tester) async {
     final form = await open(tester);
     await form.waitFor(2);
     if (Platform.isAndroid) {
@@ -195,7 +200,7 @@ void main() {
     }
   });
 
-  testWidgets('A form submission cannot navigate the form away',
+  surfaceTest('A form submission cannot navigate the form away',
       (tester) async {
     final form = await open(tester, page: 'post.html');
     await form.waitFor(1);
@@ -221,7 +226,7 @@ void main() {
     }
   });
 
-  testWidgets('the form cannot open windows or popups', (tester) async {
+  surfaceTest('the form cannot open windows or popups', (tester) async {
     final form = await open(tester);
     await form.waitFor(2);
     if (Platform.isAndroid) {
@@ -239,7 +244,7 @@ void main() {
     }
   });
 
-  testWidgets('files and content providers are out of reach', (tester) async {
+  surfaceTest('files and content providers are out of reach', (tester) async {
     final form = await open(tester);
     await form.waitFor(2);
     await form.send('files');
@@ -247,13 +252,14 @@ void main() {
     expect(form.received.last, 'files:refused,refused,refused');
   });
 
-  testWidgets('destroying the view removes the bridge', (tester) async {
+  surfaceTest('destroying the view removes the bridge', (tester) async {
     final form = await open(tester);
     await form.waitFor(2);
     await form.send('tick');
     await form.waitFor(3);
     await tester.pumpWidget(const SizedBox.shrink());
-    await form.close();
+    // Destroy the surface but keep observing it: the teardown cancels the observer.
+    await form.destroy();
     final after = form.received.length;
     await Future<void>.delayed(const Duration(seconds: 1));
     expect(form.received.length, after,
@@ -279,6 +285,7 @@ class _Form {
   final received = <String>[];
   var failed = false;
   late final StreamSubscription<SurfaceEvent> _sub;
+  var _destroyed = false;
   var _closed = false;
 
   Future<void> send(String text) => _surface.post(id, text);
@@ -297,10 +304,17 @@ class _Form {
   /// Gives a forbidden action time to show up if it was going to.
   Future<void> quiet() => Future<void>.delayed(const Duration(seconds: 2));
 
+  /// Destroys the surface; the observer keeps listening.
+  Future<void> destroy() async {
+    if (_destroyed) return;
+    _destroyed = true;
+    await _surface.destroy(id);
+  }
+
   Future<void> close() async {
     if (_closed) return;
     _closed = true;
-    await _surface.destroy(id);
+    await destroy();
     await _sub.cancel();
   }
 }

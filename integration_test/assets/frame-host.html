@@ -4,9 +4,18 @@
 <script>
   // Embeds frame.html from the same origin (frame=same) or from the foreign base (frame=other).
   var params = new URLSearchParams(location.hash.slice(1));
+  // "load" alone does not prove the child document ran (it also fires when the fixture failed to
+  // load), so completion is forwarded only on the child's own acknowledgement, posted after its
+  // probe, and only from this iframe's window and the origin it was asked to load.
   function embed(src) {
     var f = document.createElement("iframe");
-    f.onload = function () { AdmoaiBridge.postMessage("frame-loaded"); };
+    var expectedOrigin = new URL(src, location.href).origin;
+    window.addEventListener("message", function (e) {
+      if (e.source !== f.contentWindow) return;
+      if (e.origin !== expectedOrigin) return;
+      if (e.data !== "frame-probed") return;
+      AdmoaiBridge.postMessage("frame-loaded");
+    });
     f.src = src;
     document.body.appendChild(f);
   }

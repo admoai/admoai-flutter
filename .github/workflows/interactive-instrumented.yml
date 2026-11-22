@@ -18,6 +18,12 @@ on:
     paths:
       - 'lib/src/interactive/**'
       - 'android/src/main/kotlin/com/admoai/flutter/leadform/**'
+      - 'android/src/debug/**'
+      - 'android/src/nonDebug/**'
+      - 'android/build.gradle'
+      - 'tool/host_app.sh'
+      - 'pubspec.yaml'
+      - 'dart_test.yaml'
       - 'integration_test/**'
       - '.github/workflows/interactive-instrumented.yml'
   push:
@@ -25,6 +31,12 @@ on:
     paths:
       - 'lib/src/interactive/**'
       - 'android/src/main/kotlin/com/admoai/flutter/leadform/**'
+      - 'android/src/debug/**'
+      - 'android/src/nonDebug/**'
+      - 'android/build.gradle'
+      - 'tool/host_app.sh'
+      - 'pubspec.yaml'
+      - 'dart_test.yaml'
       - 'integration_test/**'
       - '.github/workflows/interactive-instrumented.yml'
 
