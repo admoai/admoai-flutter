@@ -692,23 +692,27 @@ void main() {
   });
 
   scenario('a form the engine does not serve fails without retry', () async {
-    final r = rig();
-    await r.controller.prepare();
+    for (final status in [404, 400, 401, 403, 410, 499]) {
+      final r = rig();
+      await r.controller.prepare();
 
-    r.surface.emit(SurfaceEvent(leadFormSurfaceId(r.controller),
-        SurfaceEventKind.loadFailed, null, const LoadFailure.http(404)));
+      r.surface.emit(SurfaceEvent(leadFormSurfaceId(r.controller),
+          SurfaceEventKind.loadFailed, null, LoadFailure.http(status)));
 
-    expect(r.state, const LeadFormFailed('form_not_available', false));
-    expect(r.surface.destroyed, [leadFormSurfaceId(r.controller)]);
-    await r.controller.retry();
-    expect(r.state, const LeadFormFailed('form_not_available', false));
-    expect(r.surface.created, hasLength(1));
+      expect(r.state, const LeadFormFailed('form_not_available', false),
+          reason: 'HTTP $status');
+      expect(r.surface.destroyed, [leadFormSurfaceId(r.controller)]);
+      await r.controller.retry();
+      expect(r.state, const LeadFormFailed('form_not_available', false));
+      expect(r.surface.created, hasLength(1));
+    }
   });
 
   scenario('a form page that errors before it reports ready can be retried',
       () async {
     for (final failure in [
       const LoadFailure.http(500),
+      const LoadFailure.http(503),
       const LoadFailure.network(),
       null,
     ]) {

@@ -367,7 +367,10 @@ class LeadFormController {
     }
     if (_session.bridgeReadyCount > 0) return;
     if (_state.value is LeadFormFailed) return;
-    if (failure.kind == LoadFailureKind.http && failure.httpStatus == 404) {
+    if (failure.kind == LoadFailureKind.http &&
+        failure.httpStatus != null &&
+        failure.httpStatus! >= 400 &&
+        failure.httpStatus! < 500) {
       _failTerminal('form_not_available');
       return;
     }

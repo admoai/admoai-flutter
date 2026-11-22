@@ -99,7 +99,7 @@
 
 ### Fixed
 
-- Lead Generation load failures report `form_not_available` (404, not retryable), `temporary_failure` (retryable) or `navigation_blocked`, the same codes as the Android SDK; iOS no longer reports its own cancelled navigations as a failure.
+- Lead Generation load failures report `form_not_available` (404 or another 4xx, not retryable), `temporary_failure` (5xx or no network, retryable) or `navigation_blocked`, the same codes as the Android SDK; iOS no longer reports its own cancelled navigations as a failure.
 - The Android plugin now declares minSdk 21, matching the documented minimum.
 - Lead Generation form review follow-ups: an explicit `:443` no longer makes the
   form's origin differ from the page's; a binary (ArrayBuffer) message from the

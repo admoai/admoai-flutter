@@ -178,7 +178,7 @@ Feature: An app prepares and opens a Lead Generation form through one controller
 
   Scenario: a form the engine does not serve fails without retry
     Given a controller still preparing
-    When the form's page answers 404 before it reports ready
+    When the form's page answers 404 or another 4xx before it reports ready
     Then the controller has failed without retry because the form is not available
     And the form's view is destroyed
 
