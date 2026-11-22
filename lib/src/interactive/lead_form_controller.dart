@@ -349,8 +349,15 @@ class LeadFormController {
         final text = event.text;
         if (text != null) _onMessage(text);
       case SurfaceEventKind.renderGone:
-        _set(const LeadFormFailed('renderer_gone', false));
-        unawaited(_destroySurface());
+        if (_activatedReceived) {
+          _failTerminal('renderer_gone');
+        } else {
+          // Before the form opened nothing is lost: retry() recreates the view
+          // and loads the form again, as after a load failure.
+          _loadFailed = true;
+          _set(const LeadFormFailed('renderer_gone', true));
+          unawaited(_destroySurface());
+        }
       case SurfaceEventKind.loadFailed:
         _onLoadFailed(event.failure ?? const LoadFailure.network());
     }
@@ -435,7 +442,7 @@ class LeadFormController {
 
   void _onBridgeReady() {
     if (_activatedReceived) {
-      _failTerminal('page_reloaded');
+      _failTerminal('reloaded');
       return;
     }
     if (_session.bridgeReadyCount > 1) {
@@ -588,7 +595,11 @@ class LeadFormController {
       _set(const LeadFormExpired());
       return;
     }
-    _set(LeadFormFailed(code, payload['retryable'] == true));
+    // A code the contract marks final is never retryable, whatever the page
+    // says; a code it does not list keeps the page's flag.
+    final retryable = payload['retryable'] == true &&
+        !_contract.finalErrorKeys.contains(code);
+    _set(LeadFormFailed(code, retryable));
   }
 
   void _onFatal(String code) {

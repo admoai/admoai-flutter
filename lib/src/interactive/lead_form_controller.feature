@@ -176,6 +176,23 @@ Feature: An app prepares and opens a Lead Generation form through one controller
     Then the controller has failed without retry
     And the form's view is destroyed
 
+  Scenario: a form whose web content stopped before it opened can be retried
+    Given a prepared controller
+    When the system stops the form's web content
+    Then the controller has failed with a retryable renderer failure
+    And retrying loads the form again on a new view
+
+  Scenario: a form whose web content stopped after it opened fails without retry
+    Given a visible controller
+    When the system stops the form's web content
+    Then the controller has failed without retry
+    And the form's view is destroyed
+
+  Scenario: a failure the contract marks final is never retryable
+    Given a controller still preparing
+    When the form reports a preparation failure the contract marks final, saying it can be retried
+    Then the controller has failed without retry
+
   Scenario: a form the engine does not serve fails without retry
     Given a controller still preparing
     When the form's page answers 404 or another 4xx before it reports ready

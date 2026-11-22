@@ -1969,7 +1969,10 @@ too long, or a `gender` the form does not offer. The SDK never logs values, so c
 is not available for this tenant or app right now; not retryable, stop offering the form on this ad.
 `temporary_failure`: the form page could not be loaded (a 5xx server error or no network); retryable, call
 `retry()`. `navigation_blocked`: the page tried to leave the form, so the SDK closed it; not retryable.
-`renderer_gone`: the system stopped the form's web content process; not retryable.
+`renderer_gone`: the system stopped the form's web content process; retryable until the form was opened.
+`reloaded`: the form's page reloaded after it opened; not retryable.
+`bridge_error`: the page speaks an unsupported bridge version, or a message could not be sent; not retryable.
+`surface_error`: the device could not create the form's view; not retryable.
 The same codes as the Android and iOS SDKs. Decide whether to retry from the state's `retryable` field, never
 from the code: a code can be retryable in one case and not in another. Never show the code to the viewer.
 

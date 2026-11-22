@@ -673,7 +673,7 @@ void main() {
 
     r.say('bridge_ready');
 
-    expect(r.state, const LeadFormFailed('page_reloaded', false));
+    expect(r.state, const LeadFormFailed('reloaded', false));
     expect(r.surface.destroyed, [leadFormSurfaceId(r.controller)]);
     expect(r.sent.where((t) => t == 'initialize'), hasLength(1));
   });
@@ -1025,7 +1025,27 @@ void main() {
       expect(r.state, isA<LeadFormVisible>());
     });
 
-    test('the renderer going away fails the controller and destroys the view',
+    scenario('a form whose web content stopped before it opened can be retried',
+        () async {
+      final r = await prepared();
+
+      r.surface.emit(SurfaceEvent(
+          leadFormSurfaceId(r.controller), SurfaceEventKind.renderGone));
+
+      expect(r.state, const LeadFormFailed('renderer_gone', true));
+      expect(r.surface.destroyed, [leadFormSurfaceId(r.controller)]);
+
+      await r.controller.retry();
+
+      expect(r.state, isA<LeadFormPreparing>());
+      expect(r.surface.created, hasLength(2));
+      r.say('bridge_ready');
+      r.say('prepared');
+      expect(r.state, isA<LeadFormPrepared>());
+    });
+
+    scenario(
+        'a form whose web content stopped after it opened fails without retry',
         () async {
       final r = await visible();
 
@@ -1034,9 +1054,30 @@ void main() {
 
       expect(r.state, const LeadFormFailed('renderer_gone', false));
       expect(r.surface.destroyed, [leadFormSurfaceId(r.controller)]);
+      await r.controller.retry();
+      expect(r.surface.created, hasLength(1));
       await r.controller.dispose();
       expect(r.sent.where((t) => t == 'dispose'), isEmpty,
           reason: 'the page is gone');
+    });
+
+    scenario('a failure the contract marks final is never retryable', () async {
+      final r = rig();
+      await r.controller.prepare();
+      r.say('bridge_ready');
+
+      r.say('prepare_failed', {'errorCode': 'unauthorized', 'retryable': true});
+
+      expect(r.state, const LeadFormFailed('unauthorized', false));
+      await r.controller.retry();
+      expect(r.sent, ['initialize']);
+
+      // A code the contract lists as retryable keeps the page's flag.
+      final u = rig();
+      await u.controller.prepare();
+      u.say('bridge_ready');
+      u.say('prepare_failed', {'errorCode': 'rate_limited', 'retryable': true});
+      expect(u.state, const LeadFormFailed('rate_limited', true));
     });
 
     test(

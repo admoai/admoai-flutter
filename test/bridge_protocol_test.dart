@@ -549,6 +549,7 @@ void main() {
         File('$dir/bridge-messages.json').readAsStringSync());
     expect(standardFieldsJson,
         File('$dir/standard-fields.json').readAsStringSync());
+    expect(errorCodesJson, File('$dir/error-codes.json').readAsStringSync());
     expect(contract.maxMessageBytes, 16384);
     expect(contract.messages.length, 20);
     expect(contract.prefillKeys, contains('email'));
@@ -557,7 +558,9 @@ void main() {
     final message = (changed['messages'] as List)
         .firstWhere((m) => (m as Map)['type'] == 'initialize') as Map;
     ((message['payload'] as Map)['presentation'] as Map)['type'] = 'ip_address';
-    expect(() => BridgeContract.parse(jsonEncode(changed), standardFieldsJson),
+    expect(
+        () => BridgeContract.parse(
+            jsonEncode(changed), standardFieldsJson, errorCodesJson),
         throwsStateError);
 
     final nested = decode(bridgeMessagesJson);
@@ -565,7 +568,9 @@ void main() {
         .firstWhere((m) => (m as Map)['type'] == 'activated') as Map;
     ((((activated['payload'] as Map)['events'] as Map)['items'] as Map)['url']
         as Map)['type'] = 'ip_address';
-    expect(() => BridgeContract.parse(jsonEncode(nested), standardFieldsJson),
+    expect(
+        () => BridgeContract.parse(
+            jsonEncode(nested), standardFieldsJson, errorCodesJson),
         throwsStateError);
   });
 }
