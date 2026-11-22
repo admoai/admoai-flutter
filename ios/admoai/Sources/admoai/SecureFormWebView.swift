@@ -34,6 +34,7 @@ final class SecureFormWebView: NSObject, WKScriptMessageHandler, WKNavigationDel
   private let launchOrigin: LeadFormOrigin
   private let onEvent: (LeadFormEventKind, String?) -> Void
   private var launchConsumed = false
+  private var documentCommitted = false
   private var destroyed = false
 
   /// nil when [launchURL] is not an https URL with a host.
@@ -120,7 +121,17 @@ final class SecureFormWebView: NSObject, WKScriptMessageHandler, WKNavigationDel
       decisionHandler(.allow)
     } else {
       decisionHandler(.cancel)
+      // A main-frame navigation refused before the form's document committed (e.g. the launch
+      // URL redirecting) leaves no form at all: report it, or the controller waits forever. Once
+      // the form is on screen a refused navigation leaves it usable, so it stays silent.
+      if !destroyed, !documentCommitted, navigationAction.targetFrame?.isMainFrame == true {
+        fail("blocked")
+      }
     }
+  }
+
+  func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
+    documentCommitted = true
   }
 
   func webView(

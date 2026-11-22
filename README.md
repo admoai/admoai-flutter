@@ -1969,7 +1969,8 @@ too long, or a `gender` the form does not offer. The SDK never logs values, so c
 is not available for this tenant or app right now; not retryable, stop offering the form on this ad.
 `temporary_failure`: the form page could not be loaded (a server error or no network); retryable, call
 `retry()`. `navigation_blocked`: the page tried to leave the form, so the SDK closed it; not retryable.
-The same codes as the Android SDK. Never show the code to the viewer.
+The same codes as the Android SDK. Decide whether to retry from the state's `retryable` field, never
+from the code: a code can be retryable in one case and not in another. Never show the code to the viewer.
 
 **`createLeadFormController` returned `null`.** The app has not opted in, the device cannot host the
 form, or the creative is not a `LeadGenerationExperience`. Render it as an ordinary ad.
