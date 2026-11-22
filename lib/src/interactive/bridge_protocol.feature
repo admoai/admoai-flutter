@@ -79,6 +79,11 @@ Feature: Lead Generation form bridge
     When the app prefills a value the form would drop, an unknown field or a value over its limit
     Then the app refuses the prefill and sends nothing, even if the rest of it is valid
 
+  Scenario: Prefill naming an object-prototype key is never sent
+    Given a form opened by the app
+    When the app prefills a value under "__proto__", "constructor" or "prototype"
+    Then the app refuses the prefill and sends nothing
+
   Scenario: Nothing is accepted after dispose
     Given a form opened by the app
     When the app has disposed the form and the page still sends messages

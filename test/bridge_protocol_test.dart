@@ -136,6 +136,7 @@ void main() {
       'initialize-missing-presentation.json': 'initialize',
       'initialize-unknown-presentation.json': 'initialize',
       'prefill-non-string-value.json': 'prefill',
+      'prefill-proto-non-string-value.json': 'prefill',
     };
     final reason = <String, String>{
       'back-before-visible.json': 'out of order',
@@ -143,6 +144,7 @@ void main() {
       'initialize-missing-presentation.json': 'bad payload',
       'initialize-unknown-presentation.json': 'bad payload',
       'prefill-non-string-value.json': 'bad payload',
+      'prefill-proto-non-string-value.json': 'bad payload',
       'runtime-message-from-app.json': 'wrong direction',
       'unknown-type.json': 'unknown type',
     };
@@ -184,6 +186,7 @@ void main() {
       'integer-like-key.json',
       'mixed-entries.json',
       'oversized-value.json',
+      'proto-key.json',
       'unknown-prefill-key.json',
     });
     for (final name in fixtures) {
@@ -207,6 +210,21 @@ void main() {
           }),
           contains('prefill'),
           reason: name);
+    }
+  });
+
+  scenario('Prefill naming an object-prototype key is never sent', () {
+    // The pack ships a fixture for `__proto__`; `constructor` and `prototype`
+    // are the same case for a JavaScript form and are refused the same way.
+    for (final key in ['__proto__', 'constructor', 'prototype']) {
+      final s = primedFor('prefill');
+      expect(
+          () => s.encode('prefill', {
+                'values': {'email': 'alex@example.invalid', key: 'polluted'}
+              }),
+          throwsA(isA<StateError>()
+              .having((e) => e.message, 'message', contains('bad payload'))),
+          reason: key);
     }
   });
 
