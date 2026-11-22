@@ -2,11 +2,20 @@
 
 ### Added
 
+- **Platform suite: secure form surface on a real Android WebView (CI).**
+  `integration_test/secure_form_surface_test.dart` runs the scenarios of the
+  secure form surface (a frame cannot post, no navigation or popup, no file
+  access, destroy removes the bridge) against real pages over https, on an
+  emulator, in `.github/workflows/interactive-instrumented.yml`. The pages are
+  served by a fixture hook that exists only in the plugin's debug build; release
+  and profile builds compile a no-op, so a publisher's app is unchanged.
+
+- **The system Back goes back one Lead Generation form stage.** `LeadFormController.handleBack()` hands the press to the visible form (it goes back one stage with answers kept, or asks to close through `LeadFormHost.onRequestClose`) and returns `false`, sending nothing, before the form is visible, while hidden and after dispose. `LeadFormView` wires Android's system Back through it with a `PopScope`. Contract re-synced for the `back` message.
 - A form that is navigated away after it opened now fails (not retryable) instead of staying on screen; system Back follows the form's visibility; failed hidden forms no longer hold preparation capacity.
 - **Experimental: the system Back goes back one Lead Generation form stage.** `LeadFormController.handleBack()` hands the press to the visible form (it goes back one stage with answers kept, or asks to close through `LeadFormHost.onRequestClose`) and returns `false`, sending nothing, before the form is visible, while hidden and after dispose. `LeadFormView` wires Android's system Back through it with a `PopScope`. Contract re-synced for the `back` message.
 - On Android the form's web view also refuses a form submission or any other page load than the form itself, and the form fails instead of showing another page.
 - E2E runner: scenarios schemaVersion 7 — `request.interactiveExperience` sent through the opt-in.
-- **Experimental: Lead Generation opt-in, keys-only availability and
+- **Lead Generation opt-in, keys-only availability and
   interactive experience decode.** `AdMoai.enableInteractiveExperiences(provider)`
   declares that the app hosts the Lead Generation form and
   `disableInteractiveExperiences()` withdraws it. The `LeadFormValueProvider`
@@ -23,7 +32,7 @@
   ordinary creative. Lead Generation ads are served on `apiVersion` `2025-11-01`
   or later; the SDK warns when enabled without one.
 
-- **Experimental: Lead Generation form controller and secure web view.**
+- **Lead Generation form controller and secure web view.**
   `AdMoai.createLeadFormController(creative, presentation:, host:)` returns a
   `LeadFormController` for a creative that carries a Lead Generation experience,
   or `null` when the app has not opted in, the device cannot host the form, or the
@@ -48,7 +57,7 @@
   or later; below that the SDK does not advertise support. A form message in which any
   JSON object repeats a key is refused.
 
-- **Experimental: Lead Generation prefill, form events, hidden-form bound and
+- **Lead Generation prefill, form events, hidden-form bound and
   user-change disposal.** `LeadFormValueProvider.lookUpValues(keys)` is called
   only after the viewer opened a form and it activated, only with the standard
   keys that form requests; answer from what the app already holds, never from a
@@ -77,6 +86,16 @@
   A `submitted` or `submit_failed` with no unanswered `submitting` is refused as
   out of order, and `submit_failed` accepts the codes `unauthorized`,
   `form_not_available` and `invalid_request`.
+
+- **Docs: Lead Generation how-to.** README: Lead Generation, a step-by-step
+  integration guide (opt-in with and without prefill, controller, tap, visibility,
+  host, state, dispose) whose examples are compile-checked.
+  The Lead Generation API is public and stable, the same as in the iOS and
+  Android SDKs.
+  README Requirements now state the real minimums: Flutter 3.27+ (Dart 3.6+)
+  and Android API 21+ (the plugin's `minSdk`).
+  The Event Tracking section states that each beacon is attempted once (no
+  retry, unlike the native Android SDK).
 
 ### Fixed
 

@@ -154,11 +154,13 @@ internal class SecureFormWebView(
         // request is judged here: only the first GET of the launch URL loads; anything else loads
         // nothing and fails the form, which can no longer be trusted to be on screen.
         override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
-            if (!request.isForMainFrame) return null
+            // Debug-only fixture server for the on-device test; in release and profile builds
+            // FormTestHooks (src/nonDebug) always answers null, so the WebView loads from the network.
+            if (!request.isForMainFrame) return FormTestHooks.intercept(request)
             val isLaunch = LeadFormRules.isAllowedMainFrameLoad(
                 request.url.toString(), request.method, launchUrlText, launchConsumed.get(),
             ) && launchConsumed.compareAndSet(false, true)
-            if (isLaunch) return null
+            if (isLaunch) return FormTestHooks.intercept(request)
             mainHandler.post { fail() }
             return WebResourceResponse("text/plain", "utf-8", 204, "No Content", emptyMap(), ByteArrayInputStream(ByteArray(0)))
         }

@@ -1,0 +1,18 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>post</title></head>
+<body>
+<script>
+  // Test fixture for integration_test/secure_form_surface_test.dart: a page that, once loaded,
+  // submits a POST form to the foreign origin, as a hostile form would to leave the secure view.
+  var params = new URLSearchParams(location.hash.slice(1));
+  AdmoaiBridge.addEventListener("message", function (e) {
+    AdmoaiBridge.postMessage("echo:" + e.data);
+  });
+  AdmoaiBridge.postMessage("hello");
+  var f = document.createElement("form");
+  f.method = "post";
+  f.action = (params.get("foreign") || "") + "/frame.html";
+  document.body.appendChild(f);
+  setTimeout(function () { f.submit(); }, 200);
+</script>
+</body></html>

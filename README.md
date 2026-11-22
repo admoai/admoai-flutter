@@ -21,6 +21,7 @@ AdMoai Flutter SDK is a cross-platform advertising solution that enables seamles
   Read [Sponsored Pin Locations](#sponsored-pin-locations) before integrating: the SDK
   renders nothing and never infers that a pin was seen, so the measurement contract is
   yours to honour
+- **Lead Generation** - A native creative that opens a hosted lead form in an SDK-owned secure web view; read [Lead Generation](#lead-generation) (requires `apiVersion: "2025-11-01"`)
 - **Rich Targeting** - Geo, current-location, destination, and custom key-value targeting
 - **GDPR Compliance** - Built-in user consent management
 - **Event Tracking** - Impressions, clicks, video quartiles, and custom events
@@ -32,8 +33,8 @@ AdMoai Flutter SDK is a cross-platform advertising solution that enables seamles
 
 ## Requirements
 
-- **Flutter** 3.0+
-- **Dart** 3.0+
+- **Flutter** 3.27+
+- **Dart** 3.6+
 - **iOS** 14.0+ / **Android** API 21+
 
 ## Installation
@@ -244,6 +245,13 @@ All `fire*` methods are **fire-and-forget**: they return `void`, dispatch on the
 SDK's own scope, and never throw into the caller. Network failures are logged, not
 surfaced — so there is no return value to retry on. If you need a retry, call the
 method again with the same `Tracking` object; the identical URL is re-fired.
+
+Each beacon is attempted **once**: the Flutter SDK does not retry a failed beacon
+for any format (native, video, Sponsored Pin, Journey, carousel, Lead Generation
+form events), whereas the native Android SDK retries failed beacons. On a flaky
+connection a Flutter app can therefore count fewer events than a native Android
+app for the same traffic. A retry across all formats is tracked in
+[admoai-flutter#139](https://github.com/admoai/admoai-flutter/issues/139).
 
 A click beacon records the click and nothing else. The tracking endpoint answers
 a click with a `302` to the creative's destination, which is meant for browsers;
@@ -1353,6 +1361,612 @@ eligible for that placement.
 
 **Does any of this fan out third-party trackers?** No. Third-party trackers stay at the creative
 level and are not duplicated per pin.
+
+## Lead Generation
+
+A Lead Generation ad is a **native creative that your app renders**. When the viewer taps it, a
+hosted form opens inside an SDK-owned secure web view. The form handles its own stages, validation,
+submission and confirmation. Your app never sees what the viewer typed and never implements a
+JavaScript bridge: you draw the creative, fire the creative's impression and click, and place the
+form view where you want it.
+
+### What you need
+
+- **`apiVersion: "2025-11-01"` in `SDKConfig`**, as in [Quick Start](#1-initialize-the-sdk). Without
+  it the engine does not serve Lead Generation, and the SDK logs a warning when you opt in without
+  one.
+- **Android**: the SDK adds `androidx.webkit` and advertises Lead Generation support **only when the
+  device's WebView supports it**, so you are never served an ad the device cannot open.
+- **iOS 14 or later.** Below that the SDK does not advertise support.
+- **`url_launcher`** (or any way to open a browser) in your own `pubspec.yaml`: the form asks your
+  app to open the privacy policy and the advertiser's website. It is your dependency, not the SDK's.
+
+### 1. Opt in, with or without prefill
+
+The SDK declares support to the engine only after your app calls `enableInteractiveExperiences` with
+a `LeadFormValueProvider`. The provider answers one question: which of the viewer's details could
+your app fill in for the form?
+
+```dart
+import 'package:admoai/admoai.dart';
+
+/// What the app already holds about the signed-in rider, from its own memory.
+class RiderProfile {
+  const RiderProfile({
+    required this.fullName,
+    required this.email,
+    required this.phone,
+  });
+
+  final String fullName;
+  final String email;
+  final String phone;
+}
+
+/// With prefill: offers full name, email and phone for the current rider.
+class RiderPrefillProvider implements LeadFormValueProvider {
+  RiderPrefillProvider(this.currentRider);
+
+  /// Returns the rider who is signed in right now, or null when nobody is.
+  final RiderProfile? Function() currentRider;
+
+  @override
+  Set<StandardAttributeKey> get availableKeys => const {
+        StandardAttributeKey.fullName,
+        StandardAttributeKey.email,
+        StandardAttributeKey.phone,
+      };
+
+  @override
+  Future<Map<StandardAttributeKey, String>> lookUpValues(
+    Set<StandardAttributeKey> keys,
+  ) async {
+    final rider = currentRider();
+    if (rider == null) return const {};
+    final all = {
+      StandardAttributeKey.fullName: rider.fullName,
+      StandardAttributeKey.email: rider.email,
+      StandardAttributeKey.phone: rider.phone,
+    };
+    return {
+      for (final entry in all.entries)
+        if (keys.contains(entry.key)) entry.key: entry.value,
+    };
+  }
+}
+
+/// Without prefill: the form opens empty and the viewer types everything.
+class NoPrefillProvider implements LeadFormValueProvider {
+  @override
+  Set<StandardAttributeKey> get availableKeys => const <StandardAttributeKey>{};
+
+  @override
+  Future<Map<StandardAttributeKey, String>> lookUpValues(
+    Set<StandardAttributeKey> keys,
+  ) async =>
+      const {};
+}
+
+Future<AdMoai> startAdMoai(RiderProfile? Function() currentRider) async {
+  final sdk = await AdMoai.initialize(
+    config: SDKConfig(baseUrl: 'https://your-decision-engine.example.com',
+        apiVersion: '2025-11-01'),
+  );
+  sdk.enableInteractiveExperiences(RiderPrefillProvider(currentRider));
+  // Or: sdk.enableInteractiveExperiences(NoPrefillProvider());
+  return sdk;
+}
+```
+
+How the two directions work, and what the SDK guarantees:
+
+- **Keys only in the request.** The decision request carries the list of keys from `availableKeys`
+  (for example `fullName`, `email`, `phone`), never a value. An empty set is valid: you are saying
+  "I host the form, I cannot prefill".
+- **Values only after the viewer taps.** `lookUpValues` is called only after the viewer opened a
+  form and it activated, and only with the standard keys that form asked for. Answer from what the app
+  already holds in memory; do not call a server.
+- **The timeout.** If your answer takes longer than the lookup time (1.5 seconds today, set by the
+  shared contract), throws, or arrives after the form was disposed, the SDK ignores it and the form
+  opens empty. The viewer is never blocked.
+- **Invalid values are dropped.** Blank values, values over the length bound and a `gender` outside
+  the form's options are left out; the form validates everything else. The SDK never logs a value and
+  does not keep it after handing it to the form.
+- `disableInteractiveExperiences()` withdraws the opt-in. Passing a different provider to
+  `enableInteractiveExperiences` replaces the first and closes the forms opened with it.
+
+### 2. Request ads and find the Lead Generation creative
+
+Request ads as you always do. A creative with a form carries `creative.interactiveExperience`:
+
+| Value | Meaning |
+|---|---|
+| `LeadGenerationExperience` | A Lead Generation form. It exposes `formId`, `formInstanceId`, `preparedVersionId`, `prefillAttributeKeys` and `expiresAt`. |
+| `UnsupportedInteractiveExperience` | An interactive experience this SDK does not understand, or a malformed one. **Do not show it as tappable.** Render it as an ordinary ad or skip it. |
+| `null` | An ordinary creative. |
+
+```dart
+import 'package:admoai/admoai.dart';
+
+Future<Creative?> loadLeadGenerationCreative(AdMoai sdk) async {
+  final request =
+      sdk.createRequestBuilder().addPlacement(key: 'ride_summary').build();
+  final response = await sdk.requestAds(request);
+  final decision = response.body.data?.firstOrNull;
+  if (decision == null || decision.isNoAd) return null;
+  for (final creative in decision.creatives ?? const <Creative>[]) {
+    switch (creative.interactiveExperience) {
+      case LeadGenerationExperience():
+        return creative;
+      case UnsupportedInteractiveExperience():
+      case null:
+        continue;
+    }
+  }
+  return null;
+}
+```
+
+### 3. Render the creative and fire the impression
+
+The creative is yours to draw, from `creative.contents`, like any native format. Fire the impression
+the way you do today, when the ad is on screen: `sdk.fireImpression(creative.tracking)`. The
+examples below do it after the first frame.
+
+### 4. Create the controller and prepare it early
+
+`sdk.createLeadFormController(creative, presentation:, host:)` returns a `LeadFormController`. It
+returns **`null`** when the app has not opted in, the device cannot host the form, or the creative has
+no usable form: in every case, **do not offer the form** and render the creative as an ordinary ad.
+
+Call `prepare()` as soon as the ad is shown. It loads the form hidden, so the tap that follows opens
+it quickly. Create **one controller per served creative**.
+
+`FormPresentation.inline` is for a form that sits inside your own card; `FormPresentation.fullScreen`
+is for a form that fills a screen (a route). Tell the controller which one you use, because it
+changes who draws the close button.
+
+### 5. On tap: fire the click, `open()`, show `LeadFormView`
+
+The SDK **never fires the creative's click for you**. On the tap, call
+`sdk.fireClick(creative.tracking)` once, then `controller.open()`, then put
+`LeadFormView(controller: controller)` on screen.
+
+`LeadFormView` shows the native view the controller owns; a rebuild never recreates it or loses what
+the viewer typed. Keyboard, insets and scrolling are **yours**: give the view a height inline, and put
+it in a `Scaffold` full screen so the keyboard resizes it.
+
+- **Full screen**: the form shows its **own close button**. It asks your app to close through
+  `LeadFormHost.onRequestClose`.
+- **Inline**: the form draws no close button. Closing is your card's job (collapse it, then dispose).
+
+**Inline, inside the card**
+
+```dart
+import 'dart:async';
+
+import 'package:admoai/admoai.dart';
+import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+class InlineLeadCard extends StatefulWidget {
+  const InlineLeadCard({super.key, required this.sdk, required this.creative});
+
+  final AdMoai sdk;
+  final Creative creative;
+
+  @override
+  State<InlineLeadCard> createState() => _InlineLeadCardState();
+}
+
+class _InlineLeadCardState extends State<InlineLeadCard>
+    implements LeadFormHost {
+  LeadFormController? _controller;
+  bool _expanded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _startController();
+  }
+
+  void _startController() {
+    _controller = widget.sdk.createLeadFormController(
+      widget.creative,
+      presentation: FormPresentation.inline,
+      host: this,
+    );
+    unawaited(_controller?.prepare());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) widget.sdk.fireImpression(widget.creative.tracking);
+    });
+  }
+
+  @override
+  void didUpdateWidget(InlineLeadCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Flutter reuses this State for a new creative: the old controller belongs
+    // to the old creative, so release it and start one for the new one.
+    if (oldWidget.creative != widget.creative ||
+        oldWidget.sdk != widget.sdk) {
+      final old = _controller;
+      _controller = null;
+      _expanded = false;
+      if (old != null) {
+        old.setVisible(false);
+        unawaited(old.dispose());
+      }
+      _startController();
+    }
+  }
+
+  void _onTap() {
+    final controller = _controller;
+    if (controller == null) return;
+    widget.sdk.fireClick(widget.creative.tracking); // the SDK never fires it
+    unawaited(controller.open());
+    setState(() => _expanded = true);
+    // The form is on screen from the next frame: tell it.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _expanded) controller.setVisible(true);
+    });
+  }
+
+  @override
+  void onRequestClose(LeadFormController controller) => _close(controller);
+
+  // The inline form draws no close button: this is your card's close control
+  // (the IconButton below) and the form's own close request.
+  void _close(LeadFormController controller) {
+    // Collapse the card, then release the form.
+    if (!mounted) return;
+    controller.setVisible(false);
+    setState(() {
+      _expanded = false;
+      _controller = null;
+    });
+    unawaited(controller.dispose());
+  }
+
+  @override
+  void onOpenExternalLink(
+    LeadFormController controller,
+    ExternalLinkPurpose purpose,
+    Uri url,
+  ) {
+    // A separate browser, never inside the form, and nothing added to the URL.
+    unawaited(launchUrl(url, mode: LaunchMode.externalApplication));
+  }
+
+  @override
+  void dispose() {
+    unawaited(_controller?.dispose());
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final controller = _controller;
+    return Card(
+      child: Column(
+        children: [
+          ListTile(
+            // Your template's content keys; this one is an example.
+            title: Text(
+                '${widget.creative.contents.getContent('headline')?.value ?? ''}'),
+            onTap: controller == null ? null : _onTap,
+            trailing: _expanded && controller != null
+                ? IconButton(
+                    icon: const Icon(Icons.close),
+                    tooltip: 'Close',
+                    onPressed: () => _close(controller),
+                  )
+                : null,
+          ),
+          if (_expanded && controller != null)
+            SizedBox(height: 480, child: LeadFormView(controller: controller)),
+        ],
+      ),
+    );
+  }
+}
+```
+
+**Full screen, as a route**
+
+```dart
+import 'dart:async';
+
+import 'package:admoai/admoai.dart';
+import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+class FullScreenLeadCard extends StatefulWidget {
+  const FullScreenLeadCard(
+      {super.key, required this.sdk, required this.creative});
+
+  final AdMoai sdk;
+  final Creative creative;
+
+  @override
+  State<FullScreenLeadCard> createState() => _FullScreenLeadCardState();
+}
+
+class _FullScreenLeadCardState extends State<FullScreenLeadCard>
+    implements LeadFormHost {
+  LeadFormController? _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _startController();
+  }
+
+  void _startController() {
+    _controller = widget.sdk.createLeadFormController(
+      widget.creative,
+      presentation: FormPresentation.fullScreen,
+      host: this,
+    );
+    unawaited(_controller?.prepare());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) widget.sdk.fireImpression(widget.creative.tracking);
+    });
+  }
+
+  @override
+  void didUpdateWidget(FullScreenLeadCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Flutter reuses this State for a new creative: release the old controller
+    // and start one for the new creative.
+    if (oldWidget.creative != widget.creative ||
+        oldWidget.sdk != widget.sdk) {
+      final old = _controller;
+      _controller = null;
+      if (old != null) unawaited(old.dispose());
+      _startController();
+    }
+  }
+
+  Future<void> _onTap() async {
+    final controller = _controller;
+    if (controller == null) return;
+    widget.sdk.fireClick(widget.creative.tracking); // the SDK never fires it
+    unawaited(controller.open());
+    await Navigator.of(context).push(MaterialPageRoute<void>(
+      builder: (_) => _LeadFormRoute(controller: controller),
+    ));
+    // The route is gone, by the form's close button or by the back gesture.
+    unawaited(controller.dispose());
+    if (mounted && identical(_controller, controller)) {
+      setState(() => _controller = null);
+    }
+  }
+
+  @override
+  void onRequestClose(LeadFormController controller) {
+    // The form asked to close: pop the route itself. maybePop() would run Back
+    // handling, which the visible form intercepts, and the route would stay.
+    if (mounted) Navigator.of(context).pop();
+  }
+
+  @override
+  void onOpenExternalLink(
+    LeadFormController controller,
+    ExternalLinkPurpose purpose,
+    Uri url,
+  ) {
+    unawaited(launchUrl(url, mode: LaunchMode.externalApplication));
+  }
+
+  @override
+  void dispose() {
+    unawaited(_controller?.dispose());
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Card(
+        child: ListTile(
+          title: Text(
+              '${widget.creative.contents.getContent('headline')?.value ?? ''}'),
+          onTap: _controller == null ? null : _onTap,
+        ),
+      );
+}
+
+class _LeadFormRoute extends StatefulWidget {
+  const _LeadFormRoute({required this.controller});
+
+  final LeadFormController controller;
+
+  @override
+  State<_LeadFormRoute> createState() => _LeadFormRouteState();
+}
+
+class _LeadFormRouteState extends State<_LeadFormRoute> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      widget.controller.setVisible(true);
+    });
+  }
+
+  @override
+  void dispose() {
+    widget.controller.setVisible(false);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+        // The Scaffold resizes for the keyboard; the form draws its own close button.
+        body: SafeArea(child: LeadFormView(controller: widget.controller)),
+      );
+}
+```
+
+### 6. Tell the form when it is really on screen
+
+Call `controller.setVisible(true)` when the form is **actually visible** to the viewer and
+`setVisible(false)` when it stops being (a collapsed card, a route covered by another, the app in the
+background). One **Form Open** is counted, on real visibility: if you never call `setVisible(true)`,
+the form can be ready but nothing is counted, and the form stays hidden. Repeating the same value does
+nothing.
+
+### 7. The host: close and external links
+
+`LeadFormHost` is the form's way of asking your app for what it cannot do itself:
+
+- **`onRequestClose(controller)`**: the form asks to be closed (the close button full screen, or the
+  end of the flow). Remove the view (pop the route, collapse the card) and dispose the controller.
+- **`onOpenExternalLink(controller, purpose, url)`**: open `url` in a **separate browser surface**
+  (for example `launchUrl(url, mode: LaunchMode.externalApplication)` from `url_launcher`), never
+  inside the form, and without adding a token, a form value or an identifier to it. The `purpose` is
+  `ExternalLinkPurpose.privacyPolicy`, available any time the form is visible, or
+  `ExternalLinkPurpose.websiteCta`, the advertiser's website, which **only arrives after a
+  submission**.
+
+### 8. Observe the state
+
+`controller.state` is a `ValueListenable<LeadFormState>`. The state is a sealed class, so a `switch`
+tells you when you missed one:
+
+```dart
+import 'dart:async';
+
+import 'package:admoai/admoai.dart';
+import 'package:flutter/material.dart';
+
+Widget leadFormStatus(LeadFormController controller) {
+  return ValueListenableBuilder<LeadFormState>(
+    valueListenable: controller.state,
+    builder: (context, state, _) => switch (state) {
+      // Retryable: the viewer can try again. Never show the error code.
+      LeadFormFailed(retryable: true) => TextButton(
+          onPressed: () => unawaited(controller.retry()),
+          child: const Text('Try again'),
+        ),
+      LeadFormFailed() => const Text('This form is not available right now.'),
+      // The preparation passed its expiry: offer nothing, ask for a new ad.
+      LeadFormExpired() => const Text('This offer is no longer available.'),
+      // The form shows its own confirmation; here you may hide your call to action.
+      LeadFormSubmitted() => const SizedBox.shrink(),
+      LeadFormIdle() ||
+      LeadFormPreparing() ||
+      LeadFormPrepared() ||
+      LeadFormActivating() ||
+      LeadFormReadyToShow() ||
+      LeadFormVisible() ||
+      LeadFormSubmitting() ||
+      LeadFormDisposed() =>
+        const SizedBox.shrink(),
+    },
+  );
+}
+```
+
+| State | What it means for you |
+|---|---|
+| `LeadFormIdle`, `LeadFormPreparing`, `LeadFormPrepared` | Loading in the background, or waiting for the tap. Nothing to show. |
+| `LeadFormActivating` | The viewer tapped; the form is activating and prefill is applied. |
+| `LeadFormReadyToShow` | Show the form, then call `setVisible(true)`. |
+| `LeadFormVisible`, `LeadFormSubmitting` | The viewer is filling or submitting. |
+| `LeadFormSubmitted` | The lead was accepted (`leadId`, `submittedAt`). The website link can now arrive. |
+| `LeadFormFailed` | `retryable` true: offer `retry()`. False: stop offering the form on this ad. |
+| `LeadFormExpired` | The preparation expired. The controller never opens: request a new ad. |
+| `LeadFormDisposed` | Released. Every call is ignored. |
+
+### 9. Dispose
+
+- Dispose the controller when its owner UI goes away (`controller.dispose()` in your `State.dispose`).
+  It is safe to call twice.
+- `sdk.disposeAllLeadForms()` disposes every form the SDK handed out. Call it on sign-out or account
+  switch if you do not use `setUserConfig`.
+- Forms also close by themselves when `setUserConfig` is called with **another user id**, on
+  `disableInteractiveExperiences()` and when `enableInteractiveExperiences` is given a different
+  provider, so one person's form never outlives them. At most 2 forms stay loaded and hidden at once:
+  a further `prepare()` stays idle, and `open()` loads it anyway.
+
+```dart
+import 'package:admoai/admoai.dart';
+
+void signOut(AdMoai sdk) {
+  sdk.disposeAllLeadForms();
+  sdk.setUserConfig(id: 'another_user'); // a different id also disposes forms
+}
+```
+
+### What the SDK does for you, and what stays yours
+
+| The SDK does | You do |
+|---|---|
+| Declares support to the engine only when the device can host the form | Call `enableInteractiveExperiences` and send `apiVersion: "2025-11-01"` |
+| Runs the form in a locked-down web view and speaks to it; no JavaScript bridge in your app | Render the native creative and fire its impression |
+| Handles stages, validation, submit and confirmation inside the form | Fire the creative click once on tap, then `open()` |
+| Asks you for values only after the tap, and drops invalid ones | Answer `lookUpValues` from memory, quickly |
+| Fires the form's own events (form open, form start, website click), once each | Call `setVisible(true/false)` when the form is really on screen |
+| Never logs the preparation token or any value | Open the privacy policy and website in a separate browser |
+| Disposes forms on user change, disable or a new provider | Dispose the controller when its UI goes away; keyboard, insets and scrolling |
+
+### System Back (Android)
+
+`LeadFormView` takes the system Back press while the form is visible and hands it to the form
+through `LeadFormController.handleBack()`. The form does what its own Back arrow does: it returns
+to the previous stage with every answer kept, or, on the first stage and on Confirmation, asks the
+app to close through `LeadFormHost.onRequestClose` (inline and full screen alike). While a
+submission is in progress the form ignores the press. Before the form is visible, while you have
+it hidden (`setVisible(false)`), and after `dispose()`, `handleBack()` returns `false`, sends
+nothing, and the press stays yours. Back never reloads or disposes the form: close it only in
+`onRequestClose`.
+
+```dart
+class _FormHost implements LeadFormHost {
+  _FormHost(this.close);
+  final void Function(LeadFormController) close;
+
+  @override
+  void onRequestClose(LeadFormController controller) => close(controller);
+
+  @override
+  void onOpenExternalLink(
+      LeadFormController controller, ExternalLinkPurpose purpose, Uri url) {
+    // Open the URL in a separate browser surface.
+  }
+}
+
+// Full screen: a route that shows the form. Android's Back is handled by the
+// LeadFormView inside it; onRequestClose pops the route.
+Widget fullScreenForm(LeadFormController controller) =>
+    Scaffold(body: SafeArea(child: LeadFormView(controller: controller)));
+
+// Inline: the same widget in your layout. onRequestClose removes it.
+Widget inlineForm(LeadFormController controller) =>
+    SizedBox(height: 480, child: LeadFormView(controller: controller));
+
+// Your own Back control (for example an app bar) can hand its press over too:
+bool handled(LeadFormController controller) => controller.handleBack();
+```
+
+---
+
+### Troubleshooting
+
+**I get no Lead Generation ads.** In order of likelihood: you did not call
+`enableInteractiveExperiences`; `apiVersion` is not `2025-11-01`; the device cannot host the form
+(Android WebView without support, iOS below 14), in which case the SDK does not advertise support;
+or Lead Generation is not yet turned on for your organization (ask your Admoai contact). It is an ordinary no-fill otherwise.
+
+**The form is ready but never becomes visible.** `setVisible(true)` was not called, or was called
+before the view was on screen. Call it from the frame after `LeadFormView` is attached.
+
+**The form opens empty.** Prefill is optional. Check that your provider's `availableKeys` is not empty,
+that `lookUpValues` answers within 1.5 seconds and does not throw, and that the values are not blank,
+too long, or a `gender` the form does not offer. The SDK never logs values, so check on your side.
+
+**`createLeadFormController` returned `null`.** The app has not opted in, the device cannot host the
+form, or the creative is not a `LeadGenerationExperience`. Render it as an ordinary ad.
 
 ## Admoai standard formats
 

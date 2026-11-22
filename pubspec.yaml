@@ -21,6 +21,9 @@ dev_dependencies:
   crypto: ^3.0.0
   flutter_test:
     sdk: flutter
+  # Only the on-device suite in integration_test/ uses it; nothing a publisher resolves.
+  integration_test:
+    sdk: flutter
   flutter_lints: ^5.0.0
 
 flutter:

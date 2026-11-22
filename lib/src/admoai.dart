@@ -423,7 +423,7 @@ class AdMoai {
 
   LeadFormValueProvider? _leadFormValueProvider;
 
-  /// **Experimental.** Declares that the app hosts the Lead Generation form.
+  /// Declares that the app hosts the Lead Generation form.
   /// Replaces a previous provider. A new SDK version alone never advertises
   /// support.
   void enableInteractiveExperiences(LeadFormValueProvider provider) {
@@ -451,7 +451,7 @@ class AdMoai {
   @visibleForTesting
   LeadFormSurface Function()? leadFormSurfaceFactoryForTesting;
 
-  /// **Experimental.** Disposes every Lead Generation form this instance handed
+  /// Disposes every Lead Generation form this instance handed
   /// out. Apps that do not use [UserConfig] call it on sign-out and account
   /// switch, so one person's form never outlives them.
   void disposeAllLeadForms() => _leadForms.disposeAll();
@@ -483,7 +483,7 @@ class AdMoai {
     await LeadFormSurface.isSupported();
   }
 
-  /// **Experimental.** Creates the controller that prepares and opens the Lead
+  /// Creates the controller that prepares and opens the Lead
   /// Generation form of [creative], shown as [presentation] and reporting to
   /// [host]. Returns `null` when the app has not opted in (see
   /// [enableInteractiveExperiences]), the device has no secure form view, or the

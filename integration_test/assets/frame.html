@@ -1,0 +1,15 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>frame</title></head>
+<body>
+<script>
+  function tryPost(label) {
+    try { AdmoaiBridge.postMessage(label); } catch (e) { /* the object does not exist here */ }
+  }
+  tryPost("from-frame");
+  setTimeout(function () {
+    tryPost("from-frame-late");
+    // The probe is done: tell the host page, which forwards completion to the app.
+    window.parent.postMessage("frame-probed", "*");
+  }, 300);
+</script>
+</body></html>

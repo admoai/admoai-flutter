@@ -14,6 +14,7 @@
 #
 # Then, for example:
 #   cd build/host_app && flutter build apk --debug
+#   cd build/host_app && flutter test integration_test/secure_form_surface_test.dart -d <device>
 #   cd build/host_app/android && ./gradlew :admoai:testDebugUnitTest
 #   cd build/host_app && flutter build ios --simulator --no-codesign
 #   cd build/host_app/ios && xcodebuild test -workspace Runner.xcworkspace -scheme Runner \
@@ -76,7 +77,23 @@ sed -e "/^dependencies:/a\\
 \\    path: $root" pubspec.yaml >pubspec.yaml.new
 mv pubspec.yaml.new pubspec.yaml
 
+# The on-device suite (integration_test/) runs from the host app: it needs a device-capable app
+# around the plugin, and the repository has none. Its fixture pages ship as the app's assets.
+grep -q '^dev_dependencies:' pubspec.yaml && grep -q '^flutter:' pubspec.yaml ||
+  fail "generated pubspec.yaml has no dev_dependencies: or flutter: block" \
+    "the Flutter template changed shape" \
+    "update tool/host_app.sh to add integration_test and the fixture assets to the new layout"
+sed -e "/^dev_dependencies:/a\\
+\\  integration_test:\\
+\\    sdk: flutter" \
+  -e "/^flutter:/a\\
+\\  assets:\\
+\\    - integration_test/assets/" pubspec.yaml >pubspec.yaml.new
+mv pubspec.yaml.new pubspec.yaml
+
 cp "$root/tool/host_app/main.dart" lib/main.dart
+cp -R "$root/integration_test" integration_test
+cp "$root/dart_test.yaml" dart_test.yaml
 rm -rf test
 # The plugin's XCTest (category rule, never a carrier) runs as the generated
 # RunnerTests target: `xcodebuild test -workspace ios/Runner.xcworkspace -scheme Runner`.
