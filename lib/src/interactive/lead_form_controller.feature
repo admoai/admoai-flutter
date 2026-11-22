@@ -172,9 +172,26 @@ Feature: An app prepares and opens a Lead Generation form through one controller
 
   Scenario: A form that is navigated away after it opened fails
     Given a visible controller
-    When the form's page is navigated away and the load fails
+    When the form's page is blocked from navigating away
     Then the controller has failed without retry
     And the form's view is destroyed
+
+  Scenario: a form the engine does not serve fails without retry
+    Given a controller still preparing
+    When the form's page answers 404 before it reports ready
+    Then the controller has failed without retry because the form is not available
+    And the form's view is destroyed
+
+  Scenario: a form page that errors before it reports ready can be retried
+    Given a controller still preparing
+    When the form's page answers 500 or cannot be reached before it reports ready
+    Then the controller has failed with a retryable temporary failure
+    And retrying loads the form again on a new view
+
+  Scenario: a load error after the form reported ready changes nothing
+    Given a prepared controller
+    When the form's page reports a load error
+    Then the controller is still prepared
 
   Scenario: the system back follows the form's visibility while it is shown
     Given a visible controller shown by the form view on a screen the viewer opened

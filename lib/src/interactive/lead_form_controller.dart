@@ -352,22 +352,27 @@ class LeadFormController {
         _set(const LeadFormFailed('renderer_gone', false));
         unawaited(_destroySurface());
       case SurfaceEventKind.loadFailed:
-        final s = _state.value;
-        if (s is LeadFormPreparing && !_activatedReceived) {
-          _loadFailed = true;
-          _set(const LeadFormFailed('load_failed', true));
-        } else if (s is LeadFormActivating ||
-            s is LeadFormReadyToShow ||
-            s is LeadFormVisible ||
-            s is LeadFormSubmitting ||
-            s is LeadFormSubmitted) {
-          // The page was navigated away after the form activated (the platform
-          // blocked or stopped the load). The activated instance cannot be
-          // trusted to be on screen: fail for good, a new controller is the
-          // way back. Destroying the surface frees its preparation slot.
-          _failTerminal('load_failed');
-        }
+        _onLoadFailed(event.failure ?? const LoadFailure.network());
     }
+  }
+
+  // The codes are the Android SDK's. The SDK's own guard block is always
+  // terminal. Past the first accepted bridge_ready no second main-frame load
+  // can happen, so any other load error is not about the form on screen.
+  void _onLoadFailed(LoadFailure failure) {
+    if (_ended) return;
+    if (failure.kind == LoadFailureKind.blocked) {
+      _failTerminal('navigation_blocked');
+      return;
+    }
+    if (_session.bridgeReadyCount > 0) return;
+    if (_state.value is LeadFormFailed) return;
+    if (failure.kind == LoadFailureKind.http && failure.httpStatus == 404) {
+      _failTerminal('form_not_available');
+      return;
+    }
+    _loadFailed = true;
+    _set(const LeadFormFailed('temporary_failure', true));
   }
 
   void _onMessage(String text) {

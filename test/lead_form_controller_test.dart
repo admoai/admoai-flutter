@@ -681,14 +681,70 @@ void main() {
   scenario('A form that is navigated away after it opened fails', () async {
     final r = await visible();
 
-    r.surface.emit(SurfaceEvent(
-        leadFormSurfaceId(r.controller), SurfaceEventKind.loadFailed));
+    r.surface.emit(SurfaceEvent(leadFormSurfaceId(r.controller),
+        SurfaceEventKind.loadFailed, null, const LoadFailure.blocked()));
 
-    expect(r.state, const LeadFormFailed('load_failed', false));
+    expect(r.state, const LeadFormFailed('navigation_blocked', false));
     expect(r.surface.destroyed, [leadFormSurfaceId(r.controller)]);
     await r.controller.retry();
-    expect(r.state, const LeadFormFailed('load_failed', false));
+    expect(r.state, const LeadFormFailed('navigation_blocked', false));
     expect(r.surface.created, hasLength(1));
+  });
+
+  scenario('a form the engine does not serve fails without retry', () async {
+    final r = rig();
+    await r.controller.prepare();
+
+    r.surface.emit(SurfaceEvent(leadFormSurfaceId(r.controller),
+        SurfaceEventKind.loadFailed, null, const LoadFailure.http(404)));
+
+    expect(r.state, const LeadFormFailed('form_not_available', false));
+    expect(r.surface.destroyed, [leadFormSurfaceId(r.controller)]);
+    await r.controller.retry();
+    expect(r.state, const LeadFormFailed('form_not_available', false));
+    expect(r.surface.created, hasLength(1));
+  });
+
+  scenario('a form page that errors before it reports ready can be retried',
+      () async {
+    for (final failure in [
+      const LoadFailure.http(500),
+      const LoadFailure.network(),
+      null,
+    ]) {
+      final r = rig();
+      await r.controller.prepare();
+
+      r.surface.emit(SurfaceEvent(leadFormSurfaceId(r.controller),
+          SurfaceEventKind.loadFailed, null, failure));
+      expect(r.state, const LeadFormFailed('temporary_failure', true));
+
+      await r.controller.retry();
+
+      expect(r.state, isA<LeadFormPreparing>());
+      expect(r.surface.created, hasLength(2));
+    }
+  });
+
+  scenario('a load error after the form reported ready changes nothing',
+      () async {
+    final r = rig();
+    await r.controller.prepare();
+    r.say('bridge_ready');
+    r.say('prepared');
+    expect(r.state, isA<LeadFormPrepared>());
+
+    for (final failure in [
+      const LoadFailure.http(404),
+      const LoadFailure.http(500),
+      const LoadFailure.network(),
+      null,
+    ]) {
+      r.surface.emit(SurfaceEvent(leadFormSurfaceId(r.controller),
+          SurfaceEventKind.loadFailed, null, failure));
+      expect(r.state, isA<LeadFormPrepared>());
+    }
+    expect(r.surface.destroyed, isEmpty);
   });
 
   const backFollowsVisibility =
@@ -986,7 +1042,7 @@ void main() {
       await r.controller.prepare();
       r.surface.emit(SurfaceEvent(
           leadFormSurfaceId(r.controller), SurfaceEventKind.loadFailed));
-      expect(r.state, const LeadFormFailed('load_failed', true));
+      expect(r.state, const LeadFormFailed('temporary_failure', true));
 
       await r.controller.retry();
 

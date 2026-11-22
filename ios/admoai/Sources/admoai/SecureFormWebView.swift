@@ -131,18 +131,18 @@ final class SecureFormWebView: NSObject, WKScriptMessageHandler, WKNavigationDel
       let http = navigationResponse.response as? HTTPURLResponse, http.statusCode >= 400
     {
       decisionHandler(.cancel)
-      fail()
+      fail("http:\(http.statusCode)")
     } else {
       decisionHandler(.allow)
     }
   }
 
   func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
-    fail()
+    failUnlessCancelled(error)
   }
 
   func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
-    fail()
+    failUnlessCancelled(error)
   }
 
   func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
@@ -162,7 +162,17 @@ final class SecureFormWebView: NSObject, WKScriptMessageHandler, WKNavigationDel
     nil
   }
 
-  private func fail() {
-    if !destroyed { onEvent(.loadFailed, nil) }
+  /// The SDK's own policy cancels (a link, a redirect, a refused response) come back as a failed
+  /// navigation: they are not a load failure and are never reported.
+  private func failUnlessCancelled(_ error: Error) {
+    let ns = error as NSError
+    if ns.domain == NSURLErrorDomain && ns.code == NSURLErrorCancelled { return }
+    if ns.domain == "WebKitErrorDomain" && ns.code == 102 { return }
+    fail("network")
+  }
+
+  /// The reason travels as the event's text: "http:<status>" or "network".
+  private func fail(_ reason: String) {
+    if !destroyed { onEvent(.loadFailed, reason) }
   }
 }
