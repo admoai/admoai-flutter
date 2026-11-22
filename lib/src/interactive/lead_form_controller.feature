@@ -195,13 +195,13 @@ Feature: An app prepares and opens a Lead Generation form through one controller
 
   Scenario: a form the engine does not serve fails without retry
     Given a controller still preparing
-    When the form's page answers 404 or another 4xx before it reports ready
+    When the form's page answers 404 or another 4xx other than 408 and 429 before it reports ready
     Then the controller has failed without retry because the form is not available
     And the form's view is destroyed
 
   Scenario: a form page that errors before it reports ready can be retried
     Given a controller still preparing
-    When the form's page answers 500 or cannot be reached before it reports ready
+    When the form's page answers 500, 429 or 408 or cannot be reached before it reports ready
     Then the controller has failed with a retryable temporary failure
     And retrying loads the form again on a new view
 

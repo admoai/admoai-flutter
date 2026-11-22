@@ -377,7 +377,11 @@ class LeadFormController {
     if (failure.kind == LoadFailureKind.http &&
         failure.httpStatus != null &&
         failure.httpStatus! >= 400 &&
-        failure.httpStatus! < 500) {
+        failure.httpStatus! < 500 &&
+        // 408 (timeout) and 429 (rate_limited: a pod at its in-flight cap) are
+        // transient by contract: they fall through to temporary_failure.
+        failure.httpStatus != 408 &&
+        failure.httpStatus != 429) {
       _failTerminal('form_not_available');
       return;
     }

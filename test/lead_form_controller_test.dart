@@ -713,6 +713,8 @@ void main() {
     for (final failure in [
       const LoadFailure.http(500),
       const LoadFailure.http(503),
+      const LoadFailure.http(429),
+      const LoadFailure.http(408),
       const LoadFailure.network(),
       null,
     ]) {
