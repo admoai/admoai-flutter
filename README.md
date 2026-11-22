@@ -246,6 +246,13 @@ SDK's own scope, and never throw into the caller. Network failures are logged, n
 surfaced — so there is no return value to retry on. If you need a retry, call the
 method again with the same `Tracking` object; the identical URL is re-fired.
 
+Each beacon is attempted **once**: the Flutter SDK does not retry a failed beacon
+for any format (native, video, Sponsored Pin, Journey, carousel, Lead Generation
+form events), whereas the native Android SDK retries failed beacons. On a flaky
+connection a Flutter app can therefore count fewer events than a native Android
+app for the same traffic. A retry across all formats is tracked in
+[admoai-flutter#139](https://github.com/admoai/admoai-flutter/issues/139).
+
 A click beacon records the click and nothing else. The tracking endpoint answers
 a click with a `302` to the creative's destination, which is meant for browsers;
 the SDK takes that response as final and never requests the destination. Opening

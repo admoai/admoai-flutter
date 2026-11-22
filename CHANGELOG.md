@@ -94,6 +94,8 @@
   Android SDKs.
   README Requirements now state the real minimums: Flutter 3.27+ (Dart 3.6+)
   and Android API 21+ (the plugin's `minSdk`).
+  The Event Tracking section states that each beacon is attempted once (no
+  retry, unlike the native Android SDK).
 
 ### Fixed
 
