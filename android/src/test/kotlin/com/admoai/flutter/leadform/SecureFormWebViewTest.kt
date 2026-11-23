@@ -178,14 +178,16 @@ class SecureFormWebViewTest {
         assertTrue(b.events.isEmpty())
     }
 
-    @Test fun `a navigation on API 21 to 23 fails the form once`() {
+    @Test fun `a navigation on API 21 to 23 is cancelled without failing the form`() {
+        // The String overload carries no frame, and it may be called for subframes, so it
+        // cannot tell a page leaving the form from an iframe navigating.
         val b = build()
         val client = shadowOf(b.view.webView).webViewClient
 
         @Suppress("DEPRECATION")
         assertTrue(client.shouldOverrideUrlLoading(b.view.webView, "https://evil.example.com/"))
 
-        assertEquals(listOf(SurfaceEventKind.LOAD_FAILED to "blocked"), b.events)
+        assertTrue(b.events.isEmpty())
     }
 
     @Test fun `a binary message from the page is not a text and never throws`() {

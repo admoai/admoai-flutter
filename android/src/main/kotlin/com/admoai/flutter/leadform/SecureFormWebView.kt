@@ -184,12 +184,12 @@ internal class SecureFormWebView(
             return true
         }
 
-        // API 21-23 call this overload instead of the one above, for top-level navigations only.
+        // API 21-23 call this overload instead of the one above. It carries no frame and may be
+        // called for subframes, so it cancels without failing the form: an iframe navigating
+        // must not end it. A main-frame load that still reaches the network is caught by
+        // shouldInterceptRequest.
         @Suppress("OVERRIDE_DEPRECATION", "DEPRECATION")
-        override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean {
-            fail(LOAD_BLOCKED)
-            return true
-        }
+        override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean = true
 
         override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
             if (request.isForMainFrame) fail(LOAD_NETWORK)
