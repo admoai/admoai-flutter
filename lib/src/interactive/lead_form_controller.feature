@@ -224,6 +224,24 @@ Feature: An app prepares and opens a Lead Generation form through one controller
     And the controller stays disposed
     And no app callback is called
 
+  Scenario: a form disposed by a listener while it publishes stays disposed and sends nothing more
+    Given a prepared controller whose app disposes it from a listener as soon as it starts over
+    When the form's page reloads before activation
+    Then the controller stays disposed
+    And the form is told to dispose once and nothing else
+
+  Scenario: a listener that shows the form as soon as it is ready to show sends became_visible once
+    Given an activated controller whose app shows the form from a listener on ready to show
+    When the form reports its prefill was applied
+    Then the controller is visible
+    And the form was told it became visible once
+
+  Scenario: a prefill the app cannot send fails the form without retry
+    Given an activated controller whose prefill is too large for the bridge
+    When the form's prefill is sent
+    Then the controller has failed without retry because of a bridge error
+    And the form's view is destroyed
+
   Scenario: the controller's description never shows the preparation token
     Given a prepared controller
     When the app prints the controller or its state

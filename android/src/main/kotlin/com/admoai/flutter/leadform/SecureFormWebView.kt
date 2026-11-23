@@ -177,11 +177,19 @@ internal class SecureFormWebView(
 
         // Every navigation the page starts (link, redirect, script) is blocked: the one load this
         // view makes is the launch URL, which goes through loadUrl and never reaches this method.
-        override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean = true
+        // A main-frame one also fails the form, which can no longer be trusted to be on screen; a
+        // subframe one is cancelled silently.
+        override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
+            if (request.isForMainFrame) fail(LOAD_BLOCKED)
+            return true
+        }
 
-        // API 21-23 call this overload instead of the one above.
+        // API 21-23 call this overload instead of the one above, for top-level navigations only.
         @Suppress("OVERRIDE_DEPRECATION", "DEPRECATION")
-        override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean = true
+        override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean {
+            fail(LOAD_BLOCKED)
+            return true
+        }
 
         override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
             if (request.isForMainFrame) fail(LOAD_NETWORK)
