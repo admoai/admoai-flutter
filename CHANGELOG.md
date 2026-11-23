@@ -99,6 +99,7 @@
 
 ### Fixed
 
+- Lead Generation form controller: a form disposed by a listener while it publishes stays disposed and sends nothing more, a listener that shows the form on `LeadFormReadyToShow` no longer makes it send `became_visible` twice, a prefill that cannot be sent fails the form (`bridge_error`, not retryable) instead of leaving it activating forever, and on Android (API 24+) a main-frame navigation the page starts now fails the form with `navigation_blocked`.
 - Lead Generation failure codes match the iOS and Android SDKs: a page that reloads after the form opened reports `reloaded` (was `page_reloaded`), `renderer_gone` is retryable until the form was opened (`retry()` recreates the view), and `retryable` is never true for a preparation failure the contract's `error-codes.json` marks final (the file is now synced and embedded with the contract).
 - Lead Generation load failures report `form_not_available` (404 or another 4xx except 408 and 429, not retryable), `temporary_failure` (5xx, 429, 408 or no network, retryable) or `navigation_blocked`, the same codes as the Android SDK; iOS no longer reports its own cancelled navigations as a failure.
 - The Android plugin now declares minSdk 21, matching the documented minimum.

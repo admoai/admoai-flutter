@@ -60,7 +60,9 @@ class LeadFormController {
         _launch = leadGenerationLaunch(descriptor),
         _id = 'lead_form_${_nextId++}',
         _session = BridgeSession(
-            instanceId: descriptor.formInstanceId, channel: channel);
+            instanceId: descriptor.formInstanceId,
+            channel: channel,
+            contract: contract);
 
   static int _nextId = 0;
 
@@ -259,6 +261,9 @@ class LeadFormController {
   bool _expired() => !_clock().toUtc().isBefore(_descriptor.expiresAt);
 
   void _set(LeadFormState next) {
+    // Disposed is final: a listener may dispose the form while it publishes,
+    // and whatever the caller does next must not overwrite that.
+    if (_disposed && next is! LeadFormDisposed) return;
     _state.value = next;
     _syncBackHandled();
   }
@@ -325,7 +330,9 @@ class LeadFormController {
     // A fresh bridge state for the new page, on the same channel: the old page
     // was destroyed, so nothing can still be talking on it.
     _session = BridgeSession(
-        instanceId: _descriptor.formInstanceId, channel: _channel);
+        instanceId: _descriptor.formInstanceId,
+        channel: _channel,
+        contract: _contract);
     _activateSent = false;
     _activatedReceived = false;
     _submittedReceived = false;
@@ -338,6 +345,7 @@ class LeadFormController {
   }
 
   void _failTerminal(String code) {
+    if (_disposed) return;
     _set(LeadFormFailed(code, false));
     unawaited(_destroySurface());
   }
@@ -554,7 +562,13 @@ class LeadFormController {
       _log('Lead Generation prefill dropped: ${e.runtimeType}');
       accepted = const <String, String>{};
     }
-    _send('prefill', {'values': accepted});
+    if (!_send('prefill', {'values': accepted}) &&
+        !_disposed &&
+        !_surfaceDestroyed &&
+        _state.value is LeadFormActivating) {
+      // The form waits for a prefill that will never come: fail closed.
+      _failTerminal('bridge_error');
+    }
   }
 
   /// Fires the tracking URL of an event the activation authorized, once per
@@ -574,7 +588,13 @@ class LeadFormController {
   void _onPrefillApplied() {
     if (_state.value is! LeadFormActivating) return;
     _set(const LeadFormReadyToShow());
-    if (_visibleRequested) _becomeVisible();
+    // A listener on ReadyToShow may already have shown the form (and sent
+    // became_visible) or disposed it.
+    if (!_disposed &&
+        _state.value is LeadFormReadyToShow &&
+        _visibleRequested) {
+      _becomeVisible();
+    }
   }
 
   void _becomeVisible() {
@@ -631,7 +651,7 @@ class LeadFormController {
   /// Encodes and posts one app message. A message the contract refuses is not
   /// sent. A post that fails ends the form: fail closed.
   bool _send(String type, [Map<String, Object?> payload = const {}]) {
-    if (_surfaceDestroyed || !_surfaceStarted) return false;
+    if (_disposed || _surfaceDestroyed || !_surfaceStarted) return false;
     final String text;
     try {
       text = _session.encode(type, payload);

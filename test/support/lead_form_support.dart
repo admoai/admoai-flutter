@@ -5,6 +5,8 @@ import 'dart:io';
 import 'package:admoai/admoai.dart';
 import 'package:admoai/src/interactive/lead_form_controller.dart'
     show buildLeadFormController, leadFormSurfaceId;
+import 'package:admoai/src/interactive/bridge_protocol.dart'
+    show BridgeContract;
 import 'package:admoai/src/interactive/lead_form_registry.dart';
 import 'package:admoai/src/interactive/secure_form_surface.dart';
 import 'package:flutter/foundation.dart' show SynchronousFuture;
@@ -205,6 +207,7 @@ class FakeRig extends FakePage {
     LeadFormValueProvider? provider,
     void Function(String)? fireTracking,
     LeadFormRegistry? registry,
+    BridgeContract? contract,
   }) : super(fixtures, FakeSurface()) {
     controller = buildLeadFormController(
       descriptor: descriptor,
@@ -216,6 +219,7 @@ class FakeRig extends FakePage {
       valueProvider: provider ?? NoPrefill(),
       fireTracking: fireTracking ?? fired.add,
       registry: registry,
+      contract: contract,
       timer: timers.create,
     );
     registry?.register(controller);

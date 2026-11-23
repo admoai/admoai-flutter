@@ -144,6 +144,52 @@ class SecureFormWebViewTest {
         assertEquals(listOf(SurfaceEventKind.LOAD_FAILED to "blocked"), b.events)
     }
 
+    @Test fun `a main frame navigation the page starts fails the form once`() {
+        val b = build()
+        val client = shadowOf(b.view.webView).webViewClient
+        val request = object : android.webkit.WebResourceRequest {
+            override fun getUrl() = android.net.Uri.parse("https://evil.example.com/")
+            override fun isForMainFrame() = true
+            override fun isRedirect() = false
+            override fun hasGesture() = true
+            override fun getMethod() = "GET"
+            override fun getRequestHeaders(): Map<String, String> = emptyMap()
+        }
+
+        assertTrue(client.shouldOverrideUrlLoading(b.view.webView, request))
+
+        assertEquals(listOf(SurfaceEventKind.LOAD_FAILED to "blocked"), b.events)
+    }
+
+    @Test fun `a subframe navigation the page starts is cancelled without failing the form`() {
+        val b = build()
+        val client = shadowOf(b.view.webView).webViewClient
+        val request = object : android.webkit.WebResourceRequest {
+            override fun getUrl() = android.net.Uri.parse("https://evil.example.com/")
+            override fun isForMainFrame() = false
+            override fun isRedirect() = false
+            override fun hasGesture() = true
+            override fun getMethod() = "GET"
+            override fun getRequestHeaders(): Map<String, String> = emptyMap()
+        }
+
+        assertTrue(client.shouldOverrideUrlLoading(b.view.webView, request))
+
+        assertTrue(b.events.isEmpty())
+    }
+
+    @Test fun `a navigation on API 21 to 23 is cancelled without failing the form`() {
+        // The String overload carries no frame, and it may be called for subframes, so it
+        // cannot tell a page leaving the form from an iframe navigating.
+        val b = build()
+        val client = shadowOf(b.view.webView).webViewClient
+
+        @Suppress("DEPRECATION")
+        assertTrue(client.shouldOverrideUrlLoading(b.view.webView, "https://evil.example.com/"))
+
+        assertTrue(b.events.isEmpty())
+    }
+
     @Test fun `a binary message from the page is not a text and never throws`() {
         assertNull(textOf(androidx.webkit.WebMessageCompat(byteArrayOf(1, 2, 3))))
         assertEquals("hi", textOf(androidx.webkit.WebMessageCompat("hi")))

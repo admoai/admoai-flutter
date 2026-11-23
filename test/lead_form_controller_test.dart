@@ -3,6 +3,9 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:admoai/admoai.dart';
+import 'package:admoai/src/interactive/bridge_protocol.dart'
+    show BridgeContract;
+import 'package:admoai/src/interactive/contract/bridge_messages.g.dart';
 import 'package:admoai/src/interactive/lead_form_controller.dart'
     show leadFormActivation, leadFormSurfaceId;
 import 'package:admoai/src/interactive/secure_form_surface.dart';
@@ -799,6 +802,78 @@ void main() {
     expect(r.surface.destroyed, [leadFormSurfaceId(r.controller)]);
     expect(r.host.closes, isEmpty);
     expect(r.host.links, isEmpty);
+  });
+
+  scenario(
+      'a form disposed by a listener while it publishes stays disposed and sends nothing more',
+      () async {
+    final r = await prepared();
+    // The page reloaded before activation: the controller starts over and
+    // publishes Preparing, and a listener disposes the form right then.
+    r.controller.state.addListener(() {
+      if (r.state is LeadFormPreparing) unawaited(r.controller.dispose());
+    });
+
+    r.say('bridge_ready');
+    await pumpEventQueue();
+
+    expect(r.state, isA<LeadFormDisposed>());
+    expect(r.sent.where((t) => t == 'initialize'), hasLength(1),
+        reason: 'only the first initialize');
+    expect(r.sent.where((t) => t == 'dispose'), hasLength(1));
+  });
+
+  scenario(
+      'a listener that shows the form as soon as it is ready to show sends became_visible once',
+      () async {
+    final r = await prepared();
+    await r.controller.open();
+    r.say('activated');
+    r.controller.state.addListener(() {
+      if (r.state is LeadFormReadyToShow) r.controller.setVisible(true);
+    });
+
+    r.say('prefill_applied');
+
+    expect(r.state, isA<LeadFormVisible>());
+    expect(r.sent.where((t) => t == 'became_visible'), hasLength(1));
+  });
+
+  scenario('a prefill the app cannot send fails the form without retry',
+      () async {
+    // A contract whose envelope fits every message but a prefill that carries
+    // a value: the session refuses to encode it, so the app cannot send it.
+    final bridge = jsonDecode(bridgeMessagesJson) as Map<String, dynamic>
+      ..['maxMessageBytes'] = 1000;
+    final tight = BridgeContract.parse(
+        jsonEncode(bridge), standardFieldsJson, errorCodesJson);
+    const keys = {
+      StandardAttributeKey.firstName,
+      StandardAttributeKey.lastName,
+      StandardAttributeKey.fullName,
+      StandardAttributeKey.email,
+      StandardAttributeKey.phone,
+    };
+    final r = FakeRig(descriptor(), fixtures, beforeExpiry,
+        contract: tight,
+        provider: ScriptedProvider(
+            (_) async => {
+                  for (final key in keys) key: 'a' * 250,
+                },
+            keys: keys));
+    await r.controller.prepare();
+    r.say('bridge_ready');
+    r.say('prepared');
+    await r.controller.open();
+
+    r.say('activated', {
+      'requestedAttributeKeys': [for (final key in keys) key.wireName]
+    });
+    await pumpEventQueue();
+
+    expect(r.sent, isNot(contains('prefill')));
+    expect(r.state, const LeadFormFailed('bridge_error', false));
+    expect(r.surface.destroyed, [leadFormSurfaceId(r.controller)]);
   });
 
   scenario("the controller's description never shows the preparation token",
