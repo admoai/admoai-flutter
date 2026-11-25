@@ -221,9 +221,17 @@ class _LeadGenQaScreenState extends State<LeadGenQaScreen>
     final creative = _creative;
     if (creative == null || _formShown) return;
     var controller = _controller;
+    final current = controller?.state.value;
+    if (current is LeadFormFailed && current.retryable) {
+      // open() does nothing on a failure: Retry brings the form back first.
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('The form failed and can be retried: press Retry')));
+      return;
+    }
     final reusable = controller != null &&
-        controller.state.value is! LeadFormDisposed &&
-        controller.state.value is! LeadFormExpired;
+        current is! LeadFormDisposed &&
+        current is! LeadFormExpired &&
+        current is! LeadFormFailed;
     if (!reusable) {
       _releaseController();
       controller = _newController(creative);
@@ -237,6 +245,13 @@ class _LeadGenQaScreenState extends State<LeadGenQaScreen>
     _formShown = true;
     widget.sdk.fireClick(creative.tracking); // the SDK never fires it
     unawaited(active.open());
+    final opened = active.state.value;
+    if (opened is LeadFormExpired || opened is LeadFormFailed) {
+      // Nothing to show: the status line names the outcome.
+      _formShown = false;
+      setState(() {});
+      return;
+    }
     if (_presentation == FormPresentation.fullScreen) {
       await Navigator.of(context).push(MaterialPageRoute<void>(
         builder: (_) => _QaFormSurface(controller: active, sheet: false),
@@ -353,20 +368,22 @@ class _LeadGenQaScreenState extends State<LeadGenQaScreen>
               ),
             ],
             selected: {_presentation},
-            onSelectionChanged: (selection) => setState(() {
-              _presentation = selection.first;
-              // The controller is created for one presentation: start a new one.
-              if (!_formShown) {
-                _releaseController();
-                final creative = _creative;
-                final fresh =
-                    creative == null ? null : _newController(creative);
-                if (fresh != null) {
-                  _adopt(fresh);
-                  unawaited(fresh.prepare());
-                }
-              }
-            }),
+            onSelectionChanged: _requesting
+                ? null
+                : (selection) => setState(() {
+                      _presentation = selection.first;
+                      // The controller is created for one presentation: start a new one.
+                      if (!_formShown) {
+                        _releaseController();
+                        final creative = _creative;
+                        final fresh =
+                            creative == null ? null : _newController(creative);
+                        if (fresh != null) {
+                          _adopt(fresh);
+                          unawaited(fresh.prepare());
+                        }
+                      }
+                    }),
           ),
           const SizedBox(height: 8),
           Wrap(
