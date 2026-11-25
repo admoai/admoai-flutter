@@ -20,7 +20,8 @@
 #   cd build/host_app/ios && xcodebuild test -workspace Runner.xcworkspace -scheme Runner \
 #     -destination 'platform=iOS Simulator,name=<an installed iPhone>'
 #
-# The app source is tool/host_app/main.dart. Needs `flutter` on PATH.
+# The app source is tool/host_app/main.dart (plus lead_gen_qa.dart and url_opener.dart for the
+# Lead Generation QA screen, shown with --dart-define=QA_LEAD_GEN=on). Needs `flutter` on PATH.
 set -euo pipefail
 
 root="$(cd "$(dirname "$0")/.." && pwd -P)"
@@ -38,10 +39,12 @@ command -v flutter >/dev/null 2>&1 ||
     "the host app is created and resolved with the Flutter tool" \
     "install Flutter (the version FLUTTER_VERSION pins in .github/workflows/ci.yml) and put it on PATH"
 
-[[ -f "$root/tool/host_app/main.dart" ]] ||
-  fail "tool/host_app/main.dart is missing" \
-    "it is the source the generated app runs" \
-    "restore it with: git checkout -- tool/host_app/main.dart"
+for src in main.dart lead_gen_qa.dart url_opener.dart; do
+  [[ -f "$root/tool/host_app/$src" ]] ||
+    fail "tool/host_app/$src is missing" \
+      "it is a source the generated app runs" \
+      "restore it with: git checkout -- tool/host_app/$src"
+done
 
 # Resolve to an absolute physical path (symlinks resolved, as for root) before
 # changing directory, so an alias of the repository cannot pass the guard below.
@@ -76,6 +79,11 @@ sed -e "/^dependencies:/a\\
 \\  admoai:\\
 \\    path: $root" pubspec.yaml >pubspec.yaml.new
 mv pubspec.yaml.new pubspec.yaml
+# The Lead Generation QA screen opens the form's external links with url_launcher: the host
+# app's own dependency, never the package's.
+sed -e "/^dependencies:/a\\
+\\  url_launcher: ^6.3.0" pubspec.yaml >pubspec.yaml.new
+mv pubspec.yaml.new pubspec.yaml
 
 # The on-device suite (integration_test/) runs from the host app: it needs a device-capable app
 # around the plugin, and the repository has none. Its fixture pages ship as the app's assets.
@@ -92,6 +100,7 @@ sed -e "/^dev_dependencies:/a\\
 mv pubspec.yaml.new pubspec.yaml
 
 cp "$root/tool/host_app/main.dart" lib/main.dart
+cp "$root/tool/host_app/lead_gen_qa.dart" "$root/tool/host_app/url_opener.dart" lib/
 cp -R "$root/integration_test" integration_test
 cp "$root/dart_test.yaml" dart_test.yaml
 rm -rf test
