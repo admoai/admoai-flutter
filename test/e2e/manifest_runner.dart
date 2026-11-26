@@ -82,6 +82,10 @@ Future<void> _run(Map<String, dynamic> entry, List<String> notes) async {
     baseUrl = await leadGenE2eBaseUrl();
     notes.add(
         'engine reached at $baseUrl (non-loopback, for an https launchUrl)');
+    if ((request['interactiveExperience'] as Map?)?['supported'] == false) {
+      notes.add('supported: false: the app never opts in, so the request '
+          'carries no Lead Generation support');
+    }
   }
   final driver = await (rawVersion == null
       ? newDriver(baseUrl: baseUrl)
@@ -176,7 +180,16 @@ Future<void> _run(Map<String, dynamic> entry, List<String> notes) async {
 
     // --- served / no-ad ---------------------------------------------------------------
     final built = builder.build();
-    final response = await driver.sdk.requestAds(built);
+    final APIResponse<List<Decision>> response;
+    try {
+      response = await driver.sdk.requestAds(built);
+    } catch (e) {
+      if (baseUrl == null) rethrow;
+      throw StateError(
+          'the engine could not be reached at $baseUrl, the non-loopback host the Lead '
+          'Generation scenarios use ($e). Check that the engine port is published on every '
+          'interface, or set $leadGenBaseUrlEnv to an address of this machine that reaches it.');
+    }
     final responseReceivedAt = DateTime.now();
     final decisions = response.body.data ?? <Decision>[];
 

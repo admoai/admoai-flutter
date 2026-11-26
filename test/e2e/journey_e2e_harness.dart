@@ -49,7 +49,15 @@ String resolveLeadGenBaseUrl({
 }) {
   String trim(String u) => u.replaceAll(RegExp(r'/+$'), '');
   if (envValue != null && envValue.trim().isNotEmpty) {
-    return trim(envValue.trim());
+    final chosen = trim(envValue.trim());
+    final host = Uri.tryParse(chosen)?.host ?? '';
+    if (host.isEmpty || _isLoopbackHost(host)) {
+      throw StateError(
+          '$leadGenBaseUrlEnv is "$chosen", a loopback or host-less URL, so the engine would mint '
+          'an http launchUrl the SDK refuses. Set it to the engine\'s non-loopback address, e.g. '
+          'http://192.168.1.20:8080, or unset it to use the first non-loopback IPv4.');
+    }
+    return chosen;
   }
   final base = Uri.parse(baseUrl);
   if (!_isLoopbackHost(base.host)) return trim(baseUrl);

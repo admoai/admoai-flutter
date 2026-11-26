@@ -335,6 +335,23 @@ void main() {
           'http://192.168.1.20:8090');
     });
 
+    test('a loopback env value is refused, never used', () {
+      for (final bad in [
+        'http://127.0.0.1:8080',
+        'http://localhost:8080',
+        'nonsense'
+      ]) {
+        expect(
+            () => resolveLeadGenBaseUrl(
+                envValue: bad,
+                baseUrl: 'http://127.0.0.1:8080',
+                addresses: [lan]),
+            throwsA(isA<StateError>().having(
+                (e) => e.message, 'message', contains(leadGenBaseUrlEnv))),
+            reason: bad);
+      }
+    });
+
     test('a non-loopback base is kept unchanged', () {
       expect(
           resolveLeadGenBaseUrl(
