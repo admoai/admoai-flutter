@@ -69,6 +69,15 @@ Boot is **owner-operated** — ask, do not attempt it unprompted.
   hand-built §K wizard fixture.** Warn the owner before suggesting it. See
   `fixtures/README.md`.
 
+**Lead Generation scenarios use a non-loopback host.** The engine builds a descriptor's `launchUrl` from
+the request's host and keeps `http` only for a loopback one; the SDK refuses a non-https `launchUrl`, so
+reached at `127.0.0.1` the descriptor decodes as unsupported. A scenario whose request carries
+`interactiveExperience` therefore reaches the engine at the machine's first non-loopback IPv4 (same
+scheme and port as `ADMOAI_JOURNEY_E2E_BASE_URL`), or at `ADMOAI_LEAD_GEN_E2E_BASE_URL` when set (use it
+when the machine has no such interface). The scenario's notes print the host used. Every other scenario
+stays on loopback, because the same rule makes tracking URLs `https` on that host and beacons are only
+reachable over plain loopback; the Lead Generation scenarios assert no beacons.
+
 Read-only DB inspection is available over the libSQL HTTP endpoint on `:8081`
 (`POST /v2/pipeline`) — useful for confirming fixture state before blaming the SDK.
 
