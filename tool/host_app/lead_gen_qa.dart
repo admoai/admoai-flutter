@@ -4,8 +4,14 @@ import 'dart:convert';
 import 'package:admoai/admoai.dart';
 import 'package:flutter/material.dart';
 
-/// The placement the Lead Generation QA round requests.
-const String qaPlacementKey = 'sdk_ie_lead_generation';
+/// The placement the Lead Generation QA round requests:
+/// `--dart-define=QA_PLACEMENT=<key>` names the test organization's placement
+/// in the environment `ADMOAI_BASE_URL` points at. The default is the local
+/// mock seed's.
+const String qaPlacementKey = String.fromEnvironment(
+  'QA_PLACEMENT',
+  defaultValue: 'sdk_ie_lead_generation',
+);
 
 /// Fixed values the "Prefill" switch offers, so a run can be compared by eye.
 const Map<StandardAttributeKey, String> qaPrefillValues = {
@@ -48,7 +54,7 @@ class LeadGenQaApp extends StatelessWidget {
       );
 }
 
-/// The Lead Generation QA screen: request `sdk_ie_lead_generation`, draw the
+/// The Lead Generation QA screen: request [qaPlacementKey], draw the
 /// native creative, and on tap fire the click, `open()` and show the form, as
 /// in the README "Lead Generation" how-to.
 class LeadGenQaScreen extends StatefulWidget {
@@ -301,7 +307,7 @@ class _LeadGenQaScreenState extends State<LeadGenQaScreen>
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          Text('Base URL: ${widget.baseUrl}'),
+          Text('Base URL: ${widget.baseUrl}\nPlacement: $qaPlacementKey'),
           SwitchListTile(
             key: const Key('qa-prefill'),
             title: const Text('Prefill'),

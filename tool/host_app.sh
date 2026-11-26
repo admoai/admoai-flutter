@@ -21,7 +21,8 @@
 #     -destination 'platform=iOS Simulator,name=<an installed iPhone>'
 #
 # The app source is tool/host_app/main.dart (plus lead_gen_qa.dart for the
-# Lead Generation QA screen, shown with --dart-define=QA_LEAD_GEN=on). Needs `flutter` on PATH.
+# Lead Generation QA screen, shown with --dart-define=QA_LEAD_GEN=on; it requests the placement
+# --dart-define=QA_PLACEMENT=<key> names, from the engine ADMOAI_BASE_URL names). Needs `flutter` on PATH.
 set -euo pipefail
 
 root="$(cd "$(dirname "$0")/.." && pwd -P)"
