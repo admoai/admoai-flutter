@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:admoai/admoai.dart';
+import 'package:admoai/src/models/interactive_experience.dart'
+    show leadGenerationLaunch;
 
 import '../support/creative_expectations.dart';
 import 'journey_e2e_harness.dart';
@@ -21,8 +23,8 @@ import 'journey_e2e_harness.dart';
 /// sleeps) stays hand-written, because that genuinely differs per platform.
 
 /// The manifest `schemaVersion`s this runner executes. 7 is 6 plus `request.interactiveExperience`
-/// (@admoai/sdk-scenarios 4.0.0); the vendored manifest stays on 6 until the adopt PR lands.
-const supportedSchemaVersions = {6, 7};
+/// (@admoai/sdk-scenarios 4.0.0); 8 adds `expect.creative.interactiveExperience` (4.1.0).
+const supportedSchemaVersions = {6, 7, 8};
 
 /// Throws a [StateError] naming the fix when [schemaVersion] is not one this runner executes.
 void requireSupportedSchemaVersion(Object? schemaVersion) {
@@ -31,7 +33,7 @@ void requireSupportedSchemaVersion(Object? schemaVersion) {
     'scenarios.json is schemaVersion $schemaVersion; this runner knows schemaVersion '
     '${(supportedSchemaVersions.toList()..sort()).join(' and ')} (the live expect.creative keys metadata, templateKey, contentKeys, '
     'styleIn, journeyStageKey, slides and clickKeys, and slideTracking on a live scenario; request.device and a request.custom[].value that is a list of strings; '
-    'and, from schemaVersion 7, request.interactiveExperience sent through the Lead Generation opt-in); fixtureScenarios and their slideTracking run as unit tests in '
+    'and, from schemaVersion 7, request.interactiveExperience sent through the Lead Generation opt-in, and from schemaVersion 8 expect.creative.interactiveExperience); fixtureScenarios and their slideTracking run as unit tests in '
     'test/fixture_scenarios_test.dart',
   );
 }
@@ -73,9 +75,23 @@ Future<void> _run(Map<String, dynamic> entry, List<String> notes) async {
 
   // 'none' means: no apiVersion at all, so no version header is sent.
   final rawVersion = request['apiVersion'] as String?;
+  // A request that opts into Lead Generation reaches the engine by a non-loopback host, so the
+  // engine mints an https launchUrl (it keeps http only for loopback and SDKs refuse that).
+  String? baseUrl;
+  if (request.containsKey('interactiveExperience')) {
+    baseUrl = await leadGenE2eBaseUrl();
+    notes.add(
+        'engine reached at $baseUrl (non-loopback, for an https launchUrl)');
+    if ((request['interactiveExperience'] as Map?)?['supported'] == false) {
+      notes.add('supported: false: the app never opts in, so the request '
+          'carries no Lead Generation support');
+    }
+  }
   final driver = await (rawVersion == null
-      ? newDriver()
-      : newDriver(apiVersion: rawVersion == 'none' ? null : rawVersion));
+      ? newDriver(baseUrl: baseUrl)
+      : newDriver(
+          apiVersion: rawVersion == 'none' ? null : rawVersion,
+          baseUrl: baseUrl));
 
   try {
     applyScenarioDevice(driver.sdk, request['device']);
@@ -164,7 +180,17 @@ Future<void> _run(Map<String, dynamic> entry, List<String> notes) async {
 
     // --- served / no-ad ---------------------------------------------------------------
     final built = builder.build();
-    final response = await driver.sdk.requestAds(built);
+    final APIResponse<List<Decision>> response;
+    try {
+      response = await driver.sdk.requestAds(built);
+    } catch (e) {
+      if (baseUrl == null) rethrow;
+      throw StateError(
+          'the engine could not be reached at $baseUrl, the non-loopback host the Lead '
+          'Generation scenarios use ($e). Check that the engine port is published on every '
+          'interface, or set $leadGenBaseUrlEnv to an address of this machine that reaches it.');
+    }
+    final responseReceivedAt = DateTime.now();
     final decisions = response.body.data ?? <Decision>[];
 
     final expectedDecisions = expect['decisions'] as int?;
@@ -216,7 +242,8 @@ Future<void> _run(Map<String, dynamic> entry, List<String> notes) async {
 
     final creativeExpect = expect['creative'] as Map<String, dynamic>?;
     if (creativeExpect != null) {
-      _assertCreative(creatives.first, creativeExpect, notes);
+      _assertCreative(creatives.first, creativeExpect, notes,
+          responseReceivedAt: responseReceivedAt);
     }
     final slideTracking = entry['slideTracking'] as Map<String, dynamic>?;
     if (slideTracking != null) {
@@ -585,6 +612,8 @@ const knownCreativeExpectKeys = {
   // schemaVersion 5 (Carousel), shared with the fixture scenarios too
   'slides',
   'clickKeys',
+  // schemaVersion 8
+  'interactiveExperience',
 };
 
 /// Every key of a live scenario this interpreter executes; one outside it FAILS the scenario.
@@ -718,6 +747,13 @@ List<String> validateScenarioShape(Map<String, dynamic> entry) {
       }
     }
   }
+  final expectCreative =
+      entry['expect'] is Map ? (entry['expect'] as Map)['creative'] : null;
+  if (expectCreative is Map &&
+      expectCreative.containsKey('interactiveExperience')) {
+    problems.addAll(_expectInteractiveExperienceProblems(
+        expectCreative['interactiveExperience']));
+  }
   if (request.containsKey('interactiveExperience')) {
     problems.addAll(_interactiveExperienceProblems(
         request['interactiveExperience'], unknownIn));
@@ -726,6 +762,30 @@ List<String> validateScenarioShape(Map<String, dynamic> entry) {
   if (unknownExpect.isNotEmpty) {
     problems.add(
         'every expect key is one this runner executes (unknown: $unknownExpect)');
+  }
+  return problems;
+}
+
+/// `expect.creative.interactiveExperience`: `false`, or `{type: string, prefillAttributeKeys: string[]}`.
+List<String> _expectInteractiveExperienceProblems(Object? claim) {
+  if (claim == false) return const [];
+  const where = 'expect.creative.interactiveExperience';
+  if (claim is! Map) return ['$where is false or an object (got $claim)'];
+  final problems = <String>[];
+  final unknown = claim.keys
+      .where((k) => k != 'type' && k != 'prefillAttributeKeys')
+      .toList();
+  if (unknown.isNotEmpty) {
+    problems.add(
+        'every $where key is one this runner executes (unknown: $unknown)');
+  }
+  if (claim['type'] is! String) {
+    problems.add('$where.type is a string (got ${claim['type']})');
+  }
+  final keys = claim['prefillAttributeKeys'];
+  if (keys is! List || keys.any((k) => k is! String)) {
+    problems
+        .add('$where.prefillAttributeKeys is a list of strings (got $keys)');
   }
   return problems;
 }
@@ -741,9 +801,9 @@ List<String> _interactiveExperienceProblems(
     problems.add(
         'every request.interactiveExperience key is one this runner executes (unknown: $u)');
   }
-  if (ie['supported'] != true) {
+  if (ie['supported'] is! bool) {
     problems.add(
-        'request.interactiveExperience.supported is true (got ${ie['supported']})');
+        'request.interactiveExperience.supported is a boolean (got ${ie['supported']})');
   }
   final keys = ie['availableAttributeKeys'];
   if (keys is! List || keys.any((k) => k is! String)) {
@@ -791,7 +851,9 @@ void applyScenarioInteractiveExperience(AdMoai sdk, Object? ie) {
   if (problems.isNotEmpty) {
     throw StateError('scenario interpreter error: ${problems.join('; ')}');
   }
-  final keys = ((ie as Map)['availableAttributeKeys'] as List)
+  // `supported: false` is the app that never opted in: the SDK sends nothing (IE5).
+  if ((ie as Map)['supported'] == false) return;
+  final keys = (ie['availableAttributeKeys'] as List)
       .cast<String>()
       .map((k) => StandardAttributeKey.fromWire(k)!)
       .toSet();
@@ -810,13 +872,72 @@ void applyScenarioDevice(AdMoai sdk, Object? device) {
   );
 }
 
+final _formIdPattern = RegExp(r'^form_[0-9A-HJKMNP-TV-Z]{26}$');
+final _preparedVersionIdPattern =
+    RegExp(r'^form_version_[0-9A-HJKMNP-TV-Z]{26}$');
+final _formInstanceIdPattern =
+    RegExp(r'^form_instance_[0-9A-HJKMNP-TV-Z]{26}$');
+
+/// Asserts `expect.creative.interactiveExperience` through the decoded descriptor, never raw JSON.
+void _checkInteractiveExperience(Object? claim, InteractiveExperience? actual,
+    DateTime receivedAt, List<String> notes) {
+  const where = 'expect.creative.interactiveExperience';
+  if (claim == false) {
+    check(actual == null,
+        '$where: the creative carries no interactive experience (got $actual)');
+    return;
+  }
+  final want = claim as Map;
+  check(
+      actual != null, '$where: the creative carries an interactive experience');
+  check(actual is! UnsupportedInteractiveExperience,
+      '$where: the descriptor is one this SDK can open (got an UnsupportedInteractiveExperience of type ${actual?.type})');
+  check(actual is LeadGenerationExperience,
+      '$where: the descriptor is a LeadGenerationExperience (got $actual)');
+  final lead = actual as LeadGenerationExperience;
+  check(lead.type == want['type'],
+      '$where.type is "${want['type']}" (got "${lead.type}")');
+  final keys = lead.prefillAttributeKeys.map((k) => k.wireName).toList();
+  final wantKeys = (want['prefillAttributeKeys'] as List).cast<String>();
+  check(
+      keys.length == wantKeys.length &&
+          [for (var i = 0; i < keys.length; i++) keys[i] == wantKeys[i]]
+              .every((same) => same),
+      '$where.prefillAttributeKeys is $wantKeys in that order (got $keys)');
+  check(_formIdPattern.hasMatch(lead.formId),
+      '$where.formId matches ${_formIdPattern.pattern} (got ${lead.formId})');
+  check(_preparedVersionIdPattern.hasMatch(lead.preparedVersionId),
+      '$where.preparedVersionId matches ${_preparedVersionIdPattern.pattern} (got ${lead.preparedVersionId})');
+  check(_formInstanceIdPattern.hasMatch(lead.formInstanceId),
+      '$where.formInstanceId matches ${_formInstanceIdPattern.pattern} (got ${lead.formInstanceId})');
+  final launch = leadGenerationLaunch(lead);
+  check(launch.launchUrl.isAbsolute,
+      '$where.launchUrl is absolute (got ${launch.launchUrl})');
+  check(launch.launchUrl.scheme == 'https',
+      '$where.launchUrl is https (got ${launch.launchUrl.scheme})');
+  check(!launch.launchUrl.hasQuery,
+      '$where.launchUrl has no query (got ${launch.launchUrl})');
+  check(!launch.launchUrl.hasFragment,
+      '$where.launchUrl has no fragment (got ${launch.launchUrl})');
+  check(launch.preparationToken.isNotEmpty,
+      '$where.preparationToken is non-empty');
+  check(lead.expiresAt.isAfter(receivedAt),
+      '$where.expiresAt ${lead.expiresAt.toIso8601String()} is after the response arrived at ${receivedAt.toUtc().toIso8601String()}');
+  notes.add(
+      'lead generation form ${lead.formId}, expires ${lead.expiresAt.toIso8601String()}');
+}
+
 /// Public seam for the offline unit test of the interpreter.
 void assertCreative(
-        Creative creative, Map<String, dynamic> e, List<String> notes) =>
-    _assertCreative(creative, e, notes);
+        Creative creative, Map<String, dynamic> e, List<String> notes,
+        {DateTime? responseReceivedAt}) =>
+    _assertCreative(creative, e, notes, responseReceivedAt: responseReceivedAt);
 
+/// [responseReceivedAt] is when the decision response arrived (default: now), the reference for
+/// `interactiveExperience.expiresAt`.
 void _assertCreative(
-    Creative creative, Map<String, dynamic> e, List<String> notes) {
+    Creative creative, Map<String, dynamic> e, List<String> notes,
+    {DateTime? responseReceivedAt}) {
   final unknown =
       e.keys.where((k) => !knownCreativeExpectKeys.contains(k)).toList();
   check(unknown.isEmpty,
@@ -844,6 +965,13 @@ void _assertCreative(
   }
   if (e.containsKey('clickKeys')) {
     checkClickKeys('expect.creative', e['clickKeys'], creative);
+  }
+  if (e.containsKey('interactiveExperience')) {
+    _checkInteractiveExperience(
+        e['interactiveExperience'],
+        creative.interactiveExperience,
+        responseReceivedAt ?? DateTime.now(),
+        notes);
   }
   if (e['requireMetadata'] == true) {
     final m = creative.metadata;

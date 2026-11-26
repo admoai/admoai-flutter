@@ -29,6 +29,62 @@ final String e2eBaseUrl =
             'http://127.0.0.1:8080')
         .replaceAll(RegExp(r'/+$'), '');
 
+/// Env var that overrides the host the Lead Generation scenarios reach the engine by.
+const String leadGenBaseUrlEnv = 'ADMOAI_LEAD_GEN_E2E_BASE_URL';
+
+bool _isLoopbackHost(String host) =>
+    host == 'localhost' ||
+    (InternetAddress.tryParse(host)?.isLoopback ?? false);
+
+/// Pure resolver of the base URL Lead Generation scenarios use. The engine mints an `https`
+/// `launchUrl` only when reached by a non-loopback host, and every SDK refuses an `http` one.
+///
+/// [envValue] wins when non-empty; otherwise a loopback [baseUrl] keeps its scheme and port and
+/// takes the first non-loopback IPv4 of [addresses]; otherwise [baseUrl] is kept. With no usable
+/// address it throws, naming [leadGenBaseUrlEnv]: it never falls back to loopback.
+String resolveLeadGenBaseUrl({
+  required String? envValue,
+  required String baseUrl,
+  required Iterable<InternetAddress> addresses,
+}) {
+  String trim(String u) => u.replaceAll(RegExp(r'/+$'), '');
+  if (envValue != null && envValue.trim().isNotEmpty) {
+    final chosen = trim(envValue.trim());
+    final host = Uri.tryParse(chosen)?.host ?? '';
+    if (host.isEmpty || _isLoopbackHost(host)) {
+      throw StateError(
+          '$leadGenBaseUrlEnv is "$chosen", a loopback or host-less URL, so the engine would mint '
+          'an http launchUrl the SDK refuses. Set it to the engine\'s non-loopback address, e.g. '
+          'http://192.168.1.20:8080, or unset it to use the first non-loopback IPv4.');
+    }
+    return chosen;
+  }
+  final base = Uri.parse(baseUrl);
+  if (!_isLoopbackHost(base.host)) return trim(baseUrl);
+  for (final a in addresses) {
+    if (a.type == InternetAddressType.IPv4 && !a.isLoopback) {
+      return trim(base.replace(host: a.address).toString());
+    }
+  }
+  throw StateError(
+      'no non-loopback IPv4 address found, so the Lead Generation scenarios cannot reach the '
+      'engine by a host that makes launchUrl https. Set $leadGenBaseUrlEnv to the engine\'s '
+      'non-loopback address, e.g. http://192.168.1.20:8080');
+}
+
+Future<String>? _leadGenBaseUrl;
+
+/// The base URL of the Lead Generation scenarios, resolved once per run.
+Future<String> leadGenE2eBaseUrl() => _leadGenBaseUrl ??= () async {
+      final interfaces =
+          await NetworkInterface.list(type: InternetAddressType.IPv4);
+      return resolveLeadGenBaseUrl(
+        envValue: Platform.environment[leadGenBaseUrlEnv],
+        baseUrl: e2eBaseUrl,
+        addresses: [for (final i in interfaces) ...i.addresses],
+      );
+    }();
+
 /// The Journey-capable API version. A wrong version is a hard gate: the engine
 /// silently ignores journey fields and serves normal ads.
 final String e2eApiVersion =
@@ -270,6 +326,7 @@ void assertRealNetworkingEnabled() {
 Future<Driver> newDriver({
   String? apiVersion = _defaultVersion,
   String? sessionId,
+  String? baseUrl,
 }) async {
   final logs = <LogRecord>[];
   final logger = Logger('e2e-${_sessionCounter++}')
@@ -279,7 +336,7 @@ Future<Driver> newDriver({
 
   final sdk = await AdMoai.initialize(
     config: SDKConfig(
-      baseUrl: e2eBaseUrl,
+      baseUrl: baseUrl ?? e2eBaseUrl,
       apiVersion: apiVersion == _defaultVersion ? e2eApiVersion : apiVersion,
       logger: logger,
       requestTimeout: const Duration(seconds: 20),
