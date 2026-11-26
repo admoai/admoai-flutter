@@ -182,7 +182,9 @@ void main() {
   /// messages instead, which is why only Android can wait for the frame's own acknowledgement.
   /// The host page and both frame origins are served by the test, which records every file asked
   /// of them: the host page being fetched over the same TLS setup shows a frame request would
-  /// have been seen.
+  /// have been seen. The quiet window starts only once the host page has inserted its frame: the
+  /// served page then fetches [_RecordingOrigin.embedded] (a fetch, not a navigation, so iOS lets
+  /// it through), which never reaches the app's bridge.
   Future<void> expectFrameNeverRequested(
       WidgetTester tester, String frame) async {
     final host = await _RecordingOrigin.start();
@@ -194,9 +196,9 @@ void main() {
         extra: '&frame=$frame',
         atBase: host.base,
         foreignBase: other.base);
-    await host.waitFor('frame-host.html');
+    await host.waitFor(_RecordingOrigin.embedded);
     await form.quiet();
-    expect(host.requested, ['frame-host.html'],
+    expect(host.requested, ['frame-host.html', _RecordingOrigin.embedded],
         reason: 'the frame is never requested from the page origin');
     expect(other.requested, isEmpty,
         reason: 'the frame is never requested from another origin');
@@ -321,6 +323,9 @@ class _RecordingOrigin {
 
   static const _served = {'frame-host.html', 'frame.html'};
 
+  /// Fetched by the served frame-host.html right after its script inserted the frame.
+  static const embedded = 'frame-embedded';
+
   final HttpServer _server;
   final requested = <String>[];
 
@@ -346,9 +351,16 @@ class _RecordingOrigin {
       final name = segments.isEmpty ? '' : segments.last;
       origin.requested.add(name);
       if (_served.contains(name)) {
+        var page = await rootBundle.loadString('integration_test/assets/$name');
+        if (name == 'frame-host.html') {
+          // Runs after the fixture's own script, which has inserted the frame by then.
+          page = page.replaceFirst(
+              '</body>', '<script>fetch("$embedded");</script></body>');
+        }
         request.response.headers.contentType = ContentType.html;
-        request.response.write(
-            await rootBundle.loadString('integration_test/assets/$name'));
+        request.response.write(page);
+      } else if (name == embedded) {
+        request.response.statusCode = HttpStatus.noContent;
       } else {
         request.response.statusCode = HttpStatus.notFound;
       }
