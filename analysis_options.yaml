@@ -2,9 +2,3 @@ include: package:flutter_lints/flutter.yaml
 
 # Additional information about this file can be found at
 # https://dart.dev/guides/language/analysis-options
-
-analyzer:
-  exclude:
-    # Imports url_launcher, a dependency of the generated host app only
-    # (tool/host_app.sh), never of this package.
-    - tool/host_app/url_opener.dart

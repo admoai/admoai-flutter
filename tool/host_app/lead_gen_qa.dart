@@ -4,8 +4,6 @@ import 'dart:convert';
 import 'package:admoai/admoai.dart';
 import 'package:flutter/material.dart';
 
-import 'url_opener.dart';
-
 /// The placement the Lead Generation QA round requests.
 const String qaPlacementKey = 'sdk_ie_lead_generation';
 
@@ -17,12 +15,10 @@ const Map<StandardAttributeKey, String> qaPrefillValues = {
 };
 
 /// Prefill on offers fullName, email and phone; off is the empty provider.
-/// [delay] makes it answer late, to exercise the SDK's lookup timeout.
 class QaPrefillProvider implements LeadFormValueProvider {
-  const QaPrefillProvider({required this.prefill, this.delay = Duration.zero});
+  const QaPrefillProvider({required this.prefill});
 
   final bool prefill;
-  final Duration delay;
 
   @override
   Set<StandardAttributeKey> get availableKeys =>
@@ -33,7 +29,6 @@ class QaPrefillProvider implements LeadFormValueProvider {
     Set<StandardAttributeKey> keys,
   ) async {
     if (!prefill) return const {};
-    if (delay > Duration.zero) await Future<void>.delayed(delay);
     return {
       for (final entry in qaPrefillValues.entries)
         if (keys.contains(entry.key)) entry.key: entry.value,
@@ -69,9 +64,7 @@ class LeadGenQaScreen extends StatefulWidget {
 class _LeadGenQaScreenState extends State<LeadGenQaScreen>
     implements LeadFormHost {
   bool _prefill = true;
-  bool _slowPrefill = false;
   bool _optIn = true;
-  FormPresentation _presentation = FormPresentation.fullScreen;
 
   bool _requesting = false;
   bool _requested = false;
@@ -111,10 +104,7 @@ class _LeadGenQaScreenState extends State<LeadGenQaScreen>
   void _applyOptIn() {
     if (_optIn) {
       widget.sdk.enableInteractiveExperiences(
-        QaPrefillProvider(
-          prefill: _prefill,
-          delay: _slowPrefill ? const Duration(seconds: 3) : Duration.zero,
-        ),
+        QaPrefillProvider(prefill: _prefill),
       );
     } else {
       widget.sdk.disableInteractiveExperiences();
@@ -144,7 +134,7 @@ class _LeadGenQaScreenState extends State<LeadGenQaScreen>
   LeadFormController? _newController(Creative creative) =>
       widget.sdk.createLeadFormController(
         creative,
-        presentation: _presentation,
+        presentation: FormPresentation.fullScreen,
         host: this,
       );
 
@@ -252,18 +242,10 @@ class _LeadGenQaScreenState extends State<LeadGenQaScreen>
       setState(() {});
       return;
     }
-    if (_presentation == FormPresentation.fullScreen) {
-      await Navigator.of(context).push(MaterialPageRoute<void>(
-        builder: (_) => _QaFormSurface(controller: active, sheet: false),
-      ));
-    } else {
-      await showModalBottomSheet<void>(
-        context: context,
-        isScrollControlled: true,
-        builder: (_) => _QaFormSurface(controller: active, sheet: true),
-      );
-    }
-    // The form is gone: by its close button, Back, a drag or the host's pop.
+    await Navigator.of(context).push(MaterialPageRoute<void>(
+      builder: (_) => _QaFormSurface(controller: active),
+    ));
+    // The form is gone: by its close button, Back or the host's pop.
     _formShown = false;
     if (!mounted || !identical(_controller, active)) return;
     final state = active.state.value;
@@ -278,7 +260,7 @@ class _LeadGenQaScreenState extends State<LeadGenQaScreen>
 
   @override
   void onRequestClose(LeadFormController controller) {
-    // Pop the form's own route or sheet; maybePop() would run Back handling,
+    // Pop the form's own route; maybePop() would run Back handling,
     // which the visible form intercepts.
     if (mounted && _formShown) Navigator.of(context).pop();
   }
@@ -289,21 +271,13 @@ class _LeadGenQaScreenState extends State<LeadGenQaScreen>
     ExternalLinkPurpose purpose,
     Uri url,
   ) {
-    _showLink(purpose, url);
-    unawaited(openExternalUrl(url).then<void>((opened) {
-      if (!opened && mounted) _showLink(purpose, url, failed: true);
-    }));
-  }
-
-  void _showLink(ExternalLinkPurpose purpose, Uri url, {bool failed = false}) {
+    // The link reaches the app, never the form: the QA screen only names it.
     if (!mounted) return;
     final messenger = ScaffoldMessenger.of(context);
     messenger.hideCurrentSnackBar();
-    messenger.showSnackBar(SnackBar(
-      content: Text(
-        '${failed ? 'could not open ' : ''}link: ${purpose.name} -> $url',
-      ),
-    ));
+    messenger.showSnackBar(
+      SnackBar(content: Text('link: ${purpose.name} -> $url')),
+    );
   }
 
   String _statusText() {
@@ -338,15 +312,6 @@ class _LeadGenQaScreenState extends State<LeadGenQaScreen>
             }),
           ),
           SwitchListTile(
-            key: const Key('qa-slow-prefill'),
-            title: const Text('Slow prefill (3 s)'),
-            value: _slowPrefill,
-            onChanged: (value) => setState(() {
-              _slowPrefill = value;
-              _applyOptIn();
-            }),
-          ),
-          SwitchListTile(
             key: const Key('qa-optin'),
             title: const Text('Opt-in'),
             value: _optIn,
@@ -354,36 +319,6 @@ class _LeadGenQaScreenState extends State<LeadGenQaScreen>
               _optIn = value;
               _applyOptIn();
             }),
-          ),
-          SegmentedButton<FormPresentation>(
-            key: const Key('qa-presentation'),
-            segments: const [
-              ButtonSegment(
-                value: FormPresentation.fullScreen,
-                label: Text('fullScreen'),
-              ),
-              ButtonSegment(
-                value: FormPresentation.inline,
-                label: Text('sheet'),
-              ),
-            ],
-            selected: {_presentation},
-            onSelectionChanged: _requesting
-                ? null
-                : (selection) => setState(() {
-                      _presentation = selection.first;
-                      // The controller is created for one presentation: start a new one.
-                      if (!_formShown) {
-                        _releaseController();
-                        final creative = _creative;
-                        final fresh =
-                            creative == null ? null : _newController(creative);
-                        if (fresh != null) {
-                          _adopt(fresh);
-                          unawaited(fresh.prepare());
-                        }
-                      }
-                    }),
           ),
           const SizedBox(height: 8),
           Wrap(
@@ -400,11 +335,6 @@ class _LeadGenQaScreenState extends State<LeadGenQaScreen>
                   onPressed: () => unawaited(controller?.retry()),
                   child: const Text('Retry'),
                 ),
-              OutlinedButton(
-                key: const Key('qa-dispose-all'),
-                onPressed: () => widget.sdk.disposeAllLeadForms(),
-                child: const Text('Dispose all'),
-              ),
             ],
           ),
           const SizedBox(height: 8),
@@ -464,13 +394,12 @@ class _LeadGenQaScreenState extends State<LeadGenQaScreen>
   }
 }
 
-/// The form on screen: a route (fullScreen) or a bottom sheet. It reports the
+/// The form on screen, as a full-screen route. It reports the
 /// real visibility to the controller, as the README's `_LeadFormRoute` does.
 class _QaFormSurface extends StatefulWidget {
-  const _QaFormSurface({required this.controller, required this.sheet});
+  const _QaFormSurface({required this.controller});
 
   final LeadFormController controller;
-  final bool sheet;
 
   @override
   State<_QaFormSurface> createState() => _QaFormSurfaceState();
@@ -493,27 +422,9 @@ class _QaFormSurfaceState extends State<_QaFormSurface> {
 
   @override
   Widget build(BuildContext context) {
-    final view = LeadFormView(controller: widget.controller);
-    if (!widget.sheet) {
-      // The Scaffold resizes for the keyboard; the form draws its own close.
-      return Scaffold(body: SafeArea(child: view));
-    }
-    final height = MediaQuery.of(context).size.height * 0.85;
-    return SizedBox(
-      height: height,
-      child: Column(
-        children: [
-          Align(
-            alignment: Alignment.centerRight,
-            child: IconButton(
-              icon: const Icon(Icons.close),
-              tooltip: 'Close',
-              onPressed: () => Navigator.of(context).pop(),
-            ),
-          ),
-          Expanded(child: view),
-        ],
-      ),
+    // The Scaffold resizes for the keyboard; the form draws its own close.
+    return Scaffold(
+      body: SafeArea(child: LeadFormView(controller: widget.controller)),
     );
   }
 }
