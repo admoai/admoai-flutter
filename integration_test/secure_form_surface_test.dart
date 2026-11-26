@@ -2,7 +2,15 @@
 library;
 
 import 'dart:async';
-import 'dart:io' show Platform;
+import 'dart:convert' show base64;
+import 'dart:io'
+    show
+        ContentType,
+        HttpServer,
+        HttpStatus,
+        InternetAddress,
+        Platform,
+        SecurityContext;
 
 import 'package:admoai/src/interactive/secure_form_surface.dart';
 import 'package:flutter/material.dart';
@@ -30,12 +38,20 @@ import 'package:integration_test/integration_test.dart';
 ///
 ///   --dart-define=FIXTURE_BASE=https://localhost:8443
 ///   --dart-define=FIXTURE_FOREIGN_BASE=https://localhost:8444
+///
+/// The two frame scenarios also need, on iOS, the same certificate and key, base64-encoded, so the
+/// test can serve two recording origins itself (see [_RecordingOrigin]):
+///
+///   --dart-define=FIXTURE_TLS_CERT_B64="$(base64 -i cert.pem)"
+///   --dart-define=FIXTURE_TLS_KEY_B64="$(base64 -i key.pem)"
 const _androidBase =
     'https://appassets.androidplatform.net/assets/flutter_assets/integration_test/assets';
 const _androidForeignBase =
     'https://other.appassets.example/assets/flutter_assets/integration_test/assets';
 const _base = String.fromEnvironment('FIXTURE_BASE');
 const _foreignBase = String.fromEnvironment('FIXTURE_FOREIGN_BASE');
+const _tlsCertB64 = String.fromEnvironment('FIXTURE_TLS_CERT_B64');
+const _tlsKeyB64 = String.fromEnvironment('FIXTURE_TLS_KEY_B64');
 
 /// `--dart-define=EXPECT_SUPPORTED=false` on a device that cannot host the view (iOS 13).
 const _expectSupported =
@@ -89,12 +105,14 @@ void main() {
     WidgetTester tester, {
     String page = 'form.html',
     String extra = '',
+    String? atBase,
+    String? foreignBase,
   }) async {
     final id = 'device_form_${++counter}';
-    final foreignParam = Uri.encodeComponent(foreign);
-    final url =
-        Uri.parse('$base/$page#instanceId=$_instanceId&channel=$_channelId'
-            '&foreign=$foreignParam$extra');
+    final foreignParam = Uri.encodeComponent(foreignBase ?? foreign);
+    final url = Uri.parse(
+        '${atBase ?? base}/$page#instanceId=$_instanceId&channel=$_channelId'
+        '&foreign=$foreignParam$extra');
     final form = _Form(id, url, surface);
     await surface.create(id, url);
     await tester.pumpWidget(MaterialApp(
@@ -159,8 +177,35 @@ void main() {
     }
   });
 
+  /// iOS refuses every navigation but the launch URL, frames included, so the frame is never even
+  /// requested and nothing in it can reach the app. Android loads the frame and refuses its bridge
+  /// messages instead, which is why only Android can wait for the frame's own acknowledgement.
+  /// The host page and both frame origins are served by the test, which records every file asked
+  /// of them: the host page being fetched over the same TLS setup shows a frame request would
+  /// have been seen.
+  Future<void> expectFrameNeverRequested(
+      WidgetTester tester, String frame) async {
+    final host = await _RecordingOrigin.start();
+    addTearDown(host.close);
+    final other = await _RecordingOrigin.start();
+    addTearDown(other.close);
+    final form = await open(tester,
+        page: 'frame-host.html',
+        extra: '&frame=$frame',
+        atBase: host.base,
+        foreignBase: other.base);
+    await host.waitFor('frame-host.html');
+    await form.quiet();
+    expect(host.requested, ['frame-host.html'],
+        reason: 'the frame is never requested from the page origin');
+    expect(other.requested, isEmpty,
+        reason: 'the frame is never requested from another origin');
+    expect(form.received, isEmpty, reason: 'nothing reaches the app');
+  }
+
   surfaceTest('a frame from another origin cannot reach the app',
       (tester) async {
+    if (Platform.isIOS) return expectFrameNeverRequested(tester, 'other');
     final form =
         await open(tester, page: 'frame-host.html', extra: '&frame=other');
     await form.waitFor(1);
@@ -170,6 +215,7 @@ void main() {
 
   surfaceTest('a frame from the same origin cannot reach the app',
       (tester) async {
+    if (Platform.isIOS) return expectFrameNeverRequested(tester, 'same');
     final form =
         await open(tester, page: 'frame-host.html', extra: '&frame=same');
     await form.waitFor(1);
@@ -266,6 +312,63 @@ void main() {
         reason: 'no post reaches the app after destroy');
     expect(form.received, contains('tick'));
   });
+}
+
+/// iOS only: an https origin on localhost served by the test itself, which records the file name
+/// of every request. It serves the frame fixtures from the host app's assets and nothing else.
+class _RecordingOrigin {
+  _RecordingOrigin._(this._server);
+
+  static const _served = {'frame-host.html', 'frame.html'};
+
+  final HttpServer _server;
+  final requested = <String>[];
+
+  String get base => 'https://localhost:${_server.port}';
+
+  static Future<_RecordingOrigin> start() async {
+    if (_tlsCertB64.isEmpty || _tlsKeyB64.isEmpty) {
+      fail('The iOS frame scenarios cannot serve their pages. '
+          'Why: FIXTURE_TLS_CERT_B64 or FIXTURE_TLS_KEY_B64 is missing. '
+          'Fix: pass the certificate the simulator trusts and its key, base64-encoded: '
+          '--dart-define=FIXTURE_TLS_CERT_B64="\$(base64 -i cert.pem)" '
+          '--dart-define=FIXTURE_TLS_KEY_B64="\$(base64 -i key.pem)" '
+          '(see the iOS section of the B7 Flutter runbook).');
+    }
+    final context = SecurityContext()
+      ..useCertificateChainBytes(base64.decode(_tlsCertB64))
+      ..usePrivateKeyBytes(base64.decode(_tlsKeyB64));
+    final server =
+        await HttpServer.bindSecure(InternetAddress.loopbackIPv4, 0, context);
+    final origin = _RecordingOrigin._(server);
+    server.listen((request) async {
+      final segments = request.uri.pathSegments;
+      final name = segments.isEmpty ? '' : segments.last;
+      origin.requested.add(name);
+      if (_served.contains(name)) {
+        request.response.headers.contentType = ContentType.html;
+        request.response.write(
+            await rootBundle.loadString('integration_test/assets/$name'));
+      } else {
+        request.response.statusCode = HttpStatus.notFound;
+      }
+      await request.response.close();
+    });
+    return origin;
+  }
+
+  /// Waits until [name] was requested, or fails after 15 s.
+  Future<void> waitFor(String name) async {
+    final deadline = DateTime.now().add(const Duration(seconds: 15));
+    while (!requested.contains(name)) {
+      if (DateTime.now().isAfter(deadline)) {
+        fail('timed out waiting for a request for $name; got $requested');
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+    }
+  }
+
+  Future<void> close() => _server.close(force: true);
 }
 
 /// The events of one surface, and what the app can do to it.
