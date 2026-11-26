@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:admoai/admoai.dart';
 import 'package:flutter/material.dart';
 
+import 'lead_gen_qa.dart';
+
 /// Override with `--dart-define=ADMOAI_BASE_URL=...`. The default reaches a
 /// decision engine running on the host machine from an Android emulator.
 const String baseUrl = String.fromEnvironment(
@@ -16,8 +18,30 @@ const String baseUrl = String.fromEnvironment(
 const bool audienceOn =
     String.fromEnvironment('QA_AUDIENCE', defaultValue: 'on') != 'off';
 
+/// `--dart-define=QA_LEAD_GEN=on` shows the Lead Generation QA screen
+/// (lead_gen_qa.dart) instead of the request-only screen below, which stays the
+/// default: CI's integration_test and native jobs run it.
+const bool qaLeadGen = String.fromEnvironment('QA_LEAD_GEN') == 'on';
+
+/// QA screen only: the decision version sent as `X-Decision-Version`. An empty
+/// value (`--dart-define=ADMOAI_API_VERSION=`) sends none.
+const String qaApiVersion = String.fromEnvironment(
+  'ADMOAI_API_VERSION',
+  defaultValue: '2025-11-01',
+);
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  if (qaLeadGen) {
+    final sdk = await AdMoai.initialize(
+      config: SDKConfig(
+        baseUrl: baseUrl,
+        apiVersion: qaApiVersion.isEmpty ? null : qaApiVersion,
+      ),
+    );
+    runApp(LeadGenQaApp(sdk: sdk, baseUrl: baseUrl));
+    return;
+  }
   final sdk = await AdMoai.initialize(
     // Carrier and category collection is opt-in: on in this app, off when run
     // with QA_AUDIENCE=off. The app shows the request it builds; it does not
